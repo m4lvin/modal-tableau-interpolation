@@ -1,0 +1,54 @@
+name:                Logic
+version:             0.1.0.0
+synopsis:            Basic stuff for propositional and modal logic.
+description:         n/a
+author:              Malvin Gattinger
+maintainer:          malvin@w4eg.eu
+copyright:           2016 Malvin Gattinger
+category:            Logic
+build-type:          Simple
+cabal-version:       >=1.10
+
+Library
+  ghc-options:        -Wall
+  default-language:   Haskell2010
+  exposed-modules:
+                      Logic.PDL
+                      Logic.PDL.Lex
+                      Logic.PDL.Parse
+                      Logic.PDL.Tools
+                      Logic.PDL.Token
+                      Logic.PDL.Prove.Tree
+                      Logic.PDL.Examples
+                      -- Logic.Propositional
+                      -- Logic.Propositional.Examples
+                      -- Logic.Propositional.Interpolation
+                      -- Logic.Propositional.Interpolation.Naive
+                      -- Logic.Propositional.Interpolation.ProofTree
+                      -- Logic.Propositional.Prove.List
+                      -- Logic.Propositional.Prove.Tree
+                      -- Logic.BasicModal
+                      -- Logic.BasicModal.Examples
+                      -- Logic.BasicModal.Interpolation
+                      -- Logic.BasicModal.Interpolation.ProofTree
+                      -- Logic.BasicModal.Prove.Tree
+  other-modules:      Logic.Internal
+  build-depends:      base >= 4.7 && < 5,
+                      array,
+                      containers,
+                      graphviz,
+                      process,
+                      QuickCheck,
+                      random,
+                      temporary
+
+test-suite tests
+  type:               exitcode-stdio-1.0
+  ghc-options:        -Wall
+  hs-source-dirs:     test
+  default-language:   Haskell2010
+  main-is:            tests.hs
+  build-depends:      base >= 4.7 && < 5,
+                      hspec,
+                      Logic,
+                      QuickCheck
