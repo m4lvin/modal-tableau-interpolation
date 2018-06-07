@@ -106,43 +106,42 @@ disSet (f:fs) = Dis f (disSet fs)
 -- | Simplify a formula by removing double negations etc.
 simplify :: Form -> Form
 simplify = fixpoint simstep where
-  simstep Top             = Top
-  simstep Bot             = Bot
-  simstep (At at)         = At at
-  simstep (Neg Top)       = Bot
-  simstep (Neg Bot)       = Top
-  simstep (Neg (At at))   = Neg (At at)
-  simstep (Neg (Neg g))   = simstep g
-  simstep (Neg f)         = Neg (simstep f)
-  simstep (Imp Top f)     = f
-  simstep (Imp _   Top)   = Top
-  simstep (Imp Bot _)     = Top
-  simstep (Imp g   Bot)   = simstep (Neg g)
-  simstep (Imp g   h)
-    | h == Neg g = Neg g
-    | otherwise  = Imp (simstep g) (simstep h)
-  simstep (Con Bot _) = Bot
-  simstep (Con _ Bot) = Bot
-  simstep (Con Top g) = simstep g
-  simstep (Con f Top) = simstep f
-  simstep (Con f g)   = Con (simstep f) (simstep g)
-  simstep (Dis Top _) = Top
-  simstep (Dis _ Top) = Top
-  simstep (Dis Bot g) = simstep g
-  simstep (Dis f Bot) = simstep f
-  simstep (Dis f g)   = Dis (simstep f) (simstep g)
-  simstep (Box pr f) = Box pr $ simstep f
-  simstep (Dia pr f) = Dia pr $ simstep f
+  simstep Top           = Top
+  simstep Bot           = Bot
+  simstep (At at)       = At at
+  simstep (Neg Top)     = Bot
+  simstep (Neg Bot)     = Top
+  simstep (Neg (At at)) = Neg (At at)
+  simstep (Neg (Neg g)) = simstep g
+  simstep (Neg f)       = Neg (simstep f)
+  simstep (Imp Top f)   = f
+  simstep (Imp _   Top) = Top
+  simstep (Imp Bot _)   = Top
+  simstep (Imp g   Bot) = simstep (Neg g)
+  simstep (Imp g   h)   | h == Neg g = Neg g
+                        | otherwise  = Imp (simstep g) (simstep h)
+  simstep (Con Bot _)   = Bot
+  simstep (Con _ Bot)   = Bot
+  simstep (Con Top g)   = simstep g
+  simstep (Con f Top)   = simstep f
+  simstep (Con f g)     = Con (simstep f) (simstep g)
+  simstep (Dis Top _)   = Top
+  simstep (Dis _ Top)   = Top
+  simstep (Dis Bot g)   = simstep g
+  simstep (Dis f Bot)   = simstep f
+  simstep (Dis f g)     = Dis (simstep f) (simstep g)
+  simstep (Box pr f)    = Box (simplifyProg pr) $ simstep f
+  simstep (Dia pr f)    = Dia (simplifyProg pr) $ simstep f
 
 simplifyProg :: Prog -> Prog
-simplifyProg (Ap ap) = Ap ap
-simplifyProg (Cup pr1 pr2) = Cup (simplifyProg pr1) (simplifyProg pr2) -- TODO: merge sub-Cups
-simplifyProg (pr1 :- pr2) = undefined
-simplifyProg (Star pr) = undefined
-simplifyProg (NStar pr) = undefined
-simplifyProg (Test f) = Test (simplify f)
-
--- TODO simplify programs
+simplifyProg = fixpoint simstep where
+  simstep (Ap ap)       = Ap ap
+  simstep (Cup pr1 pr2) | pr1 == pr2 = pr1
+                        | otherwise  = Cup (simstep pr1) (simstep pr2) -- TODO: merge sub-Cups
+  simstep (pr1 :- pr2)  = simstep pr1 :- simstep pr2
+  simstep (Star  pr)    = Star (simstep pr)
+  simstep (NStar pr)    = NStar (simstep pr)
+  simstep (Test   f)    = Test (simplify f)
 
 -- | Get the immediate subformulas.
 immediateSubformulas :: Form -> [Form]

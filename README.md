@@ -18,3 +18,5 @@ The big goal is a tableaux prover for PDL.
 - enumeration of formulas
 
 - modal logic
+
+- check out Kuznets' work: https://sites.google.com/site/kuznets/interpol_hyper_v2.pdf

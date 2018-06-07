@@ -17,7 +17,7 @@ segerbergFor f g x y =
   , Box (x :- y)  f <--> Box x (Box y f)
   , Box (Cup x y) f <--> Con (Box x f) (Box y f)
   , Box (Star x)  f <--> Con f (Box (x :- Star x) f)
-  -- , Box (Test f) g  <--> (f --> g)
+  , Box (Test f) g  <--> (f --> g)
   ]
 
 -- ([*a]p → (p & [(a ; *a)]p))
