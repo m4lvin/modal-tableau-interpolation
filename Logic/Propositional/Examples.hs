@@ -8,13 +8,13 @@ tautology :: Form
 tautology = dis p (Neg p)
 
 tautNegCon :: Form
-tautNegCon = Neg $ con p (Neg p)
+tautNegCon = Neg $ Con p (Neg p)
 
 openNegCon :: Form
-openNegCon = con p (Neg p)
+openNegCon = Con p (Neg p)
 
 partOpen :: Form
-partOpen = con r tautology
+partOpen = Con r tautology
 
 -- | A valid formula too complicated for the List prover.
 weirdform :: Form
@@ -28,7 +28,7 @@ weirdform = disSet
 
 interpolateNaive :: IO ()
 interpolateNaive = do
-  let f = con p q
+  let f = Con p q
   let g = dis   q r
   let i = simplify $ Naive.interpolate (f,g)
   mapM_ print [f,g,i]

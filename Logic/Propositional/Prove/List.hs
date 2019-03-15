@@ -36,10 +36,12 @@ childrenOf :: Form -> [ [Form] ]
 childrenOf Top             = [ ]
 childrenOf (At _)          = [ [ ] ]
 childrenOf (Imp f g)       = [ [Neg f], [g] ]
+childrenOf (Con f g)       = [ [f, g] ]
 childrenOf (Neg Top)       = [ ]
 childrenOf (Neg (At _))    = [ [ ] ]
 childrenOf (Neg (Neg f))   = [ [f] ]
 childrenOf (Neg (Imp f g)) = [ [f, Neg g] ]
+childrenOf (Neg (Con f g)) = [ [Neg f], [Neg g] ]
 
 extend :: Tableaux -> Tableaux
 extend = concatMap extendCase where

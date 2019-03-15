@@ -2,8 +2,8 @@
 
 module Logic.Propositional.Interpolation.ProofTree where
 
-import Data.GraphViz
-import Data.GraphViz.Types.Monadic
+import Data.GraphViz (shape,toLabel,Shape(..))
+import Data.GraphViz.Types.Monadic (edge,node)
 import Test.QuickCheck
 
 import Logic.Propositional
@@ -43,8 +43,8 @@ ipOf End = error "End nodes do not have interpolants."
 ipOf (Node (_,Just f ) _ _) = f
 ipOf (Node (_,Nothing) _ _) = error "No interpolant here."
 
-interpolateNode :: [WForm] -> [Form]
-interpolateNode wfs = filter evil (leftsOf wfs) where
+interpolateClosedNode :: [WForm] -> [Form]
+interpolateClosedNode wfs = filter evil (leftsOf wfs) where
   evil (Neg f) = f `elem` rightsOf wfs || Neg (Neg f) `elem` rightsOf wfs
   evil f       = Neg f `elem` rightsOf wfs
 
@@ -52,15 +52,16 @@ fillIPs :: TableauxIP -> TableauxIP
 -- Ends and already interpolated nodes: nothing to do
 fillIPs End = End
 fillIPs t@(Node (_, Just _) _ _) = t
--- Closed end nodes: use
+-- Closed end nodes:
 fillIPs (Node (wfs, Nothing) "✘" [End]) = Node (wfs, Just ip) "✘" [End] where
   ip
     | isClosedNode (leftsOf wfs)  = bot -- inconsistency implies bot
     | isClosedNode (rightsOf wfs) = Top -- Top implies Neg inconsistency
-    | isClosedNode (collapseList wfs) = case filter (`elem` leftsOf wfs) (interpolateNode wfs) of
-        []    -> error $ "fillIPs failed, no interpolate found in " ++ ppWForms wfs
-        (x:_) -> x
-    | otherwise = error $ "This should not be a closed end: " ++ ppWForms wfs
+    | isClosedNode (collapseList wfs) =
+        case filter (`elem` leftsOf wfs) (interpolateClosedNode wfs) of
+          []    -> error $ "fillIPs failed, no interpolant found at this closed node: " ++ ppWForms wfs
+          (x:_) -> x
+    | otherwise = error $ "fillIPs failed, this node should not have been closed: " ++ ppWForms wfs
 fillIPs (Node (wfs,Nothing) rule ts)
 -- Non-end nodes where childs are missing IPs: recurse
   | any (not . hasIP) ts = fillIPs $ Node (wfs, Nothing) rule (map fillIPs ts)
@@ -70,15 +71,23 @@ fillIPs (Node (wfs,Nothing) rule ts)
         -- probably correct and easy, because single-child:
         "¬¬" -> ipOf t where [t] = ts
         "¬→" -> ipOf t where [t] = ts
+        "&"  -> ipOf t where [t] = ts
         -- the tricky ones, check them again and again!
-        -- also, should they depend on weightOf the active formula!?
+        -- also, should they depend on weightOf the active formula!? -- that should be the active side!
         "→" -> connective (ipOf t1) (ipOf t2) where
           [t1@(Node (newwfs,_) _ _),t2] = ts
           connective
             | leftsOf  wfs /= leftsOf newwfs = dis -- left side is active
-            | rightsOf wfs /= rightsOf newwfs = con -- right side is active
+            | rightsOf wfs /= rightsOf newwfs = Con -- right side is active
             | otherwise = error "Could not find the active side."
-        _ -> error "Unknown rule applied. Can not interpolate!"
+        "¬&" -> connective (ipOf t1) (ipOf t2) where
+          [t1@(Node (newwfs,_) _ _),t2] = ts
+          connective
+            | leftsOf  wfs /= leftsOf newwfs = dis -- left side is active
+            | rightsOf wfs /= rightsOf newwfs = Con -- right side is active
+            | otherwise = error "Could not find the active side."
+
+        ruleStr -> error $ "Unknown rule '" ++ ruleStr ++ "' applied. Can not interpolate!"
 
 fillAllIPs :: TableauxIP -> TableauxIP
 fillAllIPs = fixpoint fillIPs -- TODO is this necessary?
@@ -95,11 +104,14 @@ interpolate :: (Form,Form) -> Form
 interpolate = snd . proveAndInterpolate
 
 interpolateShow :: (Form,Form) -> IO Form
-interpolateShow pair = do
-  let (t,ip) = proveAndInterpolate pair
-  disp t
-  print $ simplify ip
-  return ip
+interpolateShow pair@(f,g) =
+  if provable (f --> g)
+    then do
+      let (t,ip) = proveAndInterpolate pair
+      disp t
+      print $ simplify ip
+      return ip
+    else error "not provable!"
 
 isNice :: (Form,Form) -> Bool
 isNice (f,g) = provable (f `Imp` g)
@@ -113,7 +125,7 @@ makeNiceExample = do
   f <- generate arbitrary
   g <- generate arbitrary
   if isNice (f,g)
-    then return (f,g)
+    then do { print (f,g); return (f,g) }
     else makeNiceExample
 
 checkNiceExamples :: IO ()

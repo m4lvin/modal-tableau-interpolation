@@ -34,7 +34,7 @@ leftsOf  wfs = [f | Left f <- wfs]
 rightsOf wfs = [f | Right f <- wfs]
 
 ppWForms :: [WForm] -> String
-ppWForms wfs = show (leftsOf wfs) ++ " | " ++ show (rightsOf wfs)
+ppWForms wfs = show (leftsOf wfs) ++ "  ;  " ++ show (rightsOf wfs)
 
 instance DispAble Tableaux where
   toGraph = toGraph' "" where
@@ -58,8 +58,10 @@ simpleRule (Neg Top)       = Nothing
 -- Single-branch rules:
 simpleRule (Neg (Neg f))   = Just ("¬¬", [ [f] ])
 simpleRule (Neg (Imp f g)) = Just ("¬→", [ [f, Neg g] ])
+simpleRule (Con f g)       = Just ("&" , [ [f,     g] ])
 -- Splitting rules:
-simpleRule (Imp f g)       = Just ("→" , [ [ Neg f ], [g] ])
+simpleRule (Imp f g)       = Just ("→" , [ [ Neg f ], [    g] ])
+simpleRule (Neg (Con f g)) = Just ("¬&", [ [ Neg f ], [Neg g] ])
 
 usable :: WForm -> Bool
 usable wf = case simpleRule (collapse wf) of
