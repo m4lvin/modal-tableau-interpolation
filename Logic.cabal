@@ -20,18 +20,18 @@ Library
                       Logic.PDL.Token
                       Logic.PDL.Prove.Tree
                       Logic.PDL.Examples
-                      -- Logic.Propositional
-                      -- Logic.Propositional.Examples
-                      -- Logic.Propositional.Interpolation
-                      -- Logic.Propositional.Interpolation.Naive
-                      -- Logic.Propositional.Interpolation.ProofTree
-                      -- Logic.Propositional.Prove.List
-                      -- Logic.Propositional.Prove.Tree
-                      -- Logic.BasicModal
-                      -- Logic.BasicModal.Examples
-                      -- Logic.BasicModal.Interpolation
-                      -- Logic.BasicModal.Interpolation.ProofTree
-                      -- Logic.BasicModal.Prove.Tree
+                      Logic.Propositional
+                      Logic.Propositional.Examples
+                      Logic.Propositional.Interpolation
+                      Logic.Propositional.Interpolation.Naive
+                      Logic.Propositional.Interpolation.ProofTree
+                      Logic.Propositional.Prove.List
+                      Logic.Propositional.Prove.Tree
+                      Logic.BasicModal
+                      Logic.BasicModal.Examples
+                      Logic.BasicModal.Interpolation
+                      Logic.BasicModal.Interpolation.ProofTree
+                      Logic.BasicModal.Prove.Tree
   other-modules:      Logic.Internal
   build-depends:      base >= 4.7 && < 5,
                       array,
