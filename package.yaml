@@ -1,0 +1,37 @@
+name:                Logic
+version:             0.1.0.1
+synopsis:            Propositional, Modal and Propositional Dynamic Logic.
+description:         n/a
+maintainer:          Malvin Gattinger <malvin@w4eg.de>
+license:             GPL-3
+category:            Logic
+
+ghc-options:        -Wall
+
+extra-source-files:
+  - README.md
+  - stack.yaml
+  - package.yaml
+  - src/Logic/PDL/Lex.x
+
+library:
+  source-dirs:
+    - src
+  dependencies:
+    - base >= 4.7 && < 5
+    - array
+    - containers
+    - graphviz
+    - process
+    - QuickCheck
+    - random
+    - temporary
+
+tests:
+  tests:
+    main: test/Examples.hs
+    dependencies:
+      - base >= 4.7 && < 5
+      - hspec
+      - Logic
+      - QuickCheck
