@@ -116,11 +116,6 @@ pickOneOfEach :: [[a]] -> [[a]]
 pickOneOfEach [] = [[]]
 pickOneOfEach (l:ls) = [ x:xs | x <- l, xs <- pickOneOfEach ls ]
 
-append :: RuleName -> [Tableaux] -> Tableaux -> Tableaux
-append rule tsToAdd (Node fs _  []) = Node fs rule tsToAdd
-append rule tsToAdd (Node fs r0 ts) = Node fs r0 [append rule tsToAdd t | t <- ts]
-append _    _       End             = End
-
 -- To prove f, start with ¬f.
 startFor :: Form -> Tableaux
 startFor (Imp f g) = Node [Left f, Right (Neg g)] "" []
