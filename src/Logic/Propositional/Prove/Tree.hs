@@ -21,8 +21,6 @@ type RuleName = String
 
 type WForm = Either Form Form
 
-data Side = L | R
-
 collapse :: WForm -> Form
 collapse (Left f)  = f
 collapse (Right f) = f

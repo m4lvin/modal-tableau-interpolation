@@ -9,26 +9,28 @@ import Data.List
 import Logic.Internal
 import Logic.BasicModal
 
--- | Nodes are lists of weighed formulas, together
--- with a rule that was applied to get the children.
-data Tableaux = Node [WForm] RuleName [Tableaux] | End
+-- | A Tableaux is either a Node or an End marker.
+data Tableaux = Node -- ^ A node contains:
+                  [WForm]    -- ^ current lists of weighted formulas
+                  RuleName   -- ^ name of a rule that is applied here
+                  [WForm]    -- ^ list of *active* weighted formulas
+                  [Tableaux] -- ^ list child nodes
+              | End
   deriving (Eq,Ord,Show)
 
 type RuleName = String
 
 type WForm = Either Form Form
 
-data Side = L | R
-
 collapse :: WForm -> Form
-collapse (Left f)  = f
+collapse (Left  f)  = f
 collapse (Right f) = f
 
 collapseList :: [Either Form Form] -> [Form]
 collapseList = map collapse
 
 leftsOf, rightsOf :: [WForm] -> [Form]
-leftsOf  wfs = [f | Left f <- wfs]
+leftsOf  wfs = [f | Left  f <- wfs]
 rightsOf wfs = [f | Right f <- wfs]
 
 ppWForms :: [WForm] -> String
@@ -38,7 +40,7 @@ instance DispAble Tableaux where
   toGraph = toGraph' "" where
     toGraph' pref End =
       node pref [shape PlainText, toLabel "✘"]
-    toGraph' pref (Node fs rule ts) = do
+    toGraph' pref (Node fs rule _actives ts) = do -- TODO can we highlight actives in ppWForms??
       node pref [shape PlainText, toLabel $ ppWForms fs]
       mapM_ (\(t,y') -> do
         toGraph' (pref ++ show y' ++ ":") t
@@ -89,27 +91,31 @@ weightOf :: WForm -> (Form -> WForm)
 weightOf (Left  _) = Left
 weightOf (Right _) = Right
 
+isLeft :: WForm -> Bool
+isLeft (Left  _) = True
+isLeft (Right _) = True
+
 isClosedNode :: [Form] -> Bool
 isClosedNode fs = Bot `elem` fs || Neg Top `elem` fs || any (\f -> Neg f `elem` fs) fs
 
 extensions :: Tableaux -> [Tableaux]
 extensions End = [End]
-extensions (Node wfs "" [])
-  | isClosedNode (collapseList wfs) = [Node wfs "✘" [End]]
+extensions (Node wfs "" _ [])
+  | isClosedNode (collapseList wfs) = [Node wfs "✘" [] [End]] -- TODO mark the formulas which make it closed as active.
   | otherwise = case (filter simplyUsable wfs, filter advancedlyUsable wfs) of
-    ([],[])  -> [ Node wfs "" [] ] -- We're stuck here.
+    ([],[])  -> [ Node wfs "" [] [] ] -- We're stuck here.
     ([],usablewfs)  -> concatMap (\wf -> let
         Just (therule,results,change) = advancedRule (collapse wf)
         rest = delete wf wfs
-        tss = [ Node (nub . sort $ applyW change rest ++ newwfs) "" [] | newwfs <- map (map $ weightOf wf) results ]
-      in extensions (Node wfs therule tss)) usablewfs
+        tss = [ Node (nub . sort $ applyW change rest ++ newwfs) "" [] [] | newwfs <- map (map $ weightOf wf) results ]
+      in extensions (Node wfs therule [wf] tss)) usablewfs
     (usablewfs,_) -> concatMap (\wf -> let
         Just (therule,results,change) = simpleRule (collapse wf)
         rest = delete wf wfs
-        tss = [ Node (nub . sort $ applyW change rest ++ newwfs) "" [] | newwfs <- map (map $ weightOf wf) results ]
-      in extensions (Node wfs therule tss)) usablewfs
-extensions (Node fs rule ts@(_:_)) = [ Node fs rule ts' | ts' <- pickOneOfEach $ map extensions ts ]
-extensions (Node _  rule@(_:_) []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"
+        tss = [ Node (nub . sort $ applyW change rest ++ newwfs) "" [] [] | newwfs <- map (map $ weightOf wf) results ]
+      in extensions (Node wfs therule [wf] tss)) usablewfs
+extensions (Node fs rule actives ts@(_:_)) = [ Node fs rule actives ts' | ts' <- pickOneOfEach $ map extensions ts ]
+extensions (Node _  rule@(_:_) _ []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"
 -- FIXME use filterOneClosedIfAny ????
 
 pickOneOfEach :: [[a]] -> [[a]]
@@ -118,12 +124,12 @@ pickOneOfEach (l:ls) = [ x:xs | x <- l, xs <- pickOneOfEach ls ]
 
 -- To prove f, start with ¬f.
 startFor :: Form -> Tableaux
-startFor (Imp f g) = Node [Left f, Right (Neg g)] "" []
-startFor f = Node [Left $ Neg f] "" []
+startFor (Imp f g) = Node [Left f, Right (Neg g)] "" [] []
+startFor f         = Node [Left $ Neg f]          "" [] []
 
 isClosedTab :: Tableaux -> Bool
 isClosedTab End = True
-isClosedTab (Node _ _ ts) = ts /= [] && all isClosedTab ts
+isClosedTab (Node _ _ _ ts) = ts /= [] && all isClosedTab ts
 
 filterOneClosedIfAny :: [Tableaux] -> [Tableaux]
 filterOneClosedIfAny ts

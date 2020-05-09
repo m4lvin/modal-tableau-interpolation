@@ -37,7 +37,11 @@ main = hspec $ do
       not . provable $ Box (dis p q) --> Box p
     it "(Box p --> Box q) --> Box (p --> q)"  $
       not. provable $ (Box p --> Box q) --> Box (p --> q)
-
-  modifyMaxDiscardRatio (const 100) $ do
+  describe "interpolate" $ do
+    it "(Box (At 'r'),Box (Imp (At 's') (At 'r')))" $
+      testIPgen interpolate $ (Box (At 'r'),Box (Imp (At 's') (At 'r')))
+    it "(Neg (Imp (Neg (Box (Imp (At 's') (At 'q')))) (Neg (Box (At 'p')))),Neg (Box (Imp (At 'p') (At 'q'))))" $
+      testIPgen interpolate $ (Neg (Imp (Neg (Box (Imp (At 's') (At 'q')))) (Neg (Box (At 'p')))),Neg (Box (Imp (At 'p') (At 'q'))))
+  modifyMaxDiscardRatio (const 1000) $ do
     describe "interpolate nice examples" $ do
       prop "" $ (\(f,g) -> isNice (f,g) ==> testIPgen interpolate (f,g))

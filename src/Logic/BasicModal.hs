@@ -1,6 +1,5 @@
 module Logic.BasicModal where
 
-import Control.Monad
 import Data.List
 import Data.GraphViz
 import Data.GraphViz.Types.Monadic hiding ((-->))
@@ -21,7 +20,7 @@ ppForm Bot       = "⊥"
 ppForm (At a)    = [a]
 ppForm (Neg f)   = "¬" ++ ppForm f
 ppForm (Imp f g) = "(" ++ ppForm f ++ " → " ++ ppForm g ++ ")"
-ppForm (Box f) = "☐(" ++ ppForm f ++ ")"
+ppForm (Box f)   = "☐" ++ ppForm f
 
 o,p,q,r,s :: Form
 [o,p,q,r,s] = map At ['o','p','q','r','s']
@@ -199,19 +198,16 @@ isValid f = do
 
 -- | Generate random formulas.
 instance Arbitrary Form where
-  arbitrary = fmap simplify (sized genForm) where
+  arbitrary = simplify <$> sized genForm where
     factor = 2
-    genForm 0 = oneof [ pure Top, At <$> choose ('p','s') ]
+    genForm 0 = oneof [ pure Top, At <$> choose ('p','q') ]
     genForm 1 = At <$> choose ('p','s')
     genForm n = oneof
       [ pure Top
+      , pure Bot
       , At <$> choose ('p','s')
       , Neg <$> genForm (n `div` factor)
-      , Box <$> genForm (n `div` factor)
       , Imp <$> genForm (n `div` factor) <*> genForm (n `div` factor)
-      , conSet <$> genForms (n `div` factor)
-      , disSet <$> genForms (n `div` factor) ]
-    genForms k = do
-      n <- choose (1, min k 4)
-      replicateM n (genForm k)
+      , Box <$> genForm (n `div` factor)
+      ]
   shrink = immediateSubformulas

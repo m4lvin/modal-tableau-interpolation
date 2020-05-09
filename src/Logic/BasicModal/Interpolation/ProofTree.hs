@@ -13,7 +13,7 @@ import Logic.Internal
 
 type Interpolant = Maybe Form
 
-data TableauxIP = Node ([WForm],Interpolant) RuleName [TableauxIP] | End
+data TableauxIP = Node ([WForm],Interpolant) RuleName [WForm] [TableauxIP] | End
   deriving (Eq,Ord,Show)
 
 ppIP :: Interpolant -> String
@@ -24,7 +24,7 @@ instance DispAble TableauxIP where
   toGraph = toGraph' "" where
     toGraph' pref End =
       node pref [shape PlainText, toLabel "✘"]
-    toGraph' pref (Node (wfs,ip) rule ts) = do
+    toGraph' pref (Node (wfs,ip) rule actives ts) = do -- TODO can we highlight actives in ppWForms??
       node pref [shape PlainText, toLabel $ ppWForms wfs ++ "  ::  " ++ ppIP ip]
       mapM_ (\(t,y') -> do
         toGraph' (pref ++ show y' ++ ":") t
@@ -33,18 +33,18 @@ instance DispAble TableauxIP where
 
 toEmptyTabIP :: Tableaux -> TableauxIP
 toEmptyTabIP T.End = End
-toEmptyTabIP (T.Node wfs rule ts) =
-  Node (wfs,Nothing) rule (map toEmptyTabIP ts)
+toEmptyTabIP (T.Node wfs rule actives ts) =
+  Node (wfs,Nothing) rule actives (map toEmptyTabIP ts)
 
 hasIP :: TableauxIP -> Bool
 hasIP End = False
-hasIP (Node (_,Just _ ) _ _) = True
-hasIP (Node (_,Nothing) _ _) = False
+hasIP (Node (_,Just _ ) _ _ _) = True
+hasIP (Node (_,Nothing) _ _ _) = False
 
 ipOf :: TableauxIP -> Form
 ipOf End = error "End nodes do not have interpolants."
-ipOf (Node (_,Just f ) _ _) = f
-ipOf (Node (_,Nothing) _ _) = error "No interpolant here."
+ipOf (Node (_,Just f ) _ _ _) = f
+ipOf (Node (_,Nothing) _ _ _) = error "No interpolant here."
 
 interpolateNode :: [WForm] -> [Form]
 interpolateNode wfs = filter evil (leftsOf wfs) where
@@ -54,42 +54,40 @@ interpolateNode wfs = filter evil (leftsOf wfs) where
 fillIPs :: TableauxIP -> TableauxIP
 -- Ends and already interpolated nodes: nothing to do
 fillIPs End = End
-fillIPs t@(Node (_, Just _) _ _) = t
+fillIPs t@(Node (_, Just _) _ _ _) = t
 -- Closed end nodes: use
-fillIPs (Node (wfs, Nothing) "✘" [End]) = Node (wfs, Just ip) "✘" [End] where
+fillIPs (Node (wfs, Nothing) "✘" actives [End]) = Node (wfs, Just ip) "✘" actives [End] where
   ip
     | isClosedNode (leftsOf wfs)  = Bot -- inconsistency implies bot
     | isClosedNode (rightsOf wfs) = Top -- Top implies Neg inconsistency
-    | isClosedNode (collapseList wfs) = case filter (`elem` leftsOf wfs) (interpolateNode wfs) of
-        []    -> error $ "fillIPs failed, no interpolate found in " ++ ppWForms wfs
+    | isClosedNode (collapseList wfs) = case filter (`elem` leftsOf wfs) (interpolateNode wfs) of -- TODO use actives here!
+        []    -> error $ "fillIPs failed, no interpolant found in " ++ ppWForms wfs
         (x:_) -> x
     | otherwise = error $ "This should not be a closed end: " ++ ppWForms wfs
-fillIPs n@(Node (wfs,Nothing) rule ts)
--- Non-end nodes where childs are missing IPs: recurse
-  | any (not . hasIP) ts = fillIPs $ Node (wfs, Nothing) rule (map fillIPs ts)
--- Non-end nodes where childs already have IPs: distinguish rules
-  | otherwise = Node (wfs, Just $ simplify newIP) rule ts where
-      newIP = case rule of
+fillIPs n@(Node (wfs,Nothing) rule actives ts)
+-- Non-end nodes where children are missing IPs: recurse
+  | any (not . hasIP) ts = fillIPs $ Node (wfs, Nothing) rule actives (map fillIPs ts)
+-- Non-end nodes where children already have IPs: distinguish rules
+  | otherwise = Node (wfs, Just $ simplify newIP) rule actives ts where
+      newIP = case (rule,actives) of
         -- single-child rules are easy, the interpolant stays the same:
-        "¬¬" -> ipOf t where [t] = ts
-        "¬→" -> ipOf t where [t] = ts
+        ("¬¬",_) -> ipOf t where [t] = ts
+        ("¬→",_) -> ipOf t where [t] = ts
         -- for the branching rule we combine two previous interpolants with
-        -- a connective depending on the active side / weightOf the active formula:
-        "→" -> connective (ipOf t1) (ipOf t2) where
-          [t1@(Node (newwfs,_) _ _),t2] = ts
+        -- a connective depending on the side of the active formula:
+        ("→",_) -> connective (ipOf t1) (ipOf t2) where
+          [t1@(Node (newwfs,_) _ _ _),t2] = ts
           connective
             | leftsOf  wfs /= leftsOf  newwfs = dis -- left side is active
             | rightsOf wfs /= rightsOf newwfs = con -- right side is active
             | otherwise = error "Could not find the active side."
-        -- the critical rule, we diamond or Box the interpolant, depending on the active side
+        -- for the critical rule, we prefix the previous interpolant with diamond or Box, depending on the active side
+        -- moroever, if one of the sides is empty we should use Bot or Top as interpolants, but for basic modal logic we do not need that
+        -- (it will matter for PDL, because <a>T and T have different vocabulary!)
         -- (see Borzechowski page 44)
-        "¬☐" -> connective (ipOf t) where
-          [t@(Node (newwfs,_) _ _)] = ts
-          connective
-            | project (leftsOf  wfs) /= leftsOf  newwfs = dia -- left side is active  -- FIXME might need Bot as newIp
-            | project (rightsOf wfs) /= rightsOf newwfs = Box -- right side is active -- FIXME might need Top as newIp
-            | otherwise = error "Could not find the active side."
-        rl -> error $ "Unknown rule " ++ rl ++ " applied. Can not interpolate!:\n" ++ show n
+        ("¬☐",[Left _])  -> let [t] = ts in dia (ipOf t)
+        ("¬☐",[Right _]) -> let [t] = ts in Box (ipOf t)
+        (rl,_) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms actives ++ " Unable to interpolate!:\n" ++ show n
 
 fillAllIPs :: TableauxIP -> TableauxIP
 fillAllIPs = fixpoint fillIPs -- TODO is this necessary?
@@ -119,11 +117,3 @@ isNice (f,g) = provable (f `Imp` g)
             && atomsIn f /= atomsIn g
             && (not . provable . Neg $ f)
             && (not . provable $ g)
-
-makeNiceExample :: IO (Form,Form)
-makeNiceExample = do
-  f <- generate arbitrary
-  g <- generate arbitrary
-  if isNice (f,g)
-    then return (f,g)
-    else makeNiceExample

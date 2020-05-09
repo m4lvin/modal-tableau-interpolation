@@ -13,10 +13,14 @@ The big goal is a tableaux prover for PDL.
     λ> map provable someNonValidities
     [False,False,False,False]
 
-## TODO
+## OLD TODO
 
 - enumeration of formulas
 
 - modal logic
 
 - check out Kuznets' work: https://sites.google.com/site/kuznets/interpol_hyper_v2.pdf
+
+## Basic Modal Logic TODO
+
+- [ ] *WIP* mark active formula in tableaus
