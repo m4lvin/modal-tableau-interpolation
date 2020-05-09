@@ -4,7 +4,6 @@ module Logic.BasicModal.Interpolation.ProofTree where
 
 import Data.GraphViz
 import Data.GraphViz.Types.Monadic hiding ((-->))
-import Test.QuickCheck
 
 import Logic.BasicModal
 import Logic.BasicModal.Prove.Tree hiding (Node,End)
@@ -24,8 +23,8 @@ instance DispAble TableauxIP where
   toGraph = toGraph' "" where
     toGraph' pref End =
       node pref [shape PlainText, toLabel "✘"]
-    toGraph' pref (Node (wfs,ip) rule actives ts) = do -- TODO can we highlight actives in ppWForms??
-      node pref [shape PlainText, toLabel $ ppWForms wfs ++ "  ::  " ++ ppIP ip]
+    toGraph' pref (Node (wfs,ip) rule actives ts) = do
+      node pref [shape PlainText, toLabel $ ppWForms wfs actives ++ "  ::  " ++ ppIP ip]
       mapM_ (\(t,y') -> do
         toGraph' (pref ++ show y' ++ ":") t
         edge pref (pref ++ show y' ++ ":") [toLabel rule]
@@ -57,37 +56,38 @@ fillIPs End = End
 fillIPs t@(Node (_, Just _) _ _ _) = t
 -- Closed end nodes: use
 fillIPs (Node (wfs, Nothing) "✘" actives [End]) = Node (wfs, Just ip) "✘" actives [End] where
-  ip
-    | isClosedNode (leftsOf wfs)  = Bot -- inconsistency implies bot
-    | isClosedNode (rightsOf wfs) = Top -- Top implies Neg inconsistency
-    | isClosedNode (collapseList wfs) = case filter (`elem` leftsOf wfs) (interpolateNode wfs) of -- TODO use actives here!
-        []    -> error $ "fillIPs failed, no interpolant found in " ++ ppWForms wfs
-        (x:_) -> x
-    | otherwise = error $ "This should not be a closed end: " ++ ppWForms wfs
+  ip = case actives of
+    [Left  Bot]        -> Bot
+    [Right Bot]        -> top
+    [Left  f, Right _] -> f
+    [Right _, Left  f] -> f
+    [Left  _, Left  _] -> Bot -- inconsistency implies bot
+    [Right _, Right _] -> top -- top implies Neg inconsistency
+    _                  -> error $ "End node, but wrong actives: " ++ show actives
 fillIPs n@(Node (wfs,Nothing) rule actives ts)
 -- Non-end nodes where children are missing IPs: recurse
   | any (not . hasIP) ts = fillIPs $ Node (wfs, Nothing) rule actives (map fillIPs ts)
 -- Non-end nodes where children already have IPs: distinguish rules
-  | otherwise = Node (wfs, Just $ simplify newIP) rule actives ts where
+  | otherwise = Node (wfs, Just $ newIP) rule actives ts where
       newIP = case (rule,actives) of
         -- single-child rules are easy, the interpolant stays the same:
         ("¬¬",_) -> ipOf t where [t] = ts
         ("¬→",_) -> ipOf t where [t] = ts
-        -- for the branching rule we combine two previous interpolants with
-        -- a connective depending on the side of the active formula:
+        -- for the branching rule we combine the two previous interpolants
+        -- with a connective depending on the side of the active formula:
         ("→",_) -> connective (ipOf t1) (ipOf t2) where
-          [t1@(Node (newwfs,_) _ _ _),t2] = ts
-          connective
-            | leftsOf  wfs /= leftsOf  newwfs = dis -- left side is active
-            | rightsOf wfs /= rightsOf newwfs = con -- right side is active
-            | otherwise = error "Could not find the active side."
+          [t1,t2] = ts
+          connective = case actives of
+            [Left  _] -> dis -- left side is active
+            [Right _] -> con -- right side is active
+            _         -> error "Could not find the active side."
         -- for the critical rule, we prefix the previous interpolant with diamond or Box, depending on the active side
         -- moroever, if one of the sides is empty we should use Bot or Top as interpolants, but for basic modal logic we do not need that
         -- (it will matter for PDL, because <a>T and T have different vocabulary!)
         -- (see Borzechowski page 44)
-        ("¬☐",[Left _])  -> let [t] = ts in dia (ipOf t)
+        ("¬☐",[Left  _]) -> let [t] = ts in dia (ipOf t)
         ("¬☐",[Right _]) -> let [t] = ts in Box (ipOf t)
-        (rl,_) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms actives ++ " Unable to interpolate!:\n" ++ show n
+        (rl,_) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms wfs actives ++ " Unable to interpolate!:\n" ++ show n
 
 fillAllIPs :: TableauxIP -> TableauxIP
 fillAllIPs = fixpoint fillIPs -- TODO is this necessary?

@@ -11,11 +11,10 @@ import Logic.Internal
 
 type Atom = Char
 
-data Form = Top | Bot | At Atom | Neg Form | Imp Form Form | Box Form
+data Form = Bot | At Atom | Neg Form | Imp Form Form | Box Form
   deriving (Eq,Ord,Show)
 
 ppForm :: Form -> String
-ppForm Top       = "⊤"
 ppForm Bot       = "⊥"
 ppForm (At a)    = [a]
 ppForm (Neg f)   = "¬" ++ ppForm f
@@ -29,6 +28,9 @@ ppAts :: [Atom] -> String
 ppAts []  = [ ]
 ppAts [a] = [a]
 ppAts (a:as) = a : "," ++ ppAts as
+
+top :: Form
+top = Neg Bot
 
 (!) :: Form -> Form
 (!) = Neg
@@ -45,7 +47,6 @@ dia = Neg . Box . Neg
 
 -- | Atoms occurring in a formula.
 atomsIn :: Form -> [Atom]
-atomsIn Top       = []
 atomsIn Bot       = []
 atomsIn (At a)    = [a]
 atomsIn (Neg f)   = atomsIn f
@@ -60,24 +61,19 @@ conSet,disSet :: [Form] -> Form
 conSet []     = Bot
 conSet [f]    = f
 conSet (f:fs) = con f (conSet fs)
-disSet []     = Top
+disSet []     = top
 disSet [f]    = f
 disSet (f:fs) = dis f (disSet fs)
 
 -- | Simplify a formula by removing double negations etc.
 simplify :: Form -> Form
 simplify = fixpoint simstep where
-  simstep Top           = Top
   simstep Bot           = Bot
   simstep (At a)        = At a
-  simstep (Neg Top)     = Bot
-  simstep (Neg Bot)     = Top
   simstep (Neg (At a))  = Neg (At a)
   simstep (Neg (Neg g)) = simstep g
   simstep (Neg f)       = Neg (simstep f)
-  simstep (Imp Top f)   = f
-  simstep (Imp _   Top) = Top
-  simstep (Imp Bot _  ) = Top
+  simstep (Imp Bot _  ) = top
   simstep (Imp g   Bot) = simstep (Neg g)
   simstep (Imp g h)
     | h == Neg g        = Neg g
@@ -86,7 +82,6 @@ simplify = fixpoint simstep where
 
 -- | Complexity of a formula.
 complexity :: Form -> Integer
-complexity Top       = 0
 complexity Bot       = 0
 complexity (At _)    = 0
 complexity (Neg f)   = 1 + complexity f
@@ -95,7 +90,6 @@ complexity (Box f)   = 1 + complexity f
 
 -- | Size of a formula, aka number of subformulas
 size :: Form -> Integer
-size Top       = 0
 size Bot       = 0
 size (At _)    = 0
 size (Neg f)   = 1 + size f
@@ -104,7 +98,6 @@ size (Box f)   = 1 + size f
 
 -- | Get the immediate subformulas.
 immediateSubformulas :: Form -> [Form]
-immediateSubformulas Top       = []
 immediateSubformulas Bot       = []
 immediateSubformulas (At _)    = []
 immediateSubformulas (Neg f)   = [f]
@@ -114,7 +107,6 @@ immediateSubformulas (Box f)   = [f]
 -- | Substitute g for a in f.
 -- Example: substitute (p->q) q (q ^ r) == ((p->q) ^ r)
 substitute :: Form -> Atom -> Form -> Form
-substitute _ _ Top       = Top
 substitute _ _ Bot       = Bot
 substitute g a (At b)    = if a == b then g else At b
 substitute g a (Neg f)   = Neg $ substitute g a f
@@ -150,7 +142,6 @@ instance DispAble Model where
 
 -- | Evaluate formula on a model at a world
 eval :: (Model,World) -> Form -> Bool
-eval (_,_) Top       = True
 eval (_,_) Bot       = False
 eval (m,w) (At a)    = a `elem` val m w
 eval (m,w) (Neg f)   = not $ eval (m,w) f
@@ -200,11 +191,10 @@ isValid f = do
 instance Arbitrary Form where
   arbitrary = simplify <$> sized genForm where
     factor = 2
-    genForm 0 = oneof [ pure Top, At <$> choose ('p','q') ]
+    genForm 0 = oneof [ pure Bot, At <$> choose ('p','q') ]
     genForm 1 = At <$> choose ('p','s')
     genForm n = oneof
-      [ pure Top
-      , pure Bot
+      [ pure Bot
       , At <$> choose ('p','s')
       , Neg <$> genForm (n `div` factor)
       , Imp <$> genForm (n `div` factor) <*> genForm (n `div` factor)
