@@ -63,7 +63,7 @@ Prog : 'a' INT { Ap ('a' : show $2) }
      | '(' Prog ')' { $2 }
      | Prog 'u' Prog { Cup $1 $3 }
      | Prog ':-' Prog { $1 :- $3 }
-     | '*' Prog { Star $2 }
+     | Prog '*' { Star $1 }
      | '?' Form { Test $2 }
 
 {

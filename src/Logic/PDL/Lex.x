@@ -25,8 +25,10 @@ tokens :-
   -- Formulas:
   "Top"             { \ p _ -> TokenTop               p }
   "True"            { \ p _ -> TokenTop               p }
+  "⊤"               { \ p _ -> TokenTop               p }
   "Bot"             { \ p _ -> TokenBot               p }
-  "False"           { \ p _ -> TokenTop               p }
+  "False"           { \ p _ -> TokenBot               p }
+  "⊥"               { \ p _ -> TokenBot               p }
   "~"               { \ p _ -> TokenNeg               p }
   "Not"             { \ p _ -> TokenNeg               p }
   "not"             { \ p _ -> TokenNeg               p }

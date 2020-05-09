@@ -22,8 +22,8 @@ class Stringable a where
   pp = putStrLn . toString
 
 instance Stringable Form where
-  toString Top        = "True"
-  toString Bot        = "False"
+  toString Top        = "⊤"
+  toString Bot        = "⊥"
   toString (At at)    = at
   toString (Neg f)    = "¬" ++ toString f
   toString (Imp f g)  = "(" ++ toString f ++ " → " ++ toString g ++ ")"
@@ -37,7 +37,7 @@ instance Stringable Prog where
   toString (Cup p1 p2) = "(" ++ toString p1 ++ " ∪ " ++ toString p2 ++ ")"
   toString (p1 :- p2)  = "(" ++ toString p1 ++ " ; " ++ toString p2 ++ ")"
   toString (Test f)    = "?(" ++ toString f ++ ")"
-  toString (Star pr)   = "*" ++ toString pr
+  toString (Star pr)   = toString pr ++ "*"
   toString (NStar pr)  = "(" ++ toString pr ++ ")ⁿ"
 
 -- | Reduce to Form = Top | At Atom | Neg Form | Imp Form Form | Box Prog Form
