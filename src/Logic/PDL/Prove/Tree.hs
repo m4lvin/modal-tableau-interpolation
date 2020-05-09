@@ -49,7 +49,7 @@ instance DispAble Tableaux where
 
 type RuleWeight = Int
 
--- | Rules: Given a formula, is their an applicable simple rule?
+-- | Rules: Given a formula, is their an applicable rule?
 -- If so, which rule, what replaces the active formula, and does the rest change?
 type RuleApplication = (RuleName, RuleWeight, [[Form]], [Form] -> [Form])
 
@@ -120,8 +120,10 @@ isClosedTab End = True
 isClosedTab (Node _ _ ts) = ts /= [] && all isClosedTab ts
 
 -- To prove f, start with  ¬(minLang f) and extend up to 80 steps.
+-- To prove f --> g, start with proper partition.
 prove :: Form -> Tableaux
-prove f = extendUpTo 80 $ Node [Left $ Neg $ minLang f] "" []
+prove (Imp f g) = extendUpTo 80 $ Node [Left $ minLang f, Right (Neg g)] "" []
+prove f         = extendUpTo 80 $ Node [Left $ Neg $ minLang f         ] "" []
 
 provable :: Form -> Bool
 provable = isClosedTab . prove

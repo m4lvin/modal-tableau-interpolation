@@ -14,7 +14,7 @@ import Logic.BasicModal
 data Tableaux = Node -- ^ A node contains:
                   [WForm]    -- ^ current list of weighted formulas
                   RuleName   -- ^ name of the rule that is applied here
-                  [WForm]    -- ^ list of *active* weighted formulas to which the rule is applied
+                  [WForm]    -- ^ list of *active* wformulas where rule is applied
                   [Tableaux] -- ^ list of child nodes
               | End
   deriving (Eq,Ord,Show)
