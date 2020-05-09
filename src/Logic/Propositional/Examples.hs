@@ -4,18 +4,6 @@ import Logic.Propositional
 import Logic.Propositional.Interpolation
 import Logic.Propositional.Interpolation.Naive as Naive
 
-tautology :: Form
-tautology = dis p (Neg p)
-
-tautNegCon :: Form
-tautNegCon = Neg $ Con p (Neg p)
-
-openNegCon :: Form
-openNegCon = Con p (Neg p)
-
-partOpen :: Form
-partOpen = Con r tautology
-
 -- | A valid formula too complicated for the List prover.
 weirdform :: Form
 weirdform = disSet

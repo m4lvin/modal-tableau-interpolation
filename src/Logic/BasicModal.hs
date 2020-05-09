@@ -201,11 +201,11 @@ isValid f = do
 instance Arbitrary Form where
   arbitrary = fmap simplify (sized genForm) where
     factor = 2
-    genForm 0 = oneof [ pure Top, At <$> choose ('p','z') ]
-    genForm 1 = At <$> choose ('p','z')
+    genForm 0 = oneof [ pure Top, At <$> choose ('p','s') ]
+    genForm 1 = At <$> choose ('p','s')
     genForm n = oneof
       [ pure Top
-      , At <$> choose ('p','z')
+      , At <$> choose ('p','s')
       , Neg <$> genForm (n `div` factor)
       , Box <$> genForm (n `div` factor)
       , Imp <$> genForm (n `div` factor) <*> genForm (n `div` factor)

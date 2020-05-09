@@ -1,6 +1,8 @@
 module Main where
 
 import Test.Hspec
+import Test.Hspec.QuickCheck
+import Test.QuickCheck
 
 import Logic.Propositional
 import Logic.Propositional.Examples
@@ -12,28 +14,31 @@ import qualified Logic.Propositional.Interpolation.ProofTree as ProofTree
 
 main :: IO ()
 main = hspec $ do
-  describe "Logic.Propositional.Prove.List" $ do
-    it "isProvable tautology" $ List.isProvable tautology
-    it "isProvable" $ List.isProvable tautNegCon
-    it "noot (isProvable openNegCon)" $ not (List.isProvable openNegCon)
-    it "not (isProvable partOpen)" $ not (List.isProvable partOpen)
-  describe "Logic.Propositional.Prove.Tree" $ do
-    it "T.isProvable tautology" $ Tree.provable tautology
-    it "T.isProvable" $ Tree.provable tautNegCon
-    it "not (T.isProvable openNegCon)" $ not (Tree.provable openNegCon)
-    it "not (T.isProvable partOpen)" $ not (Tree.provable partOpen)
-    it "T.provable weirdform" $ Tree.provable weirdform
-  describe "Logic.Propositional.Interpolation.Naive" $ do
-    it "interpolate (Con p q, dis q r)" $
-      let
-        f = Con p q
-        g = dis   q r
-        i = Naive.interpolate (f,g)
-      in i `isInterpolantFor` (f,g)
-  describe "Logic.Propositional.Interpolation.ProofTree" $ do
-    it "interpolate (Con p q, dis q r)" $
-      let
-        f = Con p q
-        g = dis   q r
-        i = ProofTree.interpolate (f,g)
-      in i `isInterpolantFor` (f,g)
+  describe "Prove.List.isProvable" $ do
+    it "Top" $ List.isProvable $ Top
+    it "dis p (Neg p)" $ List.isProvable $ dis p (Neg p)
+    it "Neg $ Con p (Neg p)" $ List.isProvable $ Neg $ Con p (Neg p)
+    it "Neg (Imp p q) --> Con p (Neg q)" $ List.isProvable $ Neg (Imp p q) --> Con p (Neg q)
+  describe "not . Prove.List.isProvable" $ do
+    it "Bot" $ not . List.isProvable $ bot
+    it "Con p (Neg p)" $ not . List.isProvable $ Con p (Neg p)
+    it "Con r (dis p (Neg p))" $ not . List.isProvable $ Con r (dis p (Neg p))
+  describe "Prove.Tree.isProvable" $ do
+    it "dis p (Neg p)" $ Tree.provable $ dis p (Neg p)
+    it "Neg $ Con p (Neg p)" $ Tree.provable $ Neg $ Con p (Neg p)
+    it "weirdform" $ Tree.provable weirdform
+  describe "not . Prove.Tree.isProvable" $ do
+    it "Bot" $ not . Tree.provable $ bot
+    it "Con p (Neg p)" $ not . Tree.provable $ Con p (Neg p)
+    it "Con r (dis p (Neg p))" $ not . Tree.provable $ Con r (dis p (Neg p))
+  describe "Interpolation.Naive" $ do
+    it "(Con p q, dis q r)" $
+      testIPgen Naive.interpolate (Con p q, dis q r)
+  describe "Interpolation.ProofTree" $ do
+    it "(Con p q, dis q r)" $
+      testIPgen Naive.interpolate (Con p q, dis q r)
+  modifyMaxDiscardRatio (const 100) $ do
+    describe "check nice examples with Naive" $ do
+      prop "" $ (\(f,g) -> ProofTree.isNice (f,g) ==> testIPgen Naive.interpolate (f,g))
+    describe "check nice examples with ProofTree" $ do
+      prop "" $ (\(f,g) -> ProofTree.isNice (f,g) ==> testIPgen ProofTree.interpolate (f,g))

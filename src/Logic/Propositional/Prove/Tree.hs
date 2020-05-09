@@ -9,6 +9,7 @@ module Logic.Propositional.Prove.Tree where
 import Data.GraphViz
 import Data.GraphViz.Types.Monadic
 import Data.List
+import Data.Maybe (isJust)
 
 import Logic.Internal
 import Logic.Propositional
@@ -64,9 +65,7 @@ simpleRule (Imp f g)       = Just ("→" , [ [ Neg f ], [    g] ])
 simpleRule (Neg (Con f g)) = Just ("¬&", [ [ Neg f ], [Neg g] ])
 
 usable :: WForm -> Bool
-usable wf = case simpleRule (collapse wf) of
-  (Just _) -> True
-  Nothing  -> False
+usable = isJust . simpleRule . collapse
 
 weightOf :: WForm -> (Form -> WForm)
 weightOf (Left  _) = Left
@@ -87,11 +86,6 @@ extend (Node wfs "" [])
       ts = [ extend $ Node (nub . sort $ rest++newwfs) "" [] | newwfs <- map (map $ weightOf wf) results ]
 extend (Node fs rule ts@(_:_)) = Node fs rule [extend t | t <- ts]
 extend (Node _  rule@(_:_) []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"
-
-append :: RuleName -> [Tableaux] -> Tableaux -> Tableaux
-append rule tsToAdd (Node fs _  []) = Node fs rule tsToAdd
-append rule tsToAdd (Node fs r0 ts) = Node fs r0 [append rule tsToAdd t | t <- ts]
-append _    _       End             = End
 
 -- To prove f, start with ¬f.
 startFor :: Form -> Tableaux

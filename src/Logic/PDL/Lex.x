@@ -14,8 +14,6 @@ tokens :-
   -- ignore whitespace:
   $white+           ;
   -- keywords and punctuation:
-  ":"               { \ p _ -> TokenColon             p }
-  ","               { \ p _ -> TokenComma             p }
   "("               { \ p _ -> TokenOB                p }
   ")"               { \ p _ -> TokenCB                p }
   "["               { \ p _ -> TokenCOB               p }

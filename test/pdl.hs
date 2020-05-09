@@ -27,7 +27,7 @@ main = hspec $
     it "parse 'p1'" $
       (parse . alexScanTokens) "p1" `shouldBe` At "p1"
     it "example from file is provable" $
-      parseNprove "~(~p0 & [*a0]( <a0>True & ( ~p0 & [a0]p0 | p0 & [a0]~p0) & ~p0))" `shouldBe` True
+      parseNprove "~(~p0 & [a0*]( <a0>True & ( ~p0 & [a0]p0 | p0 & [a0]~p0) & ~p0))" `shouldBe` True
     it "prove negations of all lines in data/formulae_exp_unsat.txt" $ do
       fs <- exampleData
       let results = map (provable . Neg) fs

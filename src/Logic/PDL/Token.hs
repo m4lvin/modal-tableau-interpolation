@@ -1,8 +1,6 @@
 module Logic.PDL.Token where
 data Token a -- == AlexPn
-  = TokenColon             {apn :: a}
-  | TokenComma             {apn :: a}
-  | TokenInt {fooI::Int,    apn :: a}
+  = TokenInt {fooI::Int,    apn :: a}
   | TokenTop               {apn :: a}
   | TokenBot               {apn :: a}
   | TokenPrp               {apn :: a}

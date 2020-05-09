@@ -8,7 +8,6 @@ import Test.QuickCheck
 
 import Logic.Propositional
 import Logic.Internal
-import Logic.Propositional.Interpolation
 import Logic.Propositional.Prove.Tree hiding (Node,End)
 import qualified Logic.Propositional.Prove.Tree as T (Tableaux(Node,End))
 
@@ -127,6 +126,3 @@ makeNiceExample = do
   if isNice (f,g)
     then do { print (f,g); return (f,g) }
     else makeNiceExample
-
-checkNiceExamples :: IO ()
-checkNiceExamples = quickCheckWith stdArgs {maxDiscardRatio=100} (\(f,g) -> isNice (f,g) ==> testIPgen interpolate (f,g))

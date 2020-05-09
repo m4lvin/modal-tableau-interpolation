@@ -11,8 +11,6 @@ import Logic.PDL
 %error { parseError }
 
 %token
-  COLON  { TokenColon  _ }
-  COMMA  { TokenComma  _ }
   TOP    { TokenTop    _ }
   BOT    { TokenBot    _ }
   'p'    { TokenP      _ }
@@ -35,13 +33,19 @@ import Logic.PDL
   '*'    { TokenStar   _ }
   INT    { TokenInt $$ _ }
 
-%left '&'
-%left '|'
-%nonassoc '~'
+%left '=>'
+%left '|' '&'
+%nonassoc '|' '&'
+%left '[' Prog ']'
+%left '<' Prog '>'
+%left '~'
+
+%left ':-' 'u'
+%left '*'
+%left '?'
+
 %nonassoc 'p'
 %nonassoc 'a'
-%nonassoc '[' Prog ']'
-%nonassoc '<' Prog '>'
 
 %%
 

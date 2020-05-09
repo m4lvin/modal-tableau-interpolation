@@ -7,7 +7,6 @@ import Data.GraphViz.Types.Monadic hiding ((-->))
 import Test.QuickCheck
 
 import Logic.BasicModal
-import Logic.BasicModal.Interpolation
 import Logic.BasicModal.Prove.Tree hiding (Node,End)
 import qualified Logic.BasicModal.Prove.Tree as T (Tableaux(Node,End))
 import Logic.Internal
@@ -122,6 +121,3 @@ makeNiceExample = do
   if isNice (f,g)
     then return (f,g)
     else makeNiceExample
-
-checkNiceExamples :: IO ()
-checkNiceExamples = quickCheckWith stdArgs {maxDiscardRatio=1000} (\(f,g) -> isNice (f,g) ==> testIPgen interpolate (f,g))
