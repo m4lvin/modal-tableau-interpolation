@@ -76,15 +76,14 @@ isClosedNode fs = bot `elem` fs || any (\f -> Neg f `elem` fs) fs
 
 extend :: Tableaux -> Tableaux
 extend End             = End
-extend (Node wfs "" [])
-  | isClosedNode (collapseList wfs) = Node wfs "✘" [End]
-  | otherwise = uncurry (Node wfs) $ case filter usable wfs of
-    []     -> (""     ,[])
-    (wf:_) -> (therule,ts) where
-      rest = delete wf wfs
-      Just (therule,results) = simpleRule (collapse wf)
-      ts = [ extend $ Node (nub . sort $ rest++newwfs) "" [] | newwfs <- map (map $ weightOf wf) results ]
-extend (Node fs rule ts@(_:_)) = Node fs rule [extend t | t <- ts]
+extend (Node wfs "" []) = case (isClosedNode (collapseList wfs), filter usable wfs) of
+  (True,_   ) -> Node wfs "✘" [End]
+  (_   ,[]  ) -> Node wfs ""     []
+  (_   ,wf:_) -> Node wfs therule ts where
+    rest = delete wf wfs
+    Just (therule,results) = simpleRule (collapse wf)
+    ts = [ extend $ Node (nub . sort $ rest++newwfs) "" [] | newwfs <- map (map $ weightOf wf) results ]
+extend (Node fs rule ts@(_:_)) = Node fs rule (map extend ts)
 extend (Node _  rule@(_:_) []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"
 
 -- To prove f, start with ¬f.

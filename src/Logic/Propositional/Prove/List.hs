@@ -1,4 +1,4 @@
--- 1. A naive try at tableaux with lists of lists.
+-- A naive prover using lists of lists.
 
 module Logic.Propositional.Prove.List where
 
@@ -33,7 +33,7 @@ isClosed (fs,gs) = bot `elem` fgs || any (\f -> Neg f `elem` fgs) fgs where
   fgs = fs ++ gs
 
 childrenOf :: Form -> [ [Form] ]
-childrenOf Top             = [ ]
+childrenOf Top             = [ [ ] ]
 childrenOf (At _)          = [ [ ] ]
 childrenOf (Imp f g)       = [ [Neg f], [g] ]
 childrenOf (Con f g)       = [ [f, g] ]
