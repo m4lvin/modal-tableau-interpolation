@@ -22,16 +22,34 @@ library:
     - array
     - containers
     - graphviz
+    - hspec
     - process
     - QuickCheck
     - random
     - temporary
 
 tests:
-  tests:
-    main: test/Examples.hs
+  propositional:
+    source-dirs:
+      - test
+    main: propositional.hs
     dependencies:
       - base >= 4.7 && < 5
       - hspec
       - Logic
-      - QuickCheck
+  basicmodal:
+    source-dirs:
+      - test
+    main: basicmodal.hs
+    dependencies:
+      - base >= 4.7 && < 5
+      - hspec
+      - Logic
+  pdl:
+    source-dirs:
+      - test
+    main: pdl.hs
+    dependencies:
+      - base >= 4.7 && < 5
+      - hspec
+      - Logic

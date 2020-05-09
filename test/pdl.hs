@@ -1,22 +1,27 @@
 module Main where
 
 import Logic.PDL
-import Logic.PDL.Prove.Tree
-
 import Logic.PDL.Examples
 import Logic.PDL.Lex (alexScanTokens)
 import Logic.PDL.Parse (parse)
+import Logic.PDL.Prove.Tree
 import Logic.PDL.Tools
 
 import Test.Hspec
 
 main :: IO ()
 main = hspec $
-  describe "Logc.PDL" $ do
+  describe "Logic.PDL" $ do
+    it "prove: Top" $
+      provable Top `shouldBe` True
+    it "prove: Neg Bot" $
+      provable (Neg Bot) `shouldBe` True
     it "prove: ([(a ∪ b)](p) → [a](p))" $
       provable (Box (Cup a b) p --> Box a p) `shouldBe` True
     it "prove: (<a>(p) → <(a ∪ b)>(p))" $
       provable (Dia a p -->  Dia (Cup a b) p) `shouldBe` True
+    it "prove somValidities" $
+      map provable someValidities `shouldSatisfy` and
     it "prove segeberg" $
       map provable segerberg `shouldNotContain` [False]
     it "parse 'p1'" $
@@ -27,6 +32,8 @@ main = hspec $
       fs <- exampleData
       let results = map (provable . Neg) fs
       return results `shouldReturn` replicate (length fs) True
+    it "prove borzechowski" $
+      provable $ let (f,g) = borzechowski in f --> g -- FIXME this is currently failing!
 
 exampleData :: IO [Form]
 exampleData = do
