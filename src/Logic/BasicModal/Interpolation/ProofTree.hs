@@ -70,19 +70,25 @@ fillIPs n@(Node (wfs,Nothing) rule ts)
 -- Non-end nodes where childs already have IPs: distinguish rules
   | otherwise = Node (wfs, Just $ simplify newIP) rule ts where
       newIP = case rule of
-        -- probably correct and easy, because single-child:
+        -- single-child rules are easy, the interpolant stays the same:
         "¬¬" -> ipOf t where [t] = ts
         "¬→" -> ipOf t where [t] = ts
-        -- the tricky ones, check them again and again!
-        -- also, should they depend on weightOf the active formula!?
+        -- for the branching rule we combine two previous interpolants with
+        -- a connective depending on the active side / weightOf the active formula:
         "→" -> connective (ipOf t1) (ipOf t2) where
           [t1@(Node (newwfs,_) _ _),t2] = ts
           connective
-            | leftsOf  wfs /= leftsOf newwfs = dis -- left side is active
+            | leftsOf  wfs /= leftsOf  newwfs = dis -- left side is active
             | rightsOf wfs /= rightsOf newwfs = con -- right side is active
             | otherwise = error "Could not find the active side."
-        -- TODO FIXME: below is a wild guess!
-        "¬☐" -> Box (ipOf t) where [t] = ts
+        -- the critical rule, we diamond or Box the interpolant, depending on the active side
+        -- (see Borzechowski page 44)
+        "¬☐" -> connective (ipOf t) where
+          [t@(Node (newwfs,_) _ _)] = ts
+          connective
+            | project (leftsOf  wfs) /= leftsOf  newwfs = dia -- left side is active  -- FIXME might need Bot as newIp
+            | project (rightsOf wfs) /= rightsOf newwfs = Box -- right side is active -- FIXME might need Top as newIp
+            | otherwise = error "Could not find the active side."
         rl -> error $ "Unknown rule " ++ rl ++ " applied. Can not interpolate!:\n" ++ show n
 
 fillAllIPs :: TableauxIP -> TableauxIP

@@ -61,12 +61,12 @@ simpleRule (At _)          = Nothing
 simpleRule (Neg (At _))    = Nothing
 simpleRule (Neg Top)       = Nothing
 simpleRule (Neg Bot)       = Nothing
-simpleRule (Box _)         = Nothing -- FIXME really?
+simpleRule (Box _)         = Nothing -- yes, really
 -- Single-branch rules:
 simpleRule (Neg (Neg f))   = Just ("¬¬", [ [f]        ], id)
 simpleRule (Neg (Imp f g)) = Just ("¬→", [ [f, Neg g] ], id)
-simpleRule (Imp _ _)       = Nothing -- advanced!
-simpleRule (Neg (Box _ ))  = Nothing -- advanced!
+simpleRule (Imp _ _)       = Nothing -- see advancedRule
+simpleRule (Neg (Box _ ))  = Nothing -- see advancedRule
 
 advancedRule :: Form -> Maybe (RuleName, [[Form]], [Form] -> [Form])
 -- Splitting rule for implication
