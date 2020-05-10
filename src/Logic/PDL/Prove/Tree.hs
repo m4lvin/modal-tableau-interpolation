@@ -122,7 +122,7 @@ isClosedTab (Node _ _ ts) = ts /= [] && all isClosedTab ts
 -- To prove f, start with  ¬(minLang f) and extend up to 80 steps.
 -- To prove f --> g, start with proper partition.
 prove :: Form -> Tableaux
-prove (Imp f g) = extendUpTo 80 $ Node [Left $ minLang f, Right (Neg g)] "" []
+prove (Imp f g) = extendUpTo 80 $ Node [Left $ minLang f, Right (minLang $ Neg g)] "" []
 prove f         = extendUpTo 80 $ Node [Left $ Neg $ minLang f         ] "" []
 
 provable :: Form -> Bool
