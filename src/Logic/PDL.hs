@@ -36,6 +36,36 @@ instance Stringable Prog where
   toString (Star pr)   = toString pr ++ "*"
   toString (NStar pr)  = "(" ++ toString pr ++ ")ⁿ"
 
+class HasAtoms a where
+  isAtomic :: a -> Bool
+
+instance HasAtoms Form where
+  isAtomic (At _) = True
+  isAtomic _      = False
+
+instance HasAtoms Prog where
+  isAtomic (Ap _) = True
+  isAtomic _      = False
+
+class ContainsNStars a where
+  nToStar :: a -> a
+
+instance ContainsNStars Form where
+  nToStar Bot           = Bot
+  nToStar (At at)       = At at
+  nToStar (Neg (At at)) = Neg (At at)
+  nToStar (Neg f)       = Neg (nToStar f)
+  nToStar (Con f g)     = Con (nToStar f) (nToStar g)
+  nToStar (Box pr f)    = Box (nToStar pr) (nToStar f)
+
+instance ContainsNStars Prog where
+  nToStar (Ap ap)     = Ap ap
+  nToStar (Cup p1 p2) = Cup (nToStar p1) (nToStar p2)
+  nToStar (p1 :- p2)  = nToStar p1 :- nToStar p2
+  nToStar (Test f)    = Test (nToStar f)
+  nToStar (Star pr)   = Star (nToStar pr)
+  nToStar (NStar pr)  = Star (nToStar pr)
+
 o,p,q,r,s :: Form
 [o,p,q,r,s] = map At ["o", "p", "q", "r", "s"]
 

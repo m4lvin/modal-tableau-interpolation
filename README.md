@@ -28,6 +28,15 @@ The big goal is a tableaux prover for PDL.
 
 - all the basic modal changes
 
+extra conditions:
+1. [-] when reaching an atomic Box or NegBox, go back from n to *
+2. [ ] instead of X;[a^n]P reach X
+3. [ ] apply rules to n-formula whenever possible / prioritise them!
+4. [X] Never apply a rule to a ¬[a^n] node
+5. [ ] directly after M+ do not apply M-
+6. [ ] ...
+7. [ ] ...
+
 - [ ] find test cases that fail due to empty side edge cases for interpolant defs
 
 - fix empty side edge cases

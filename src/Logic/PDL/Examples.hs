@@ -26,7 +26,7 @@ segerberg :: [Form]
 segerberg = segerbergFor p q a b
 
 -- | Example from Borzechowski page 55
-borzechowski :: (Form,Form)
-borzechowski = (x1,x2) where
+borzechowski :: Form
+borzechowski = x1 --> x2 where
   x1 = Box (Star (a :- a)) (p `Con` Box (a :- (b `Cup` c)) Bot)
-  x2 = Neg (Box (Star a) (p `dis` Box c q))
+  x2 = (Box (Star a) (p `dis` Box c q))

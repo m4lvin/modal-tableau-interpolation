@@ -9,6 +9,7 @@ import Data.GraphViz hiding (Shape(Star))
 import Data.GraphViz.Types.Monadic hiding ((-->))
 import Data.List
 import Data.Maybe
+import System.IO.Unsafe (unsafePerformIO)
 
 import Logic.Internal
 import Logic.PDL
@@ -50,8 +51,11 @@ instance DispAble Tableaux where
 type RuleWeight = Int
 
 -- | Rules: Given a formula, is their an applicable rule?
--- If so, which rule, what replaces the active formula, and does the rest change?
-type RuleApplication = (RuleName, RuleWeight, [[Form]], [Form] -> [Form])
+-- If so, which rule, what replaces the active formula, and how do other formulas change and survive?
+type RuleApplication = (RuleName, RuleWeight, [[Form]], Form -> Maybe Form)
+
+noChange :: Form -> Maybe Form
+noChange = Just
 
 ruleFor :: Form -> Maybe RuleApplication
 -- Nothing to do:
@@ -60,27 +64,41 @@ ruleFor (Neg (At _))    = Nothing
 ruleFor Bot             = Nothing
 ruleFor (Neg Bot)       = Nothing
 -- Single-branch rules:
-ruleFor (Neg (Neg f))           = Just ("¬¬", 1, [ [f]                            ], id)
-ruleFor (Neg (Box (Test f) g))  = Just ("¬?", 1, [ [f, Neg g]                     ], id)
-ruleFor (Neg (Box (x:-y) f))    = Just ("¬;", 1, [ [Neg $ Box x (Box y f)]        ], id)
+ruleFor (Neg (Neg f))           = Just ("¬¬", 1, [ [f]                            ], noChange)
+ruleFor (Con f g)               = Just ("^" , 1, [ [f, g]                         ], noChange)
+ruleFor (Neg (Box (Test f) g))  = Just ("¬?", 1, [ [f, Neg g]                     ], noChange)
+ruleFor (Neg (Box (x:-y) f))    = Just ("¬;", 1, [ [Neg $ Box x (Box y f)]        ], noChange)
 ruleFor (Box (Ap _) _)          = Nothing
-ruleFor (Box (Cup x y) f)       = Just ("∪",  1, [ [Box x f, Box y f]             ], id)
-ruleFor (Box (x :- y) f)        = Just (";",  1, [ [Box x (Box y f)]              ], id)
--- TODO: Infer NStar here? Why? How to use it later?
-ruleFor (Box (Star x) f)        = Just ("*",  1, [ [f, Box x (Box (Star x) f)]   ], id)
+ruleFor (Box (Cup x y) f)       = Just ("∪",  1, [ [Box x f, Box y f]             ], noChange)
+ruleFor (Box (x :- y) f)        = Just (";",  1, [ [Box x (Box y f)]              ], noChange)
+-- The (n) rule infers NStar, but not of x is atomic:
+ruleFor (Box (Star x) f)        = Just ("n",  1, [ [f, Box x (Box (starOperator x) f)]    ], noChange) where
+  starOperator = if isAtomic x then Star else NStar -- per condition 1 -- FIXME this should also replace NStar with Star within f, I think?
 -- Splitting rules:
-ruleFor (Box (Test f) g)        = Just ("?",  2, [ [Neg f], [g]                   ], id)
-ruleFor (Neg (Box (Cup x y) f)) = Just ("¬∪", 2, [ [Neg $ Box x f, Neg $ Box y f] ], id)
-ruleFor (Neg (Box (Star x) f))  = Just ("¬*", 2, [ [Neg f], [Neg $ Box x (Box (Star x) f)] ], id)
+ruleFor (Neg (Con f g))         = Just ("¬^", 2, [ [Neg f], [Neg g]               ], noChange)
+ruleFor (Box (Test f) g)        = Just ("?",  2, [ [Neg f], [g]                   ], noChange)
+ruleFor (Neg (Box (Cup x y) f)) = Just ("¬∪", 2, [ [Neg $ Box x f, Neg $ Box y f] ], noChange)
+ruleFor (Neg (Box (Star x) f))  = Just ("¬*", 2, [ [Neg f], [Neg $ Box x (Box (Star x) f)] ], noChange)
 -- TODO: need a marker here:
-ruleFor (Neg (Box x@(Ap _) f))  = Just ("At", 3, [ [Neg f] ], project x) -- die kritische Regel
-ruleFor _ = Nothing
+ruleFor (Neg (Box (Ap x) f))    = Just ("At", 3, [ [Neg f] ], projectionWith x) -- the critical rule
+ruleFor (Neg (Box (NStar _) _)) = Nothing -- per condition 4 no rule may be applied here. See Borzechowski page 19.
+ruleFor f@(Box (NStar _) _)     = error $ "I have no rule for this, There should never be an NStar node: " ++ show f
 
-applyW :: ([Form] -> [Form]) -> [WForm] -> [WForm]
-applyW fct wfs = map Left (fct $ leftsOf wfs) ++ map Right (fct $ rightsOf wfs)
+extraConditions :: RuleApplication -> RuleApplication
+extraConditions (ruleName, ruleWeight, newFormLists, changeFunction) = (ruleName, ruleWeight, map (map con1backToStar) newFormLists, changeFunction) where
+  con1backToStar :: Form -> Form
+  con1backToStar f@(Box (Ap _) _) = nToStar f
+  con1backToStar f@(Neg (Box (Ap _) _)) = nToStar f
+  con1backToStar f = f
 
-project :: Prog -> [Form] -> [Form]
-project x fs = [ f | Box y f <- fs, x == y ]
+-- | Apply change function from a rule to a weighted formulas.
+applyW :: (Form -> Maybe Form) -> WForm -> Maybe WForm
+applyW fct (Left  f) = fmap Left  (fct f)
+applyW fct (Right f) = fmap Right (fct f)
+
+projectionWith :: Atom -> Form -> Maybe Form
+projectionWith x (Box (Ap y) f) | x == y = Just f
+projectionWith _ _                       = Nothing
 
 weightOf :: WForm -> (Form -> WForm)
 weightOf (Left  _) = Left
@@ -97,29 +115,29 @@ extend (Node wfs "" [])
     []     -> (""     ,[])
     ((wf,(therule,_,results,change)):_) -> (therule,ts) where
       rest = delete wf wfs
-      ts = [ Node (nub . sort $ applyW change rest ++ newwfs) "" [] | newwfs <- map (map $ weightOf wf) results ]
+      ts = [ Node (nub . sort $ catMaybes (map (applyW change) rest) ++ newwfs) "" [] | newwfs <- map (map $ weightOf wf) results ]
 extend (Node fs rule ts@(_:_)) = Node fs rule [extend t | t <- ts]
 extend (Node _  rule@(_:_) []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"
 
 extendUpTo :: Int -> Tableaux -> Tableaux
-extendUpTo 0 t = t -- TODO throw error!
+extendUpTo 0 t = unsafePerformIO (putStrLn "\n ERROR too many steps! \n" >> return t) -- TODO throw error!
 extendUpTo k t = extendUpTo (k-1) (extend t)
 
 pairWithMaybe :: (a -> Maybe b) -> [a] -> [(a,b)]
 pairWithMaybe f xs = [ (x, fromJust $ f x) | x <- xs, isJust (f x) ]
 
 whatshallwedo :: [WForm] -> [(WForm,RuleApplication)]
-whatshallwedo = sortOn (\(_,(_,weight,_,_)) -> weight) . pairWithMaybe (ruleFor . collapse)
+whatshallwedo = sortOn (\(_,(_,weight,_,_)) -> weight) . pairWithMaybe (fmap (extraConditions) . ruleFor . collapse)
 
 isClosedTab :: Tableaux -> Bool
 isClosedTab End = True
 isClosedTab (Node _ _ ts) = ts /= [] && all isClosedTab ts
 
--- To prove f, start with  ¬(minLang f) and extend up to 80 steps.
+-- To prove f, start with  ¬(minLang f) and extend up to 40 steps.
 -- To prove f --> g, start with proper partition.
 prove :: Form -> Tableaux
-prove (Neg (Con f (Neg g))) = extendUpTo 80 $ Node [Left  f, Right (Neg g)] "" []
-prove f                     = extendUpTo 80 $ Node [Left $ Neg f          ] "" []
+prove (Neg (Con f (Neg g))) = extendUpTo 40 $ Node [Left  f, Right (Neg g)] "" []
+prove f                     = extendUpTo 40 $ Node [Left $ Neg f          ] "" []
 
 provable :: Form -> Bool
 provable = isClosedTab . prove
