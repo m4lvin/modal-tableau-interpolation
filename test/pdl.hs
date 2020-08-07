@@ -12,14 +12,14 @@ import Test.Hspec
 main :: IO ()
 main = hspec $
   describe "Logic.PDL" $ do
-    it "prove: Top" $
-      provable Top `shouldBe` True
+    it "prove: top" $
+      provable top `shouldBe` True
     it "prove: Neg Bot" $
       provable (Neg Bot) `shouldBe` True
     it "prove: ([(a ∪ b)](p) → [a](p))" $
       provable (Box (Cup a b) p --> Box a p) `shouldBe` True
     it "prove: (<a>(p) → <(a ∪ b)>(p))" $
-      provable (Dia a p -->  Dia (Cup a b) p) `shouldBe` True
+      provable (dia a p -->  dia (Cup a b) p) `shouldBe` True
     it "prove somValidities" $
       map provable someValidities `shouldSatisfy` and
     it "prove segeberg" $

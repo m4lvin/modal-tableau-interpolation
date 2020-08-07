@@ -57,13 +57,10 @@ ruleFor :: Form -> Maybe RuleApplication
 -- Nothing to do:
 ruleFor (At _)          = Nothing
 ruleFor (Neg (At _))    = Nothing
-ruleFor Top             = Nothing
 ruleFor Bot             = Nothing
-ruleFor (Neg Top)       = Nothing
 ruleFor (Neg Bot)       = Nothing
 -- Single-branch rules:
 ruleFor (Neg (Neg f))           = Just ("¬¬", 1, [ [f]                            ], id)
-ruleFor (Neg (Imp f g))         = Just ("¬→", 1, [ [f, Neg g]                     ], id)
 ruleFor (Neg (Box (Test f) g))  = Just ("¬?", 1, [ [f, Neg g]                     ], id)
 ruleFor (Neg (Box (x:-y) f))    = Just ("¬;", 1, [ [Neg $ Box x (Box y f)]        ], id)
 ruleFor (Box (Ap _) _)          = Nothing
@@ -72,7 +69,6 @@ ruleFor (Box (x :- y) f)        = Just (";",  1, [ [Box x (Box y f)]            
 -- TODO: Infer NStar here? Why? How to use it later?
 ruleFor (Box (Star x) f)        = Just ("*",  1, [ [f, Box x (Box (Star x) f)]   ], id)
 -- Splitting rules:
-ruleFor (Imp f g)               = Just ("→" , 2, [ [Neg f], [g]                   ], id)
 ruleFor (Box (Test f) g)        = Just ("?",  2, [ [Neg f], [g]                   ], id)
 ruleFor (Neg (Box (Cup x y) f)) = Just ("¬∪", 2, [ [Neg $ Box x f, Neg $ Box y f] ], id)
 ruleFor (Neg (Box (Star x) f))  = Just ("¬*", 2, [ [Neg f], [Neg $ Box x (Box (Star x) f)] ], id)
@@ -91,7 +87,7 @@ weightOf (Left  _) = Left
 weightOf (Right _) = Right
 
 isClosedNode :: [Form] -> Bool
-isClosedNode fs = Bot `elem` fs || Neg Top `elem` fs || any (\f -> Neg f `elem` fs) fs
+isClosedNode fs = Bot `elem` fs || any (\f -> Neg f `elem` fs) fs
 
 extend :: Tableaux -> Tableaux
 extend End             = End
@@ -122,8 +118,8 @@ isClosedTab (Node _ _ ts) = ts /= [] && all isClosedTab ts
 -- To prove f, start with  ¬(minLang f) and extend up to 80 steps.
 -- To prove f --> g, start with proper partition.
 prove :: Form -> Tableaux
-prove (Imp f g) = extendUpTo 80 $ Node [Left $ minLang f, Right (minLang $ Neg g)] "" []
-prove f         = extendUpTo 80 $ Node [Left $ Neg $ minLang f         ] "" []
+prove (Neg (Con f (Neg g))) = extendUpTo 80 $ Node [Left  f, Right (Neg g)] "" []
+prove f                     = extendUpTo 80 $ Node [Left $ Neg f          ] "" []
 
 provable :: Form -> Bool
 provable = isClosedTab . prove

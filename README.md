@@ -24,7 +24,7 @@ The big goal is a tableaux prover for PDL.
 
 ## PDL Todo
 
-- use Con, not Imp as primitive, as Borzechowski does.
+- [X] restricted language with Con, not Imp as primitive, as Borzechowski does
 
 - all the basic modal changes
 

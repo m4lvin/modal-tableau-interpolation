@@ -49,19 +49,19 @@ import Logic.PDL
 
 %%
 
-Form : TOP { Top }
+Form : TOP { top }
      | BOT { Bot }
      | '(' Form ')' { $2 }
      | '~' Form { Neg $2 }
-     | Form '=>' Form { Imp $1 $3 }
+     | Form '=>' Form { imp $1 $3 }
      | Form '&'  Form { Con $1 $3 }
-     | Form '|'  Form { Dis $1 $3 }
+     | Form '|'  Form { dis $1 $3 }
      | 'p' INT { At ('p' : show $2) }
      | 'p' { At ("p") }
      | 'q' { At ("q") }
      | 'r' { At ("r") }
-     | '[' Prog ']' Form { Box  $2 $4 }
-     | '<' Prog '>' Form { Dia $2 $4 }
+     | '[' Prog ']' Form { Box $2 $4 }
+     | '<' Prog '>' Form { dia $2 $4 }
 
 Prog : 'a' INT { Ap ('a' : show $2) }
      | '(' Prog ')' { $2 }
