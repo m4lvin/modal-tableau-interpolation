@@ -5,7 +5,7 @@ module Logic.BasicModal.Prove.Tree where
 import Data.GraphViz
 import Data.GraphViz.Types.Monadic hiding ((-->))
 import Data.List
-import Data.Maybe (isJust)
+import Data.Maybe (catMaybes,isJust)
 
 import Logic.Internal
 import Logic.BasicModal
@@ -49,17 +49,23 @@ instance DispAble Tableaux where
         edge pref (pref ++ show y' ++ ":") [toLabel rule]
         ) (zip ts [(0::Integer)..])
 
-project :: [Form] -> [Form]
-project fs = [ f | Box f <- fs ]
+project :: Form -> Maybe Form
+project (Box f) = Just f
+project _       = Nothing
 
--- | Apply change function from a rule to a list of weighted formulas.
--- Note: This assume that `fct` still does the same when given a subset!
-applyW :: ([Form] -> [Form]) -> [WForm] -> [WForm]
-applyW fct wfs = map Left (fct $ leftsOf wfs) ++ map Right (fct $ rightsOf wfs)
+-- | Apply change function from a rule to a weighted formulas.
+applyW :: (Form -> Maybe Form) -> WForm -> Maybe WForm
+applyW fct (Left  f) = fmap Left  (fct f)
+applyW fct (Right f) = fmap Right (fct f)
 
 -- | Rules: Given a formula, is their a simple rule?
--- If so, which rule, what replaces the active formula, and how do the other formulas change?
-simpleRule :: Form -> Maybe (RuleName, [[Form]], [Form] -> [Form])
+-- If so, which rule, what replaces the active formula, and how do other formulas change and survive?
+type RuleApplication = (RuleName, [[Form]], Form -> Maybe Form)
+
+noChange :: Form -> Maybe Form
+noChange = Just
+
+simpleRule :: Form -> Maybe RuleApplication
 -- Nothing to do:
 simpleRule Bot             = Nothing
 simpleRule (At _)          = Nothing
@@ -67,17 +73,17 @@ simpleRule (Neg (At _))    = Nothing
 simpleRule (Neg Bot)       = Nothing
 simpleRule (Box _)         = Nothing -- yes, really
 -- Single-branch rules:
-simpleRule (Neg (Neg f))   = Just ("¬¬", [ [f]        ], id)
-simpleRule (Neg (Imp f g)) = Just ("¬→", [ [f, Neg g] ], id)
+simpleRule (Neg (Neg f))   = Just ("¬¬", [ [f]        ], noChange)
+simpleRule (Neg (Imp f g)) = Just ("¬→", [ [f, Neg g] ], noChange)
 simpleRule (Imp _ _)       = Nothing -- see advancedRule
 simpleRule (Neg (Box _ ))  = Nothing -- see advancedRule
 
-advancedRule :: Form -> Maybe (RuleName, [[Form]], [Form] -> [Form])
+advancedRule :: Form -> Maybe (RuleName, [[Form]], Form -> Maybe Form)
 -- Splitting rule for implication
-advancedRule (Imp f g)       = Just ("→" , [ [Neg f], [g] ], id)
+advancedRule (Imp f g)     = Just ("→" , [ [Neg f], [g] ], noChange)
 -- single-branching but throwing away the rest!
-advancedRule (Neg (Box f))   = Just ("¬☐", [ [Neg f] ], project)
-advancedRule _               = Nothing
+advancedRule (Neg (Box f)) = Just ("¬☐", [ [Neg f] ], project)
+advancedRule _             = Nothing
 
 simplyUsable :: WForm -> Bool
 simplyUsable = isJust . simpleRule . collapse
@@ -113,17 +119,18 @@ extensions (Node wfs "" _ [])
     ([],usablewfs)  -> concatMap (\wf -> let
         Just (therule,results,change) = advancedRule (collapse wf)
         rest = delete wf wfs
-        tss = [ Node (nub . sort $ applyW change rest ++ newwfs) "" [] [] | newwfs <- map (map $ weightOf wf) results ]
+        tss = [ Node (nub . sort $ catMaybes (map (applyW change) rest) ++ newwfs) "" [] [] | newwfs <- map (map $ weightOf wf) results ]
       in extensions (Node wfs therule [wf] tss)) usablewfs
     (usablewfs,_) -> concatMap (\wf -> let
         Just (therule,results,change) = simpleRule (collapse wf)
         rest = delete wf wfs
-        tss = [ Node (nub . sort $ applyW change rest ++ newwfs) "" [] [] | newwfs <- map (map $ weightOf wf) results ]
+        tss = [ Node (nub . sort $ catMaybes (map (applyW change) rest) ++ newwfs) "" [] [] | newwfs <- map (map $ weightOf wf) results ]
       in extensions (Node wfs therule [wf] tss)) usablewfs
-extensions (Node fs rule actives ts@(_:_)) = [ Node fs rule actives ts' | ts' <- pickOneOfEach $ map extensions ts ]
+extensions (Node fs rule actives ts@(_:_)) = [ Node fs rule actives ts' | ts' <- pickOneOfEach $ map (filterOneClosedIfAny . extensions) ts ]
 extensions (Node _  rule@(_:_) _ []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"
--- FIXME use filterOneClosedIfAny ????
 
+-- | Pick one element of each list to form new lists.
+-- Example: pickOneOfEach [[1,2],[3,4,5]] == [[1,3],[1,4],[1,5],[2,3],[2,4],[2,5]]
 pickOneOfEach :: [[a]] -> [[a]]
 pickOneOfEach [] = [[]]
 pickOneOfEach (l:ls) = [ x:xs | x <- l, xs <- pickOneOfEach ls ]
@@ -138,9 +145,7 @@ isClosedTab End = True
 isClosedTab (Node _ _ _ ts) = ts /= [] && all isClosedTab ts
 
 filterOneClosedIfAny :: [Tableaux] -> [Tableaux]
-filterOneClosedIfAny ts
-  | any isClosedTab ts = take 1 (filter isClosedTab ts)
-  | otherwise          = ts
+filterOneClosedIfAny ts = if any isClosedTab ts then take 1 (filter isClosedTab ts) else ts
 
 -- | Try to prove something by generating all extended tableauxs.
 -- Returns a closed tableaux if there is one in the list.
