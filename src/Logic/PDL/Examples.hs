@@ -7,6 +7,7 @@ someValidities =
   [ Box (Cup a b) p --> Box a p
   , dia (Cup a b) p --> dis (dia a p) (dia b p)
   , Box (Star a) p --> Box a (Box a (Box a p))
+  , Box (Star b) p --> Box (Star (b :- b)) p
   -- TODO: add more
   ]
 
