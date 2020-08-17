@@ -34,8 +34,15 @@ extra conditions:
 3. [ ] apply rules to n-formula whenever possible / prioritise them!
 4. [X] Never apply a rule to a ¬[a^n] node
 5. [ ] directly after M+ do not apply M-
-6. [ ] ...
+6. [ ] close normal nodes with critical predecessors when the whole path is loaded
 7. [ ] ...
+
+
+questions
+- May other rules like (¬), (^) etc. be applied to marked formulas?
+
+- Can (At) only be applied to marked formulas? (page 24 suggest that!) (otherwise, why not do (At)_C directly on page 56, without (M+) first?)
+
 
 - [ ] find test cases that fail due to empty side edge cases for interpolant defs
 

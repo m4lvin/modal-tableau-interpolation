@@ -21,18 +21,22 @@ data Tableaux = Node [WForm] RuleName [Tableaux] | End
 
 type RuleName = String
 
-type WForm = Either Form Form
+-- We can mark formuals with other formulas
+type Marked a = (a, Maybe a)
 
-collapse :: WForm -> Form
-collapse (Left f)  = f
-collapse (Right f) = f
+-- A WForm is weighted (Left/Right) and may have a marking.
+type WForm = (Either Form Form, Maybe Form)
 
-collapseList :: [Either Form Form] -> [Form]
+collapse :: WForm -> Marked Form
+collapse (Left f,m)  = (f,m)
+collapse (Right f,m) = (f,m)
+
+collapseList :: [WForm] -> [Marked Form]
 collapseList = map collapse
 
-leftsOf, rightsOf :: [WForm] -> [Form]
-leftsOf  wfs = [f | Left f <- wfs]
-rightsOf wfs = [f | Right f <- wfs]
+leftsOf, rightsOf :: [WForm] -> [Marked Form]
+leftsOf  wfs = [(f,m) | (Left f,m) <- wfs]
+rightsOf wfs = [(f,m) | (Right f,m) <- wfs]
 
 ppWForms :: [WForm] -> String
 ppWForms wfs = toStrings (leftsOf wfs) ++ "  |  " ++ toStrings (rightsOf wfs)
@@ -52,60 +56,68 @@ type RuleWeight = Int
 
 -- | Rules: Given a formula, is their an applicable rule?
 -- If so, which rule, what replaces the active formula, and how do other formulas change and survive?
-type RuleApplication = (RuleName, RuleWeight, [[Form]], Form -> Maybe Form)
+type RuleApplication = (RuleName, RuleWeight, [[Marked Form]], Form -> Maybe Form)
 
 noChange :: Form -> Maybe Form
 noChange = Just
 
-ruleFor :: Form -> Maybe RuleApplication
+without :: Marked Form -> Form -> Marked Form
+without (f,Nothing) _ = (f, Nothing)
+without (f,Just current) toBeRemoved = (f, if current == toBeRemoved then Nothing else Just current)
+
+
+-- TODO rule which allows to add markers!!
+
+ruleFor :: Marked Form -> Maybe RuleApplication
 -- Nothing to do:
-ruleFor (At _)          = Nothing
-ruleFor (Neg (At _))    = Nothing
-ruleFor Bot             = Nothing
-ruleFor (Neg Bot)       = Nothing
+ruleFor (At _,_)          = Nothing
+ruleFor (Neg (At _),_)    = Nothing
+ruleFor (Bot,_)           = Nothing
+ruleFor (Neg Bot,_)       = Nothing
 -- Single-branch rules:
-ruleFor (Neg (Neg f))           = Just ("¬¬", 1, [ [f]                            ], noChange)
-ruleFor (Con f g)               = Just ("^" , 1, [ [f, g]                         ], noChange)
-ruleFor (Neg (Box (Test f) g))  = Just ("¬?", 1, [ [f, Neg g]                     ], noChange)
-ruleFor (Neg (Box (x:-y) f))    = Just ("¬;", 1, [ [Neg $ Box x (Box y f)]        ], noChange)
-ruleFor (Box (Ap _) _)          = Nothing
-ruleFor (Box (Cup x y) f)       = Just ("∪",  1, [ [Box x f, Box y f]             ], noChange)
-ruleFor (Box (x :- y) f)        = Just (";",  1, [ [Box x (Box y f)]              ], noChange)
+ruleFor (Neg (Neg f)          ,m) = Just ("¬¬", 1, [ [(f,m)]                                ], noChange)
+ruleFor (Con f g              ,m) = Just ("^" , 1, [ [(f,m), (g,m)]                         ], noChange)
+ruleFor (Neg (Box (Test f) g) ,m) = Just ("¬?", 1, [ [(f,Nothing), (Neg g,m) `without` f ]  ], noChange)
+ruleFor (Neg (Box (x:-y) f)   ,m) = Just ("¬;", 1, [ [(Neg $ Box x (Box y f),m)]            ], noChange)
+ruleFor (Box (Ap _) _         ,_) = Nothing
+ruleFor (Box (Cup x y) f      ,m) = Just ("∪",  1, [ [(Box x f, m), (Box y f, m)]           ], noChange)
+ruleFor (Box (x :- y) f       ,m) = Just (";",  1, [ [(Box x (Box y f),m)]                  ], noChange)
 -- The (n) rule infers NStar, but not of x is atomic:
-ruleFor (Box (Star x) f)        = Just ("n",  1, [ [f, Box x (Box (starOperator x) f)]    ], noChange) where
-  starOperator = if isAtomic x then Star else NStar -- per condition 1 -- FIXME this should also replace NStar with Star within f, I think?
+-- TODO: assumption for now: only may be applied if there is a marking!?
+ruleFor (Box (Star x) f       ,m) = Just ("n",  1, [ [(f,m), (Box x (Box (starOperator x) f),m)] ], noChange) where
+  starOperator = if isAtomic x then Star else NStar -- per condition 1 -- FIXME this should also replace NStar with Star within f, I think? -- TODO remove this, condition is done later!
 -- Splitting rules:
-ruleFor (Neg (Con f g))         = Just ("¬^", 2, [ [Neg f], [Neg g]               ], noChange)
-ruleFor (Box (Test f) g)        = Just ("?",  2, [ [Neg f], [g]                   ], noChange)
-ruleFor (Neg (Box (Cup x y) f)) = Just ("¬∪", 2, [ [Neg $ Box x f, Neg $ Box y f] ], noChange)
-ruleFor (Neg (Box (Star x) f))  = Just ("¬*", 2, [ [Neg f], [Neg $ Box x (Box (Star x) f)] ], noChange)
+ruleFor (Neg (Con f g)        ,m) = Just ("¬^", 2, [ [(Neg f,m)], [(Neg g,m)]               ], noChange)
+ruleFor (Box (Test f) g       ,m) = Just ("?",  2, [ [(Neg f,m)], [(g,m)]                   ], noChange) -- marker also on Test?
+ruleFor (Neg (Box (Cup x y) f),m) = Just ("¬∪", 2, [ [(Neg $ Box x f,m), (Neg $ Box y f,m)] ], noChange)
+ruleFor (Neg (Box (Star x) f) ,m) = Just ("¬n", 2, [ [(Neg f,m) `without` f], [(Neg $ Box x (Box (Star x) f),m)] ], noChange)
 -- TODO: need a marker here:
-ruleFor (Neg (Box (Ap x) f))    = Just ("At", 3, [ [Neg f] ], projectionWith x) -- the critical rule
-ruleFor (Neg (Box (NStar _) _)) = Nothing -- per condition 4 no rule may be applied here. See Borzechowski page 19.
-ruleFor f@(Box (NStar _) _)     = error $ "I have no rule for this, There should never be an NStar node: " ++ show f
+ruleFor (Neg (Box (Ap x) f),m)    = Just ("At", 3, [ [(Neg f, m) `without` f] ], projection) where -- the critical rule
+  projection :: Form -> Maybe Form
+  projection (Box (Ap y) g) | x == y = Just g
+  projection _                       = Nothing
+ruleFor (Neg (Box (NStar _) _),_) = Nothing -- per condition 4 no rule may be applied here. See Borzechowski page 19.
+ruleFor mf@(Box (NStar _) _   ,_) = error $ "I have no rule for this, There should never be an NStar node: " ++ show mf
 
 extraConditions :: RuleApplication -> RuleApplication
 extraConditions (ruleName, ruleWeight, newFormLists, changeFunction) = (ruleName, ruleWeight, map (map con1backToStar) newFormLists, changeFunction) where
-  con1backToStar :: Form -> Form
-  con1backToStar f@(Box (Ap _) _) = nToStar f
-  con1backToStar f@(Neg (Box (Ap _) _)) = nToStar f
-  con1backToStar f = f
+  con1backToStar :: Marked Form -> Marked Form
+  con1backToStar (f@(Box (Ap _) _)      ,m) = (nToStar f, m)
+  con1backToStar (f@(Neg (Box (Ap _) _)),m) = (nToStar f, m)
+  con1backToStar mf = mf
 
 -- | Apply change function from a rule to a weighted formulas.
 applyW :: (Form -> Maybe Form) -> WForm -> Maybe WForm
-applyW fct (Left  f) = fmap Left  (fct f)
-applyW fct (Right f) = fmap Right (fct f)
+applyW fct (Left  f, m) = fmap (\g -> (Left  g, m)) (fct f)
+applyW fct (Right f, m) = fmap (\g -> (Right g, m)) (fct f)
 
-projectionWith :: Atom -> Form -> Maybe Form
-projectionWith x (Box (Ap y) f) | x == y = Just f
-projectionWith _ _                       = Nothing
+weightOf :: WForm -> (Marked Form -> WForm)
+weightOf (Left  _, _) = (\(f,m) -> (Left  f, m))
+weightOf (Right _, _) = (\(f,m) -> (Right f, m))
 
-weightOf :: WForm -> (Form -> WForm)
-weightOf (Left  _) = Left
-weightOf (Right _) = Right
-
-isClosedNode :: [Form] -> Bool
-isClosedNode fs = Bot `elem` fs || any (\f -> Neg f `elem` fs) fs
+isClosedNode :: [Marked Form] -> Bool
+isClosedNode mfs = Bot `elem` map fst mfs || any (\(f,_) -> Neg f `elem` map fst mfs) mfs
+-- TODO should we also check extra condition 6 or 7 here??
 
 extend :: Tableaux -> Tableaux
 extend End             = End
@@ -121,7 +133,7 @@ extend (Node _  rule@(_:_) []) = error $ "Rule '" ++ rule ++ "' applied but no s
 
 extendUpTo :: Int -> Tableaux -> Tableaux
 extendUpTo 0 t = unsafePerformIO (putStrLn "\n ERROR too many steps! \n" >> return t) -- TODO throw error!
-extendUpTo k t = extendUpTo (k-1) (extend t)
+extendUpTo k t = if extend t /= t then extendUpTo (k-1) (extend t) else t
 
 pairWithMaybe :: (a -> Maybe b) -> [a] -> [(a,b)]
 pairWithMaybe f xs = [ (x, fromJust $ f x) | x <- xs, isJust (f x) ]
@@ -133,11 +145,11 @@ isClosedTab :: Tableaux -> Bool
 isClosedTab End = True
 isClosedTab (Node _ _ ts) = ts /= [] && all isClosedTab ts
 
--- To prove f, start with  ¬(minLang f) and extend up to 40 steps.
 -- To prove f --> g, start with proper partition.
+-- To prove f, start with  ¬f.
 prove :: Form -> Tableaux
-prove (Neg (Con f (Neg g))) = extendUpTo 40 $ Node [Left  f, Right (Neg g)] "" []
-prove f                     = extendUpTo 40 $ Node [Left $ Neg f          ] "" []
+prove (Neg (Con f (Neg g))) = extendUpTo 40 $ Node [(Left       f, Nothing), (Right (Neg g), Nothing)] "" []
+prove f                     = extendUpTo 40 $ Node [(Left $ Neg f, Nothing)                          ] "" []
 
 provable :: Form -> Bool
 provable = isClosedTab . prove

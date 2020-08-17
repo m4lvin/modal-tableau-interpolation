@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleInstances #-}
+
 module Logic.PDL where
 
 import Data.List
@@ -20,6 +22,10 @@ class Stringable a where
   toStrings xs = intercalate ", " $ map toString xs
   pp :: a -> IO ()
   pp = putStrLn . toString
+
+instance (Stringable a, Stringable b) => Stringable (a, Maybe b) where
+  toString (x, Just  y) = toString x ++ " ^ " ++ toString y
+  toString (x, Nothing) = toString x
 
 instance Stringable Form where
   toString Bot        = "⊥"

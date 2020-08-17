@@ -33,7 +33,7 @@ main = hspec $
       let results = map (provable . Neg) fs
       return results `shouldReturn` replicate (length fs) True
     it "prove borzechowski" $
-      provable $ let (f,g) = borzechowski in f --> g -- FIXME this is currently failing!
+      provable borzechowski -- FIXME this is currently failing!
 
 exampleData :: IO [Form]
 exampleData = do
