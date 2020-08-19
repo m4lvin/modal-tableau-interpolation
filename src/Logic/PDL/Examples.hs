@@ -8,6 +8,10 @@ someValidities =
   , dia (Cup a b) p --> dis (dia a p) (dia b p)
   , Box (Star a) p --> Box a (Box a (Box a p))
   , Box (Star b) p --> Box (Star (b :- b)) p
+  , Box (Star (Cup a b)) (Con p q) --> Box (b :- b) (dis q (Box c r))
+  , Box (Star (Cup a b)) (Con p q) --> Box (Star (b :- b)) (dis q (Box c r))
+  , Con (Box a p) (Box b (Con p q)) --> Box (Cup a b) p
+  , Con (Box (Star a) p) (Box b (Con p q)) --> Box (Cup (Star a) b) p
   -- TODO: add more
   ]
 

@@ -12,18 +12,14 @@ import Test.Hspec
 main :: IO ()
 main = hspec $
   describe "Logic.PDL" $ do
-    it "prove: top" $
-      provable top `shouldBe` True
-    it "prove: Neg Bot" $
-      provable (Neg Bot) `shouldBe` True
-    it "prove: ([(a ∪ b)](p) → [a](p))" $
-      provable (Box (Cup a b) p --> Box a p) `shouldBe` True
-    it "prove: (<a>(p) → <(a ∪ b)>(p))" $
-      provable (dia a p -->  dia (Cup a b) p) `shouldBe` True
-    it "prove somValidities" $
-      map provable someValidities `shouldSatisfy` and
-    it "prove segeberg" $
-      map provable segerberg `shouldNotContain` [False]
+    proveTest top
+    proveTest (Neg Bot)
+    proveTest (Box (Cup a b) p --> Box a p)
+    proveTest (dia a p -->  dia (Cup a b) p)
+    describe "somValidities" $
+      mapM_ proveTest someValidities
+    describe "segeberg" $
+      mapM_ proveTest segerberg
     it "parse 'p1'" $
       (parse . alexScanTokens) "p1" `shouldBe` At "p1"
     it "example from file is provable" $
@@ -32,8 +28,11 @@ main = hspec $
       fs <- exampleData
       let results = map (provable . Neg) fs
       return results `shouldReturn` replicate (length fs) True
-    it "prove borzechowski" $
-      provable borzechowski -- FIXME this is currently failing!
+    describe "borzechowski" $
+      proveTest borzechowski -- FIXME this is currently failing!
+
+proveTest :: Form -> SpecWith ()
+proveTest f = it (toString f) $ provable f `shouldBe` True
 
 exampleData :: IO [Form]
 exampleData = do
