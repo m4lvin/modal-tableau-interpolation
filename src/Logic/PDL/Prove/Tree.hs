@@ -89,7 +89,7 @@ ruleFor (Box (Star x) f       ,m) = Just ("n",  1, [ [(f,m), (Box x (Box (starOp
 -- Splitting rules:
 ruleFor (Neg (Con f g)        ,m) = Just ("¬^", 2, [ [(Neg f,m)], [(Neg g,m)]               ], noChange)
 ruleFor (Box (Test f) g       ,m) = Just ("?",  2, [ [(Neg f,m)], [(g,m)]                   ], noChange) -- marker also on Test?
-ruleFor (Neg (Box (Cup x y) f),m) = Just ("¬∪", 2, [ [(Neg $ Box x f,m), (Neg $ Box y f,m)] ], noChange)
+ruleFor (Neg (Box (Cup x y) f),m) = Just ("¬∪", 2, [ [(Neg $ Box x f,m)], [(Neg $ Box y f,m)] ], noChange)
 ruleFor (Neg (Box (Star x) f) ,m) = Just ("¬n", 2, [ [(Neg f,m) `without` f], [(Neg $ Box x (Box (Star x) f),m)] ], noChange)
 -- TODO: need a marker here:
 ruleFor (Neg (Box (Ap x) f),m)    = Just ("At", 3, [ [(Neg f, m) `without` f] ], projection) where -- the critical rule
