@@ -15,6 +15,14 @@ someValidities =
   -- TODO: add more
   ]
 
+someNonValidities :: [Form]
+someNonValidities =
+  [ Neg top
+  , dia (Cup a b) p --> dia a p
+  , Box (Star a) p --> dia (Star a) p
+  , Con (Box a p) (Box b q) --> Box (Cup a b) (Con p q)
+  ]
+
 segerbergFor :: Form -> Form -> Prog -> Prog -> [Form]
 segerbergFor f g x y =
   [ Box x top
@@ -24,8 +32,6 @@ segerbergFor f g x y =
   , Box (Star x)  f <--> Con f (Box (x :- Star x) f)
   , Box (Test f) g  <--> (f --> g)
   ]
-
--- ([*a]p → (p & [(a ; *a)]p))
 
 segerberg :: [Form]
 segerberg = segerbergFor p q a b

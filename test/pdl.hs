@@ -18,6 +18,8 @@ main = hspec $
     proveTest (dia a p -->  dia (Cup a b) p)
     describe "somValidities" $
       mapM_ proveTest someValidities
+    describe "someNonValidities" $
+      mapM_ disproveTest someNonValidities
     describe "segeberg" $
       mapM_ proveTest segerberg
     it "parse 'p1'" $
@@ -33,6 +35,9 @@ main = hspec $
 
 proveTest :: Form -> SpecWith ()
 proveTest f = it (toString f) $ provable f `shouldBe` True
+
+disproveTest :: Form -> SpecWith ()
+disproveTest f = it (toString f) $ provable f `shouldBe` False
 
 exampleData :: IO [Form]
 exampleData = do
