@@ -171,8 +171,8 @@ allModels myAts n =
       , newVal <- [ \w -> if w == n then valForN else oldVal w | valForN <- allVals myAts ]
     ]
 
--- | Check semantic Validity. Ridiculously expensive and not
--- usable for more than 2 propositions and trivial formulas.
+-- | Check semantic validity.
+-- Ridiculously expensive and only usable for short formulas with 2 propositions.
 -- The finite model property is used as follows.
 -- We check allModels for the atomsIn f up to size 2^(size f).
 -- First we print the amount of models that will be checked.
@@ -190,7 +190,7 @@ isValid f = do
 -- | Generate random formulas.
 instance Arbitrary Form where
   arbitrary = simplify <$> sized genForm where
-    factor = 2
+    factor = 3
     genForm 0 = oneof [ pure Bot, At <$> choose ('p','q') ]
     genForm 1 = At <$> choose ('p','s')
     genForm n = oneof
