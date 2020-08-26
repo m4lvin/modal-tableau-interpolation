@@ -27,6 +27,7 @@ tokens :-
   "Bot"             { \ p _ -> TokenBot               p }
   "False"           { \ p _ -> TokenBot               p }
   "⊥"               { \ p _ -> TokenBot               p }
+  "¬"               { \ p _ -> TokenNeg               p }
   "~"               { \ p _ -> TokenNeg               p }
   "Not"             { \ p _ -> TokenNeg               p }
   "not"             { \ p _ -> TokenNeg               p }
@@ -39,6 +40,7 @@ tokens :-
   "p"               { \ p _ -> TokenP                 p }
   -- PDL Programs:
   "u"               { \ p _ -> TokenCup               p }
+  "∪"               { \ p _ -> TokenCup               p }
   "*"               { \ p _ -> TokenStar              p }
   ";"               { \ p _ -> TokenSemicolon         p }
   "?"               { \ p _ -> TokenTest              p }

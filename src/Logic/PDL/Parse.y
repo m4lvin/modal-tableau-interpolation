@@ -27,6 +27,9 @@ import Logic.PDL
   '~'    { TokenNeg    _ }
   '=>'   { TokenImpl   _ }
   'a'    { TokenA      _ }
+  'b'    { TokenB      _ }
+  'c'    { TokenC      _ }
+  'd'    { TokenD      _ }
   ':-'   { TokenSemicolon _ }
   '?'    { TokenTest   _ }
   'u'    { TokenCup    _ }
@@ -64,6 +67,10 @@ Form : TOP { top }
      | '<' Prog '>' Form { dia $2 $4 }
 
 Prog : 'a' INT { Ap ('a' : show $2) }
+     | 'a' { Ap "a" }
+     | 'b' { Ap "b" }
+     | 'c' { Ap "c" }
+     | 'd' { Ap "d" }
      | '(' Prog ')' { $2 }
      | Prog 'u' Prog { Cup $1 $3 }
      | Prog ':-' Prog { $1 :- $3 }

@@ -21,6 +21,9 @@ data Token a -- == AlexPn
   | TokenImpl              {apn :: a}
   | TokenEqui              {apn :: a}
   | TokenA                 {apn :: a}
+  | TokenB                 {apn :: a}
+  | TokenC                 {apn :: a}
+  | TokenD                 {apn :: a}
   | TokenCup               {apn :: a}
   | TokenSemicolon         {apn :: a}
   | TokenTest              {apn :: a}
