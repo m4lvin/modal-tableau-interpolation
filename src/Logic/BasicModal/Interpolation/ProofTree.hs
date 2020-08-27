@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Logic.BasicModal.Interpolation.ProofTree where
 
@@ -51,10 +51,10 @@ interpolateNode wfs = filter evil (leftsOf wfs) where
   evil f       = Neg f `elem` rightsOf wfs
 
 fillIPs :: TableauxIP -> TableauxIP
--- Ends and already interpolated nodes: nothing to do
+-- Ends and already interpolated nodes: nothing to do:
 fillIPs End = End
 fillIPs t@(Node (_, Just _) _ _ _) = t
--- Closed end nodes: use
+-- Closed end nodes: use the active formulas or a constant as interpolant:
 fillIPs (Node (wfs, Nothing) "✘" actives [End]) = Node (wfs, Just ip) "✘" actives [End] where
   ip = case actives of
     [Left  Bot]        -> Bot
@@ -104,12 +104,13 @@ proveAndInterpolate (ante,cons)
 interpolate :: (Form,Form) -> Form
 interpolate = snd . proveAndInterpolate
 
-interpolateShow :: (Form,Form) -> IO Form
+interpolateShow :: (Form,Form) -> IO ()
 interpolateShow pair = do
   let (t,ip) = proveAndInterpolate pair
+  putStrLn "Showing tableau with GraphViz ..."
   disp t
-  print $ simplify ip
-  return ip
+  putStrLn $ "Interpolant: " ++ ppForm ip
+  putStrLn $ "Simplified interpolant: " ++ ppForm (simplify ip)
 
 isNice :: (Form,Form) -> Bool
 isNice (f,g) = provable (f `Imp` g)
