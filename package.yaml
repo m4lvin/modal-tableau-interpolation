@@ -10,8 +10,10 @@ ghc-options:        -Wall
 
 extra-source-files:
   - README.md
+  - LICENSE
   - stack.yaml
   - package.yaml
+  - src/Logic/PDL/Parse.y
   - src/Logic/PDL/Lex.x
 
 library:
