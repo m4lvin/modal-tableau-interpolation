@@ -17,3 +17,4 @@ cabal-dev
 *.tix
 stack.yaml.lock
 *.cabal
+README.html
