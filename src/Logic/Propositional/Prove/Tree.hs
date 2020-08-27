@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 -- A Tableaux prover.
 -- Nodes in the trees are lists of formulas with weights, together

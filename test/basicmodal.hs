@@ -43,11 +43,11 @@ main = hspec $ do
       not. provable $ (Box p --> Box q) --> Box (p --> q)
   describe "interpolate" $ do
     it "(Box (At 'r'),Box (Imp (At 's') (At 'r')))" $
-      testIPgen interpolate $ (Box (At 'r'),Box (Imp (At 's') (At 'r')))
+      testIPgen interpolate (Box (At 'r'),Box (Imp (At 's') (At 'r')))
     it "(Box (Neg (Box (Neg (Box (At 's'))))),Box (Imp (Imp (Neg (At 'q')) (Box (At 'r'))) (Neg (Box Bot))))" $
-        testIPgen interpolate $ (Box (Neg (Box (Neg (Box (At 's'))))),Box (Imp (Imp (Neg (At 'q')) (Box (At 'r'))) (Neg (Box Bot))))
+        testIPgen interpolate (Box (Neg (Box (Neg (Box (At 's'))))),Box (Imp (Imp (Neg (At 'q')) (Box (At 'r'))) (Neg (Box Bot))))
     it "(Neg (Imp (Neg (Box (Imp (At 's') (At 'q')))) (Neg (Box (At 'p')))),Neg (Box (Imp (At 'p') (At 'q'))))" $
-      testIPgen interpolate $ (Neg (Imp (Neg (Box (Imp (At 's') (At 'q')))) (Neg (Box (At 'p')))),Neg (Box (Imp (At 'p') (At 'q'))))
-  modifyMaxDiscardRatio (const 1000) $ do
-    describe "interpolate randomly generated nice examples" $ do
-      prop "" $ (\(f,g) -> isNice (f,g) ==> testIPgen interpolate (f,g))
+      testIPgen interpolate (Neg (Imp (Neg (Box (Imp (At 's') (At 'q')))) (Neg (Box (At 'p')))),Neg (Box (Imp (At 'p') (At 'q'))))
+  modifyMaxDiscardRatio (const 1000) $
+    prop "interpolate randomly generated nice examples"
+      (\(f,g) -> isNice (f,g) ==> testIPgen interpolate (f,g))

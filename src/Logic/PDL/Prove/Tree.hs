@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Logic.PDL.Prove.Tree
   ( provable
@@ -112,8 +112,8 @@ applyW fct (Left  f, m) = fmap (\g -> (Left  g, m)) (fct f)
 applyW fct (Right f, m) = fmap (\g -> (Right g, m)) (fct f)
 
 weightOf :: WForm -> (Marked Form -> WForm)
-weightOf (Left  _, _) = (\(f,m) -> (Left  f, m))
-weightOf (Right _, _) = (\(f,m) -> (Right f, m))
+weightOf (Left  _, _) = \(f,m) -> (Left  f, m)
+weightOf (Right _, _) = \(f,m) -> (Right f, m)
 
 isClosedNode :: [Marked Form] -> Bool
 isClosedNode mfs = Bot `elem` map fst mfs || any (\(f,_) -> Neg f `elem` map fst mfs) mfs
@@ -127,7 +127,7 @@ extend (Node wfs "" [])
     []     -> (""     ,[])
     ((wf,(therule,_,results,change)):_) -> (therule,ts) where
       rest = delete wf wfs
-      ts = [ Node (nub . sort $ catMaybes (map (applyW change) rest) ++ newwfs) "" [] | newwfs <- map (map $ weightOf wf) results ]
+      ts = [ Node (nub . sort $ mapMaybe (applyW change) rest ++ newwfs) "" [] | newwfs <- map (map $ weightOf wf) results ]
 extend (Node fs rule ts@(_:_)) = Node fs rule [extend t | t <- ts]
 extend (Node _  rule@(_:_) []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"
 
@@ -139,7 +139,7 @@ pairWithMaybe :: (a -> Maybe b) -> [a] -> [(a,b)]
 pairWithMaybe f xs = [ (x, fromJust $ f x) | x <- xs, isJust (f x) ]
 
 whatshallwedo :: [WForm] -> [(WForm,RuleApplication)]
-whatshallwedo = sortOn (\(_,(_,weight,_,_)) -> weight) . pairWithMaybe (fmap (extraConditions) . ruleFor . collapse)
+whatshallwedo = sortOn (\(_,(_,weight,_,_)) -> weight) . pairWithMaybe (fmap extraConditions . ruleFor . collapse)
 
 isClosedTab :: Tableaux -> Bool
 isClosedTab End = True

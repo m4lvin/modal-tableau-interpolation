@@ -68,7 +68,7 @@ fillIPs n@(Node (wfs,Nothing) rule actives ts)
 -- Non-end nodes where children are missing IPs: recurse
   | any (not . hasIP) ts = fillIPs $ Node (wfs, Nothing) rule actives (map fillIPs ts)
 -- Non-end nodes where children already have IPs: distinguish rules
-  | otherwise = Node (wfs, Just $ newIP) rule actives ts where
+  | otherwise = Node (wfs, Just newIP) rule actives ts where
       newIP = case (rule,actives) of
         -- single-child rules are easy, the interpolant stays the same:
         ("¬¬",_) -> ipOf t where [t] = ts

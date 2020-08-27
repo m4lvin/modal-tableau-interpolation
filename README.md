@@ -12,8 +12,8 @@ There are two different provers: one based on lists and one a proper tableau.
 See [src/Logic/Propositional/Prove](src/Logic/Propositional/Prove).
 
 Interpolation is also implemented twice:
-- [Logic.Propositional.Interpolation.Naive](src/Logic/Propositional/Interpolation/Naive.hs) replaces atoms by constants as described in [Wikipedia:](https://en.wikipedia.org/wiki/Craig_interpolation#Proof_of_Craig's_interpolation_theorem).
-- [Logic.Propositional.Interpolation.ProofTree](src/Logic/Propositional/Interpolation/Naive.hs) uses Tableaux.
+- [Logic.Propositional.Interpolation.Naive](src/Logic/Propositional/Interpolation/Naive.hs) replaces atoms by constants as described in [Wikipedia: Craig interpolation](https://en.wikipedia.org/wiki/Craig_interpolation#Proof_of_Craig's_interpolation_theorem).
+- [Logic.Propositional.Interpolation.ProofTree](src/Logic/Propositional/Interpolation/ProofTree.hs) uses Tableaux.
 
 ### Basic modal logic K
 

@@ -15,7 +15,7 @@ import qualified Logic.Propositional.Interpolation.ProofTree as ProofTree
 main :: IO ()
 main = hspec $ do
   describe "Prove.List.isProvable" $ do
-    it "Top" $ List.isProvable $ Top
+    it "Top" $ List.isProvable Top
     it "dis p (Neg p)" $ List.isProvable $ dis p (Neg p)
     it "Neg $ Con p (Neg p)" $ List.isProvable $ Neg $ Con p (Neg p)
     it "Neg (Imp p q) --> Con p (Neg q)" $ List.isProvable $ Neg (Imp p q) --> Con p (Neg q)
@@ -31,14 +31,14 @@ main = hspec $ do
     it "Bot" $ not . Tree.provable $ bot
     it "Con p (Neg p)" $ not . Tree.provable $ Con p (Neg p)
     it "Con r (dis p (Neg p))" $ not . Tree.provable $ Con r (dis p (Neg p))
-  describe "Interpolation.Naive" $ do
+  describe "Interpolation.Naive" $
     it "(Con p q, dis q r)" $
       testIPgen Naive.interpolate (Con p q, dis q r)
-  describe "Interpolation.ProofTree" $ do
+  describe "Interpolation.ProofTree" $
     it "(Con p q, dis q r)" $
       testIPgen Naive.interpolate (Con p q, dis q r)
   modifyMaxDiscardRatio (const 100) $ do
-    describe "check nice examples with Naive" $ do
-      prop "" $ (\(f,g) -> ProofTree.isNice (f,g) ==> testIPgen Naive.interpolate (f,g))
-    describe "check nice examples with ProofTree" $ do
-      prop "" $ (\(f,g) -> ProofTree.isNice (f,g) ==> testIPgen ProofTree.interpolate (f,g))
+    describe "check nice examples with Naive" $
+      prop "" (\(f,g) -> ProofTree.isNice (f,g) ==> testIPgen Naive.interpolate (f,g))
+    describe "check nice examples with ProofTree" $
+      prop "" (\(f,g) -> ProofTree.isNice (f,g) ==> testIPgen ProofTree.interpolate (f,g))

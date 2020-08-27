@@ -1,11 +1,11 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Logic.BasicModal.Prove.Tree where
 
 import Data.GraphViz
 import Data.GraphViz.Types.Monadic hiding ((-->))
 import Data.List
-import Data.Maybe (catMaybes,isJust)
+import Data.Maybe (mapMaybe,isJust)
 
 import Logic.Internal
 import Logic.BasicModal
@@ -119,12 +119,12 @@ extensions (Node wfs "" _ [])
     ([],usablewfs)  -> concatMap (\wf -> let
         Just (therule,results,change) = advancedRule (collapse wf)
         rest = delete wf wfs
-        tss = [ Node (nub . sort $ catMaybes (map (applyW change) rest) ++ newwfs) "" [] [] | newwfs <- map (map $ weightOf wf) results ]
+        tss = [ Node (nub . sort $ mapMaybe (applyW change) rest ++ newwfs) "" [] [] | newwfs <- map (map $ weightOf wf) results ]
       in extensions (Node wfs therule [wf] tss)) usablewfs
     (usablewfs,_) -> concatMap (\wf -> let
         Just (therule,results,change) = simpleRule (collapse wf)
         rest = delete wf wfs
-        tss = [ Node (nub . sort $ catMaybes (map (applyW change) rest) ++ newwfs) "" [] [] | newwfs <- map (map $ weightOf wf) results ]
+        tss = [ Node (nub . sort $ mapMaybe (applyW change) rest ++ newwfs) "" [] [] | newwfs <- map (map $ weightOf wf) results ]
       in extensions (Node wfs therule [wf] tss)) usablewfs
 extensions (Node fs rule actives ts@(_:_)) = [ Node fs rule actives ts' | ts' <- pickOneOfEach $ map (filterOneClosedIfAny . extensions) ts ]
 extensions (Node _  rule@(_:_) _ []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"
