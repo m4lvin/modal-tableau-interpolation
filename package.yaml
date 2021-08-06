@@ -16,6 +16,10 @@ extra-source-files:
   - src/Logic/PDL/Parse.y
   - src/Logic/PDL/Lex.x
 
+build-tools:
+  - alex
+  - happy
+
 library:
   source-dirs:
     - src
