@@ -1,0 +1,13 @@
+cradle:
+  stack:
+    - path: "./src"
+      component: "Logic:lib"
+
+    - path: "./test"
+      component: "Logic:test:basicmodal"
+
+    - path: "./test"
+      component: "Logic:test:pdl"
+
+    - path: "./test"
+      component: "Logic:test:propositional"
