@@ -11,21 +11,21 @@ import Logic.BasicModal.Interpolation.ProofTree
 
 main :: IO ()
 main = hspec $ do
-  describe "provable:" $ do
+  describe "provable" $ do
     it "Top" $
       provable top
     it "Neg Bot" $
       provable (Neg Bot)
     it "p --> p"  $
       provable $ p --> p
-    it "Box (con p q) --> Box p"  $
-      provable $ Box (con p q) --> Box p
+    it "Box (Con p q) --> Box p"  $
+      provable $ Box (Con p q) --> Box p
     it "Box (p --> q) --> (Box p --> Box q)"  $
       provable $ Box (p --> q) --> (Box p --> Box q)
-    it "dia (con p q) --> dia p"  $
-      provable $ dia (con p q) --> dia p
-    it "con (Box (p --> q)) (dia p) --> dia q"  $
-      provable $ con (Box (p --> q)) (dia p) --> dia q
+    it "dia (Con p q) --> dia p"  $
+      provable $ dia (Con p q) --> dia p
+    it "Con (Box (p --> q)) (dia p) --> dia q"  $
+      provable $ Con (Box (p --> q)) (dia p) --> dia q
   describe "not . provable" $ do
     it "Bot" $
       not. provable $ Bot
@@ -41,13 +41,19 @@ main = hspec $ do
       not . provable $ Box (dis p q) --> Box p
     it "(Box p --> Box q) --> Box (p --> q)"  $
       not. provable $ (Box p --> Box q) --> Box (p --> q)
+  describe "inconsistent" $ do
+    it "Borzechowski Example 2:  { r ⋀ ~□p, r ↣ □(p ⋀ q) }" $
+      inconsistent [ r `Con` Neg (Box p), r --> Box (p `Con` q) ]
   describe "interpolate" $ do
-    it "(Box (At 'r'),Box (Imp (At 's') (At 'r')))" $
-      testIPgen interpolate (Box (At 'r'),Box (Imp (At 's') (At 'r')))
-    it "(Box (Neg (Box (Neg (Box (At 's'))))),Box (Imp (Imp (Neg (At 'q')) (Box (At 'r'))) (Neg (Box Bot))))" $
-        testIPgen interpolate (Box (Neg (Box (Neg (Box (At 's'))))),Box (Imp (Imp (Neg (At 'q')) (Box (At 'r'))) (Neg (Box Bot))))
-    it "(Neg (Imp (Neg (Box (Imp (At 's') (At 'q')))) (Neg (Box (At 'p')))),Neg (Box (Imp (At 'p') (At 'q'))))" $
-      testIPgen interpolate (Neg (Imp (Neg (Box (Imp (At 's') (At 'q')))) (Neg (Box (At 'p')))),Neg (Box (Imp (At 'p') (At 'q'))))
-  modifyMaxDiscardRatio (const 1000) $
-    prop "interpolate randomly generated nice examples"
-      (\(f,g) -> isNice (f,g) ==> testIPgen interpolate (f,g))
+    it "(Box (At 'r'),Box (imp (At 's') (At 'r')))" $
+      testIPgen interpolate (Box (At 'r'),Box (imp (At 's') (At 'r')))
+    it "(Box (Neg (Box (Neg (Box (At 's'))))),Box (imp (imp (Neg (At 'q')) (Box (At 'r'))) (Neg (Box Bot))))" $
+        testIPgen interpolate (Box (Neg (Box (Neg (Box (At 's'))))),Box (imp (imp (Neg (At 'q')) (Box (At 'r'))) (Neg (Box Bot))))
+    it "(Neg (imp (Neg (Box (imp (At 's') (At 'q')))) (Neg (Box (At 'p')))),Neg (Box (imp (At 'p') (At 'q'))))" $
+      testIPgen interpolate (Neg (imp (Neg (Box (imp (At 's') (At 'q')))) (Neg (Box (At 'p')))),Neg (Box (imp (At 'p') (At 'q'))))
+
+    prop "interpolate randomly generated examples"
+      (\(f,g) -> provable (f `imp` g) ==> testIPgen interpolate (f,g))
+    modifyMaxDiscardRatio (const 1000) $
+      prop "interpolate randomly generated nice examples" $
+        (\(f,g) -> isNice (f,g) ==> testIPgen interpolate (f,g))

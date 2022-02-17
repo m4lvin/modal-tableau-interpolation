@@ -19,7 +19,7 @@ data Tableaux = Node -- ^ A node contains:
               | End
   deriving (Eq,Ord,Show)
 
-type RuleName = String
+type RuleName = String -- FIXME: use data RuleName = Con NegCon etc.
 
 type WForm = Either Form Form
 
@@ -73,14 +73,14 @@ simpleRule (Neg (At _))    = Nothing
 simpleRule (Neg Bot)       = Nothing
 simpleRule (Box _)         = Nothing -- yes, really
 -- Single-branch rules:
-simpleRule (Neg (Neg f))   = Just ("¬¬", [ [f]        ], noChange)
-simpleRule (Neg (Imp f g)) = Just ("¬→", [ [f, Neg g] ], noChange)
-simpleRule (Imp _ _)       = Nothing -- see advancedRule
+simpleRule (Neg (Neg f))   = Just ("¬", [ [f]    ], noChange)
+simpleRule (Con f g     )  = Just ("∧", [ [f, g] ], noChange)
+simpleRule (Neg (Con _ _)) = Nothing -- see advancedRule
 simpleRule (Neg (Box _ ))  = Nothing -- see advancedRule
 
 advancedRule :: Form -> Maybe (RuleName, [[Form]], Form -> Maybe Form)
--- Splitting rule for implication
-advancedRule (Imp f g)     = Just ("→" , [ [Neg f], [g] ], noChange)
+-- Splitting rule:
+advancedRule (Neg (Con f g)) = Just ("¬∧" , [ [Neg f], [Neg g] ], noChange)
 -- single-branching but throwing away the rest!
 advancedRule (Neg (Box f)) = Just ("¬☐", [ [Neg f] ], project)
 advancedRule _             = Nothing
@@ -136,9 +136,10 @@ pickOneOfEach [] = [[]]
 pickOneOfEach (l:ls) = [ x:xs | x <- l, xs <- pickOneOfEach ls ]
 
 -- To prove f, start with ¬f.
+-- Special case: to prove f --> g (which is ¬(f & ¬g)) start with partition [f ; ¬g]
 startFor :: Form -> Tableaux
-startFor (Imp f g) = Node [Left f, Right (Neg g)] "" [] []
-startFor f         = Node [Left $ Neg f]          "" [] []
+startFor (Neg (f `Con` Neg g)) = Node [Left f, Right (Neg g)] "" [] []
+startFor f                     = Node [Left $ Neg f]          "" [] []
 
 isClosedTab :: Tableaux -> Bool
 isClosedTab End = True
@@ -151,6 +152,13 @@ filterOneClosedIfAny ts = if any isClosedTab ts then take 1 (filter isClosedTab 
 -- Returns a closed tableaux if there is one in the list.
 prove :: Form -> Tableaux
 prove f = head $ filterOneClosedIfAny $ extensions $ startFor f
+
+tableauFor :: [Form] -> Tableaux
+tableauFor fs = head . filterOneClosedIfAny $ extensions $
+  Node (map Left fs) "" [] []
+
+inconsistent :: [Form] -> Bool
+inconsistent = isClosedTab . tableauFor
 
 provable :: Form -> Bool
 provable = isClosedTab . prove

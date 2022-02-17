@@ -66,20 +66,20 @@ fillIPs (Node (wfs, Nothing) "✘" actives [End]) = Node (wfs, Just ip) "✘" ac
     _                  -> error $ "End node, but wrong actives: " ++ show actives
 fillIPs n@(Node (wfs,Nothing) rule actives ts)
 -- Non-end nodes where children are missing IPs: recurse
-  | any (not . hasIP) ts = fillIPs $ Node (wfs, Nothing) rule actives (map fillIPs ts)
+  | not (all hasIP ts) = fillIPs $ Node (wfs, Nothing) rule actives (map fillIPs ts)
 -- Non-end nodes where children already have IPs: distinguish rules
   | otherwise = Node (wfs, Just newIP) rule actives ts where
       newIP = case (rule,actives) of
         -- single-child rules are easy, the interpolant stays the same:
-        ("¬¬",_) -> ipOf t where [t] = ts
-        ("¬→",_) -> ipOf t where [t] = ts
+        ("¬",_) -> ipOf t where [t] = ts
+        ("∧",_) -> ipOf t where [t] = ts
         -- for the branching rule we combine the two previous interpolants
         -- with a connective depending on the side of the active formula:
-        ("→",_) -> connective (ipOf t1) (ipOf t2) where
+        ("¬∧",_) -> connective (ipOf t1) (ipOf t2) where
           [t1,t2] = ts
           connective = case actives of
             [Left  _] -> dis -- left side is active
-            [Right _] -> con -- right side is active
+            [Right _] -> Con -- right side is active
             _         -> error "Could not find the active side."
         -- for the critical rule, we prefix the previous interpolant with diamond or Box, depending on the active side
         -- moroever, if one of the sides is empty we should use Bot or Top as interpolants, but for basic modal logic we do not need that
@@ -113,7 +113,7 @@ interpolateShow pair = do
   putStrLn $ "Simplified interpolant: " ++ ppForm (simplify ip)
 
 isNice :: (Form,Form) -> Bool
-isNice (f,g) = provable (f `Imp` g)
+isNice (f,g) = provable (f `imp` g)
             && atomsIn f /= [] && atomsIn g /= []
             && atomsIn f /= atomsIn g
             && (not . provable . Neg $ f)

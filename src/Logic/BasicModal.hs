@@ -11,14 +11,14 @@ import Logic.Internal
 
 type Atom = Char
 
-data Form = Bot | At Atom | Neg Form | Imp Form Form | Box Form
+data Form = Bot | At Atom | Neg Form | Con Form Form | Box Form
   deriving (Eq,Ord,Show)
 
 ppForm :: Form -> String
 ppForm Bot       = "⊥"
 ppForm (At a)    = [a]
 ppForm (Neg f)   = "¬" ++ ppForm f
-ppForm (Imp f g) = "(" ++ ppForm f ++ " → " ++ ppForm g ++ ")"
+ppForm (Con f g) = "(" ++ ppForm f ++ " & " ++ ppForm g ++ ")"
 ppForm (Box f)   = "☐" ++ ppForm f
 
 o,p,q,r,s :: Form
@@ -36,10 +36,10 @@ top = Neg Bot
 (!) = Neg
 
 (-->) :: Form -> Form -> Form
-(-->) = Imp
+(-->) = imp
 
 (<-->) :: Form -> Form -> Form
-f <--> g = con (f --> g) (g --> f)
+f <--> g = Con (f --> g) (g --> f)
 
 -- | Give me diamonds!
 dia :: Form -> Form
@@ -50,17 +50,17 @@ atomsIn :: Form -> [Atom]
 atomsIn Bot       = []
 atomsIn (At a)    = [a]
 atomsIn (Neg f)   = atomsIn f
-atomsIn (Imp f g) = sort . nub $ concatMap atomsIn [f,g]
+atomsIn (Con f g) = sort . nub $ concatMap atomsIn [f,g]
 atomsIn (Box f)   = atomsIn f
 
-con,dis :: Form -> Form -> Form
-con f g = Neg (f --> Neg g)
-dis f g = Neg f --> g
+imp,dis :: Form -> Form -> Form
+imp f g = Neg (    f `Con` Neg g)
+dis f g = Neg (Neg f `Con` Neg g)
 
 conSet,disSet :: [Form] -> Form
 conSet []     = Bot
 conSet [f]    = f
-conSet (f:fs) = con f (conSet fs)
+conSet (f:fs) = Con f (conSet fs)
 disSet []     = top
 disSet [f]    = f
 disSet (f:fs) = dis f (disSet fs)
@@ -73,11 +73,13 @@ simplify = fixpoint simstep where
   simstep (Neg (At a))  = Neg (At a)
   simstep (Neg (Neg g)) = simstep g
   simstep (Neg f)       = Neg (simstep f)
-  simstep (Imp Bot _  ) = top
-  simstep (Imp g   Bot) = simstep (Neg g)
-  simstep (Imp g h)
-    | h == Neg g        = Neg g
-    | otherwise         = Imp (simstep g) (simstep h)
+  simstep (Con Bot _  ) = Bot
+  simstep (Con _   Bot) = Bot
+  simstep (Con g h)
+    | h == g            = h
+    | Neg h == g        = Bot
+    | h == Neg g        = Bot
+    | otherwise         = Con (simstep g) (simstep h)
   simstep (Box f)       = Box $ simstep f
 
 -- | Complexity of a formula.
@@ -85,7 +87,7 @@ complexity :: Form -> Integer
 complexity Bot       = 0
 complexity (At _)    = 0
 complexity (Neg f)   = 1 + complexity f
-complexity (Imp f g) = 1 + maximum (map complexity [f,g])
+complexity (Con f g) = 1 + maximum (map complexity [f,g])
 complexity (Box f)   = 1 + complexity f
 
 -- | Size of a formula, aka number of subformulas
@@ -93,7 +95,7 @@ size :: Form -> Integer
 size Bot       = 0
 size (At _)    = 0
 size (Neg f)   = 1 + size f
-size (Imp f g) = 2 + sum (map size [f,g])
+size (Con f g) = 2 + sum (map size [f,g]) -- why 2+ and not 1+ here?
 size (Box f)   = 1 + size f
 
 -- | Get the immediate subformulas.
@@ -101,7 +103,7 @@ immediateSubformulas :: Form -> [Form]
 immediateSubformulas Bot       = []
 immediateSubformulas (At _)    = []
 immediateSubformulas (Neg f)   = [f]
-immediateSubformulas (Imp f g) = [f,g]
+immediateSubformulas (Con f g) = [f,g]
 immediateSubformulas (Box f)   = [f]
 
 -- | Substitute g for a in f.
@@ -110,7 +112,7 @@ substitute :: Form -> Atom -> Form -> Form
 substitute _ _ Bot       = Bot
 substitute g a (At b)    = if a == b then g else At b
 substitute g a (Neg f)   = Neg $ substitute g a f
-substitute g a (Imp f h) = Imp (substitute g a f) (substitute g a h)
+substitute g a (Con f h) = Con (substitute g a f) (substitute g a h)
 substitute g a (Box f)   = Box $ substitute g a f
 
 
@@ -145,7 +147,7 @@ eval :: (Model,World) -> Form -> Bool
 eval (_,_) Bot       = False
 eval (m,w) (At a)    = a `elem` val m w
 eval (m,w) (Neg f)   = not $ eval (m,w) f
-eval (m,w) (Imp f g) = eval (m,w) f `implies` eval (m,w) g
+eval (m,w) (Con f g) = eval (m,w) f && eval (m,w) g
 eval (m,w) (Box f)   = all (\w' -> eval (m,w') f) (rel m w)
 
 globeval :: Model -> Form -> Bool
@@ -197,7 +199,7 @@ instance Arbitrary Form where
       [ pure Bot
       , At <$> choose ('p','s')
       , Neg <$> genForm (n `div` factor)
-      , Imp <$> genForm (n `div` factor) <*> genForm (n `div` factor)
+      , Con <$> genForm (n `div` factor) <*> genForm (n `div` factor)
       , Box <$> genForm (n `div` factor)
       ]
   shrink = immediateSubformulas
