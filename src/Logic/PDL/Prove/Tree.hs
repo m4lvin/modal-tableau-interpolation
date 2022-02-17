@@ -86,15 +86,15 @@ ruleFor (Box (Cup x y) f      ,m) = Just ("∪",  1, [ [(Box x f, m), (Box y f, 
 ruleFor (Box (x :- y) f       ,m) = Just (";",  1, [ [(Box x (Box y f),m)]                  ], noChange)
 -- The (n) rule infers NStar, but not if x is atomic:
 -- TODO: assumption for now: only may be applied if there is a marking!?
-ruleFor (Box (Star x) f       ,m) = Just ("n",  1, [ [(f,m), (Box x (Box (starOperator x) f),m)] ], noChange) where
+ruleFor (Box (Star x) f       ,m) = Just ("n",  2, [ [(f,m), (Box x (Box (starOperator x) f),m)] ], noChange) where
   starOperator = if isAtomic x then Star else NStar -- per condition 1 -- FIXME this should also replace NStar with Star within f, I think? -- TODO remove this, condition is done later!
 -- Splitting rules:
-ruleFor (Neg (Con f g)        ,m) = Just ("¬^", 2, [ [(Neg f,m)], [(Neg g,m)]               ], noChange)
-ruleFor (Box (Test f) g       ,m) = Just ("?",  2, [ [(Neg f,m)], [(g,m)]                   ], noChange) -- marker also on Test?
-ruleFor (Neg (Box (Cup x y) f),m) = Just ("¬∪", 2, [ [(Neg $ Box x f,m)], [(Neg $ Box y f,m)] ], noChange)
-ruleFor (Neg (Box (Star x) f) ,m) = Just ("¬n", 2, [ [(Neg f,m) `without` f], [(Neg $ Box x (Box (NStar x) f),m)] ], noChange)
+ruleFor (Neg (Con f g)        ,m) = Just ("¬^", 3, [ [(Neg f,m)], [(Neg g,m)]               ], noChange)
+ruleFor (Box (Test f) g       ,m) = Just ("?",  3, [ [(Neg f,m)], [(g,m)]                   ], noChange) -- marker also on Test?
+ruleFor (Neg (Box (Cup x y) f),m) = Just ("¬∪", 3, [ [(Neg $ Box x f,m)], [(Neg $ Box y f,m)] ], noChange)
+ruleFor (Neg (Box (Star x) f) ,m) = Just ("¬n", 3, [ [(Neg f,m) `without` f], [(Neg $ Box x (Box (NStar x) f),m)] ], noChange)
 -- TODO: need a marker here:
-ruleFor (Neg (Box (Ap x) f),m)    = Just ("At", 3, [ [(Neg f, m) `without` f] ], projection) where -- the critical rule
+ruleFor (Neg (Box (Ap x) f),m)    = Just ("At", 4, [ [(Neg f, m) `without` f] ], projection) where -- the critical rule
   projection :: Form -> Maybe Form
   projection (Box (Ap y) g) | x == y = Just g
   projection _                       = Nothing
@@ -160,12 +160,14 @@ whatshallwedo wfs = chooseRule $ pairWithMaybe (fmap extraNewFormChanges . ruleF
 -- There might be multiple applicable rules of the same or different weight.
 chooseRule :: [(WForm,RuleApplication)] -> [(WForm,RuleApplication)]
 chooseRule moves
-  -- if we can apply a weight 1 rule, do it, ignore all others for now:
+  -- if possible apply one weight 1 rule, ignore all others for now:
   | any ((==) 1 . wOf) moves = take 1 $ filter ((==) 1 . wOf) moves
-  -- else, if we can apply a weight 2 rule, do it, ignore all others for now:
+  -- else, if possible apply one weight 2 rule, ignore all others for now:
   | any ((==) 2 . wOf) moves = take 1 $ filter ((==) 2 . wOf) moves
-  -- else, if we can apply a weight 3 rule, consider all of them in parallel:
-  | any ((==) 3 . wOf) moves = filter ((==) 3 . wOf) moves
+  -- else, if possible apply one weight 3 rule, do it, ignore all others for now:
+  | any ((==) 3 . wOf) moves = take 1 $ filter ((==) 3 . wOf) moves
+  -- else, if possible apply all weight 4 rules in parallel:
+  | any ((==) 4 . wOf) moves = filter ((==) 4 . wOf) moves
   | otherwise = []
   where
      wOf (_,(_,weight,_,_))= weight
