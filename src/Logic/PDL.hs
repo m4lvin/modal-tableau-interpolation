@@ -40,7 +40,7 @@ instance Stringable Prog where
   toString (p1 :- p2)  = "(" ++ toString p1 ++ " ; " ++ toString p2 ++ ")"
   toString (Test f)    = "?(" ++ toString f ++ ")"
   toString (Star pr)   = toString pr ++ "*"
-  toString (NStar pr)  = "(" ++ toString pr ++ ")ⁿ"
+  toString (NStar pr)  = toString pr ++ "ⁿ"
 
 class HasAtoms a where
   isAtomic :: a -> Bool

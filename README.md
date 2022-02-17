@@ -66,7 +66,7 @@ For PDL we also use the file [formulae_exp_unsat.txt](data/formulae_exp_unsat.tx
 - [ ] Find test cases that fail due to the empty-side edge cases for (At)-interpolants?
 - [ ] Correct definition of (At)-interpolants in the empty-side edge cases.
 - [ ] Implement all extra conditions from Borzechowski:
-    1. [ ] when reaching an atomic Box or NegBox, go back from n to *
+    1. [x] when reaching an atomic Box or NegBox, go back from n to *
     2. [ ] instead of X;[a^n]P reach X
     3. [ ] apply rules to n-formula whenever possible / prioritise them!
     4. [X] Never apply a rule to a ¬[a^n] node – FIXME and mark as end node!?

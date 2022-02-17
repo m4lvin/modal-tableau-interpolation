@@ -77,8 +77,8 @@ ruleFor (Neg (At _),_)    = Nothing
 ruleFor (Bot,_)           = Nothing
 ruleFor (Neg Bot,_)       = Nothing
 -- Single-branch rules:
-ruleFor (Neg (Neg f)          ,m) = Just ("¬¬", 1, [ [(f,m)]                                ], noChange)
-ruleFor (Con f g              ,m) = Just ("^" , 1, [ [(f,m), (g,m)]                         ], noChange)
+ruleFor (Neg (Neg f)          ,m) = Just ("¬",  1, [ [(f,m)]                                ], noChange)
+ruleFor (Con f g              ,m) = Just ("∧" , 1, [ [(f,m), (g,m)]                         ], noChange)
 ruleFor (Neg (Box (Test f) g) ,m) = Just ("¬?", 1, [ [(f,Nothing), (Neg g,m) `without` f ]  ], noChange)
 ruleFor (Neg (Box (x:-y) f)   ,m) = Just ("¬;", 1, [ [(Neg $ Box x (Box y f),m)]            ], noChange)
 ruleFor (Box (Ap _) _         ,_) = Nothing
@@ -89,7 +89,7 @@ ruleFor (Box (x :- y) f       ,m) = Just (";",  1, [ [(Box x (Box y f),m)]      
 ruleFor (Box (Star x) f       ,m) = Just ("n",  2, [ [(f,m), (Box x (Box (starOperator x) f),m)] ], noChange) where
   starOperator = if isAtomic x then Star else NStar -- per condition 1 -- FIXME this should also replace NStar with Star within f, I think? -- TODO remove this, condition is done later!
 -- Splitting rules:
-ruleFor (Neg (Con f g)        ,m) = Just ("¬^", 3, [ [(Neg f,m)], [(Neg g,m)]               ], noChange)
+ruleFor (Neg (Con f g)        ,m) = Just ("¬∧", 3, [ [(Neg f,m)], [(Neg g,m)]               ], noChange)
 ruleFor (Box (Test f) g       ,m) = Just ("?",  3, [ [(Neg f,m)], [(g,m)]                   ], noChange) -- marker also on Test?
 ruleFor (Neg (Box (Cup x y) f),m) = Just ("¬∪", 3, [ [(Neg $ Box x f,m)], [(Neg $ Box y f,m)] ], noChange)
 ruleFor (Neg (Box (Star x) f) ,m) = Just ("¬n", 3, [ [(Neg f,m) `without` f], [(Neg $ Box x (Box (NStar x) f),m)] ], noChange)
@@ -102,7 +102,10 @@ ruleFor (Neg (Box (NStar _) _),_) = Nothing -- per condition 4 no rule may be ap
 ruleFor mf@(Box (NStar _) _   ,_) = error $ "I have no rule for this, There should never be an NStar node: " ++ show mf
 
 extraNewFormChanges :: RuleApplication -> RuleApplication
-extraNewFormChanges (ruleName, ruleWeight, newFormLists, changeFunction) = (ruleName, ruleWeight, map (map con1backToStar) newFormLists, changeFunction) where
+extraNewFormChanges (ruleName, ruleWeight, newFormLists, changeFunction) =
+  (ruleName, ruleWeight, map (map con1backToStar) newFormLists, changeFunction)
+  where
+  -- extra condition 1
   con1backToStar :: Marked Form -> Marked Form
   con1backToStar (f@(Box (Ap _) _)      ,m) = (nToStar f, m)
   con1backToStar (f@(Neg (Box (Ap _) _)),m) = (nToStar f, m)
