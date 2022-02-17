@@ -39,6 +39,7 @@ leftsOf, rightsOf :: [WForm] -> [Marked Form]
 leftsOf  wfs = [(f,m) | (Left f,m) <- wfs]
 rightsOf wfs = [(f,m) | (Right f,m) <- wfs]
 
+-- TODO: highlight active form
 ppWForms :: [WForm] -> String
 ppWForms wfs = toStrings (leftsOf wfs) ++ "  |  " ++ toStrings (rightsOf wfs)
 
@@ -100,8 +101,8 @@ ruleFor (Neg (Box (Ap x) f),m)    = Just ("At", 3, [ [(Neg f, m) `without` f] ],
 ruleFor (Neg (Box (NStar _) _),_) = Nothing -- per condition 4 no rule may be applied here. See Borzechowski page 19.
 ruleFor mf@(Box (NStar _) _   ,_) = error $ "I have no rule for this, There should never be an NStar node: " ++ show mf
 
-extraConditions :: RuleApplication -> RuleApplication
-extraConditions (ruleName, ruleWeight, newFormLists, changeFunction) = (ruleName, ruleWeight, map (map con1backToStar) newFormLists, changeFunction) where
+extraNewFormChanges :: RuleApplication -> RuleApplication
+extraNewFormChanges (ruleName, ruleWeight, newFormLists, changeFunction) = (ruleName, ruleWeight, map (map con1backToStar) newFormLists, changeFunction) where
   con1backToStar :: Marked Form -> Marked Form
   con1backToStar (f@(Box (Ap _) _)      ,m) = (nToStar f, m)
   con1backToStar (f@(Neg (Box (Ap _) _)),m) = (nToStar f, m)
@@ -127,37 +128,62 @@ isEndNodeAfter predecessors wfs = undefined
 
 -- TODO: needs proper search, as in BasicModal:
 -- extend :: Tableaux -> [Tableaux]
-extend :: Tableaux -> Tableaux
-extend End             = End
-extend (Node wfs "" [])
-  | isClosedNode (map collapse wfs) = Node wfs "✘" [End]
-  | otherwise = uncurry (Node wfs) $ case whatshallwedo wfs of
-    []     -> (""     ,[])
-    ((wf,(therule,_,results,change)):_) -> (therule,ts) where
-      rest = delete wf wfs
-      ts = [ Node (nub . sort $ mapMaybe (applyW change) rest ++ newwfs) "" [] | newwfs <- map (map $ weightOf wf) results ]
-extend (Node fs rule ts@(_:_)) = Node fs rule [extend t | t <- ts]
-extend (Node _  rule@(_:_) []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"
+extensions :: Tableaux -> [Tableaux]
+extensions End             = [End]
+extensions (Node wfs "" [])
+  | isClosedNode (map collapse wfs) = [ Node wfs "✘" [End] ]
+  | null (whatshallwedo wfs) = [ Node wfs "" [] ] -- we are stuck!
+  | otherwise =
+      map (\ (wf,(therule,_,results,change)) ->
+             let
+               rest = delete wf wfs
+               ts = [ Node (nub . sort $ mapMaybe (applyW change) rest ++ newwfs) "" []
+                    | newwfs <- map (map $ weightOf wf) results ]
+             in
+               Node wfs therule ts)
+          (whatshallwedo wfs)
+extensions (Node wfs rule ts@(_:_)) =
+  [ Node wfs rule ts' | ts' <- pickOneOfEach $ map (filterOneIfAny isClosedTab . extensions) ts ]
+extensions (Node _  rule@(_:_) []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"
 
-extendUpTo :: Int -> Tableaux -> Tableaux
-extendUpTo 0 t = unsafePerformIO (putStrLn "\n ERROR too many steps! \n" >> return t) -- TODO throw error!
-extendUpTo k t = if extend t /= t then extendUpTo (k-1) (extend t) else t
+extensionsUpTo :: Int -> Tableaux -> [Tableaux]
+extensionsUpTo 0 t = unsafePerformIO (putStrLn "\n ERROR too many steps! \n" >> return [t]) -- TODO throw error!
+extensionsUpTo k t = if extensions t /= [t] then concatMap (extensionsUpTo (k-1)) (extensions t) else [t]
 
 pairWithMaybe :: (a -> Maybe b) -> [a] -> [(a,b)]
 pairWithMaybe f xs = [ (x, fromJust $ f x) | x <- xs, isJust (f x) ]
 
 whatshallwedo :: [WForm] -> [(WForm,RuleApplication)]
-whatshallwedo = sortOn (\(_,(_,weight,_,_)) -> weight) . pairWithMaybe (fmap extraConditions . ruleFor . collapse)
+whatshallwedo wfs = chooseRule $ pairWithMaybe (fmap extraNewFormChanges . ruleFor . collapse) wfs
+
+-- | Choosing a rule.
+-- There might be multiple applicable rules of the same or different weight.
+chooseRule :: [(WForm,RuleApplication)] -> [(WForm,RuleApplication)]
+chooseRule moves
+  -- if we can apply a weight 1 rule, do it, ignore all others for now:
+  | any ((==) 1 . wOf) moves = take 1 $ filter ((==) 1 . wOf) moves
+  -- else, if we can apply a weight 2 rule, do it, ignore all others for now:
+  | any ((==) 2 . wOf) moves = take 1 $ filter ((==) 2 . wOf) moves
+  -- else, if we can apply a weight 3 rule, consider all of them in parallel:
+  | any ((==) 3 . wOf) moves = filter ((==) 3 . wOf) moves
+  | otherwise = []
+  where
+     wOf (_,(_,weight,_,_))= weight
 
 isClosedTab :: Tableaux -> Bool
 isClosedTab End = True
 isClosedTab (Node _ _ ts) = ts /= [] && all isClosedTab ts
 
+globalSearchLimit :: Int
+globalSearchLimit = 30
+
 -- To prove f --> g, start with proper partition.
 -- To prove f, start with  ¬f.
 prove :: Form -> Tableaux
-prove (Neg (Con f (Neg g))) = extendUpTo 40 $ Node [(Left       f, Nothing), (Right (Neg g), Nothing)] "" []
-prove f                     = extendUpTo 40 $ Node [(Left $ Neg f, Nothing)                          ] "" []
+prove (Neg (Con f (Neg g))) = head $ filterOneIfAny isClosedTab $ extensionsUpTo globalSearchLimit $
+  Node [(Left       f, Nothing), (Right (Neg g), Nothing)] "" []
+prove f                     = head $ filterOneIfAny isClosedTab $ extensionsUpTo globalSearchLimit $
+  Node [(Left $ Neg f, Nothing)                          ] "" []
 
 provable :: Form -> Bool
 provable = isClosedTab . prove
@@ -170,7 +196,7 @@ proveSlideshow f = do
   disp t
 
 tableauFor :: [Form] -> Tableaux
-tableauFor fs = extendUpTo 10 $ Node (map (\f -> (Left f, Nothing)) fs) "" []
+tableauFor fs = head $ filterOneIfAny isClosedTab $ extensionsUpTo 10 $ Node (map (\f -> (Left f, Nothing)) fs) "" []
 
 inconsistent :: [Form] -> Bool
 inconsistent = isClosedTab . tableauFor

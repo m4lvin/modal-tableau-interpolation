@@ -60,8 +60,8 @@ For PDL we also use the file [formulae_exp_unsat.txt](data/formulae_exp_unsat.tx
 
 - [X] restricted language with Con, not Imp as primitive, as Borzechowski does
 - [ ] all the basic modal changes
+    - [X] proper search: extend -> extensions
     - [ ] mark/highlight active formula
-    - [ ] proper search: extend -> extensions
     - FIXME what else actually?
 - [ ] Find test cases that fail due to the empty-side edge cases for (At)-interpolants?
 - [ ] Correct definition of (At)-interpolants in the empty-side edge cases.
