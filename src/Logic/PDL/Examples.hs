@@ -16,14 +16,14 @@ someValidities =
   , Box (Star (Cup a b)) (Con p q) --> Box (Star (b :- b)) (dis q (Box c r))
   , Con (Box a p) (Box b (Con p q)) --> Box (Cup a b) p
   , Con (Box (Star a) p) (Box b (Con p q)) --> Box (Cup (Star a) b) p
-  -- TODO: add more
+  , Box (Star a) p --> dia (Star a) p
   ]
 
 someNonValidities :: [Form]
 someNonValidities =
   [ Neg top
   , dia (Cup a b) p --> dia a p
-  , Box (Star a) p --> dia (Star a) p
+  , Box (a :- Star a) p --> dia (a :- Star a) p
   , Con (Box a p) (Box b q) --> Box (Cup a b) (Con p q)
   ]
 
