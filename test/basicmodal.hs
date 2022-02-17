@@ -42,6 +42,10 @@ main = hspec $ do
     it "(Box p --> Box q) --> Box (p --> q)"  $
       not. provable $ (Box p --> Box q) --> Box (p --> q)
   describe "inconsistent" $ do
+    it "{ □p, ¬□(p ∨ r), ¬□(q ∨ r) }" $
+      inconsistent [ Box p, Neg (Box (p `dis` r)), Neg (Box (q `dis` r)) ]
+    it "{ □p, ¬□(q ∨ r), ¬□(p ∨ r) }" $
+      inconsistent [ Box p, Neg (Box (q `dis` r)), Neg (Box (p `dis` r)) ]
     it "Borzechowski Example 2:  { r ⋀ ~□p, r ↣ □(p ⋀ q) }" $
       inconsistent [ r `Con` Neg (Box p), r --> Box (p `Con` q) ]
   describe "interpolate" $ do

@@ -53,20 +53,23 @@ For PDL we also use the file [formulae_exp_unsat.txt](data/formulae_exp_unsat.tx
 
 ## Basic Modal Logic
 
-- [X] mark active formula in tableaus
+- [X] mark active formula in tableaux
 - [X] remove Top as primitive, use top
 
 ## PDL
 
 - [X] restricted language with Con, not Imp as primitive, as Borzechowski does
-- [ ] all the basic modal changes, 
+- [ ] all the basic modal changes
+    - [ ] mark/highlight active formula
+    - [ ] proper search: extend -> extensions
+    - FIXME what else actually?
 - [ ] Find test cases that fail due to the empty-side edge cases for (At)-interpolants?
 - [ ] Correct definition of (At)-interpolants in the empty-side edge cases.
 - [ ] Implement all extra conditions from Borzechowski:
     1. [ ] when reaching an atomic Box or NegBox, go back from n to *
     2. [ ] instead of X;[a^n]P reach X
     3. [ ] apply rules to n-formula whenever possible / prioritise them!
-    4. [X] Never apply a rule to a ¬[a^n] node
+    4. [X] Never apply a rule to a ¬[a^n] node – FIXME and mark as end node!?
     5. [ ] directly after M+ do not apply M-
     6. [ ] close normal nodes with critical predecessors when the whole path is loaded
     7. [ ] ...
@@ -82,6 +85,9 @@ Nice to have:
 - May other rules like (¬), (^) etc. be applied to marked formulas?
 
 - Can (At) only be applied to marked formulas? (page 24 suggest that!) (otherwise, why not do (At)_C directly on page 56, without (M+) first?)
+
+- What *are* the nodes in the tableau? Concretely: lists, multisets or sets? Finite?
+  This matters for the claim that "complexity goes down" / termination.
 
 ## Related work
 

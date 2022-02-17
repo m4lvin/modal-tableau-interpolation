@@ -2,8 +2,10 @@
 
 module Logic.PDL.Prove.Tree
   ( provable
+  , inconsistent
   , proveSlideshow
   , tableauShow
+  , tableauFor
   ) where
 
 import Control.Arrow
@@ -118,6 +120,13 @@ isClosedNode :: [Marked Form] -> Bool
 isClosedNode mfs = Bot `elem` map fst mfs || any (\(f,_) -> Neg f `elem` map fst mfs) mfs
 -- TODO should we also check extra condition 6 or 7 here??
 
+-- TODO: we need some way to access predecessors!
+-- IDEA:
+isEndNodeAfter :: [ [WForm] ] -> [WForm] -> Bool
+isEndNodeAfter predecessors wfs = undefined
+
+-- TODO: needs proper search, as in BasicModal:
+-- extend :: Tableaux -> [Tableaux]
 extend :: Tableaux -> Tableaux
 extend End             = End
 extend (Node wfs "" [])
@@ -162,6 +171,9 @@ proveSlideshow f = do
 
 tableauFor :: [Form] -> Tableaux
 tableauFor fs = extendUpTo 10 $ Node (map (\f -> (Left f, Nothing)) fs) "" []
+
+inconsistent :: [Form] -> Bool
+inconsistent = isClosedTab . tableauFor
 
 tableauShow :: [Form] -> IO ()
 tableauShow fs = do

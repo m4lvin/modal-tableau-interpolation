@@ -24,6 +24,13 @@ main = hspec $ do
     mapM_
       (\l -> it (myShow l) $ (provable . Neg) ((parse . alexScanTokens) l))
       (filter (not . null) (lines fileLines))
+  describe "inconsistent" $ do
+    it "{ [a]p, ¬[a](p ∨ r), ¬[a](q ∨ r) }" $
+      inconsistent [ Box a p, Neg (Box a (p `dis` r)), Neg (Box a (q `dis` r)) ]
+    it "{ [a]p, ¬[a](q ∨ r), ¬[a](p ∨ r) }" $
+      inconsistent [ Box a p, Neg (Box a (q `dis` r)), Neg (Box a (p `dis` r)) ]
+    it "Borzechowski Example 2:  { r ⋀ ~□p, r ↣ □(p ⋀ q) }" $
+      inconsistent [ r `Con` Neg (Box a p), r --> Box a (p `Con` q) ]
   describe "borzechowski" $
     proveTest borzechowski -- FIXME this is currently failing!
 
