@@ -27,9 +27,6 @@ collapse :: WForm -> Form
 collapse (Left  f) = f
 collapse (Right f) = f
 
-collapseList :: [Either Form Form] -> [Form]
-collapseList = map collapse
-
 leftsOf, rightsOf :: [WForm] -> [Form]
 leftsOf  wfs = [f | Left  f <- wfs]
 rightsOf wfs = [f | Right f <- wfs]
@@ -113,7 +110,7 @@ isClosedBecause wfs = foo wfs where
 extensions :: Tableaux -> [Tableaux]
 extensions End = [End]
 extensions (Node wfs "" _ [])
-  | isClosedNode (collapseList wfs) = [Node wfs "✘" (isClosedBecause wfs) [End]]
+  | isClosedNode (map collapse wfs) = [Node wfs "✘" (isClosedBecause wfs) [End]]
   | otherwise = case (filter simplyUsable wfs, filter advancedlyUsable wfs) of
     ([],[])  -> [ Node wfs "" [] [] ] -- We're stuck here.
     ([],usablewfs)  -> concatMap (\wf -> let
@@ -126,14 +123,9 @@ extensions (Node wfs "" _ [])
         rest = delete wf wfs
         tss = [ Node (nub . sort $ mapMaybe (applyW change) rest ++ newwfs) "" [] [] | newwfs <- map (map $ weightOf wf) results ]
       in extensions (Node wfs therule [wf] tss)) usablewfs
-extensions (Node fs rule actives ts@(_:_)) = [ Node fs rule actives ts' | ts' <- pickOneOfEach $ map (filterOneClosedIfAny . extensions) ts ]
+extensions (Node fs rule actives ts@(_:_)) = [ Node fs rule actives ts' | ts' <- pickOneOfEach $ map (filterOneIfAny isClosedTab . extensions) ts ]
 extensions (Node _  rule@(_:_) _ []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"
 
--- | Pick one element of each list to form new lists.
--- Example: pickOneOfEach [[1,2],[3,4,5]] == [[1,3],[1,4],[1,5],[2,3],[2,4],[2,5]]
-pickOneOfEach :: [[a]] -> [[a]]
-pickOneOfEach [] = [[]]
-pickOneOfEach (l:ls) = [ x:xs | x <- l, xs <- pickOneOfEach ls ]
 
 -- To prove f, start with ¬f.
 -- Special case: to prove f --> g (which is ¬(f & ¬g)) start with partition [f ; ¬g]
@@ -145,16 +137,13 @@ isClosedTab :: Tableaux -> Bool
 isClosedTab End = True
 isClosedTab (Node _ _ _ ts) = ts /= [] && all isClosedTab ts
 
-filterOneClosedIfAny :: [Tableaux] -> [Tableaux]
-filterOneClosedIfAny ts = if any isClosedTab ts then take 1 (filter isClosedTab ts) else ts
-
 -- | Try to prove something by generating all extended tableauxs.
 -- Returns a closed tableaux if there is one in the list.
 prove :: Form -> Tableaux
-prove f = head $ filterOneClosedIfAny $ extensions $ startFor f
+prove f = head $ filterOneIfAny isClosedTab $ extensions $ startFor f
 
 tableauFor :: [Form] -> Tableaux
-tableauFor fs = head . filterOneClosedIfAny $ extensions $
+tableauFor fs = head . filterOneIfAny isClosedTab $ extensions $
   Node (map Left fs) "" [] []
 
 inconsistent :: [Form] -> Bool
