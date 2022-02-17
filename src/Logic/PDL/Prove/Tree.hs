@@ -3,8 +3,10 @@
 module Logic.PDL.Prove.Tree
   ( provable
   , proveSlideshow
+  , tableauShow
   ) where
 
+import Control.Arrow
 import Data.GraphViz hiding (Shape(Star))
 import Data.GraphViz.Types.Monadic hiding ((-->))
 import Data.List
@@ -19,9 +21,9 @@ import Logic.PDL
 data Tableaux = Node [WForm] RuleName [Tableaux] | End
   deriving (Eq,Ord,Show)
 
-type RuleName = String
+type RuleName = String -- FIXME: use data RuleName = Con NegCon etc.
 
--- We can mark formuals with other formulas
+-- We can mark formulas with other formulas
 type Marked a = (a, Maybe a)
 
 -- A WForm is weighted (Left/Right) and may have a marking.
@@ -30,9 +32,6 @@ type WForm = (Either Form Form, Maybe Form)
 collapse :: WForm -> Marked Form
 collapse (Left f,m)  = (f,m)
 collapse (Right f,m) = (f,m)
-
-collapseList :: [WForm] -> [Marked Form]
-collapseList = map collapse
 
 leftsOf, rightsOf :: [WForm] -> [Marked Form]
 leftsOf  wfs = [(f,m) | (Left f,m) <- wfs]
@@ -82,7 +81,7 @@ ruleFor (Neg (Box (x:-y) f)   ,m) = Just ("¬;", 1, [ [(Neg $ Box x (Box y f),m)
 ruleFor (Box (Ap _) _         ,_) = Nothing
 ruleFor (Box (Cup x y) f      ,m) = Just ("∪",  1, [ [(Box x f, m), (Box y f, m)]           ], noChange)
 ruleFor (Box (x :- y) f       ,m) = Just (";",  1, [ [(Box x (Box y f),m)]                  ], noChange)
--- The (n) rule infers NStar, but not of x is atomic:
+-- The (n) rule infers NStar, but not if x is atomic:
 -- TODO: assumption for now: only may be applied if there is a marking!?
 ruleFor (Box (Star x) f       ,m) = Just ("n",  1, [ [(f,m), (Box x (Box (starOperator x) f),m)] ], noChange) where
   starOperator = if isAtomic x then Star else NStar -- per condition 1 -- FIXME this should also replace NStar with Star within f, I think? -- TODO remove this, condition is done later!
@@ -112,8 +111,8 @@ applyW fct (Left  f, m) = fmap (\g -> (Left  g, m)) (fct f)
 applyW fct (Right f, m) = fmap (\g -> (Right g, m)) (fct f)
 
 weightOf :: WForm -> (Marked Form -> WForm)
-weightOf (Left  _, _) = \(f,m) -> (Left  f, m)
-weightOf (Right _, _) = \(f,m) -> (Right f, m)
+weightOf (Left  _, _) = first Left
+weightOf (Right _, _) = first Right
 
 isClosedNode :: [Marked Form] -> Bool
 isClosedNode mfs = Bot `elem` map fst mfs || any (\(f,_) -> Neg f `elem` map fst mfs) mfs
@@ -122,7 +121,7 @@ isClosedNode mfs = Bot `elem` map fst mfs || any (\(f,_) -> Neg f `elem` map fst
 extend :: Tableaux -> Tableaux
 extend End             = End
 extend (Node wfs "" [])
-  | isClosedNode (collapseList wfs) = Node wfs "✘" [End]
+  | isClosedNode (map collapse wfs) = Node wfs "✘" [End]
   | otherwise = uncurry (Node wfs) $ case whatshallwedo wfs of
     []     -> (""     ,[])
     ((wf,(therule,_,results,change)):_) -> (therule,ts) where
@@ -158,5 +157,14 @@ provable = isClosedTab . prove
 proveSlideshow :: Form -> IO ()
 proveSlideshow f = do
   let t = prove f
+  print $ isClosedTab t
+  disp t
+
+tableauFor :: [Form] -> Tableaux
+tableauFor fs = extendUpTo 10 $ Node (map (\f -> (Left f, Nothing)) fs) "" []
+
+tableauShow :: [Form] -> IO ()
+tableauShow fs = do
+  let t = tableauFor fs
   print $ isClosedTab t
   disp t

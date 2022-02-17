@@ -38,6 +38,8 @@ tokens :-
   "AND"             { \ p _ -> TokenCon               p }
   "OR"              { \ p _ -> TokenDis               p }
   "p"               { \ p _ -> TokenP                 p }
+  "q"               { \ p _ -> TokenQ                 p }
+  "r"               { \ p _ -> TokenR                 p }
   -- PDL Programs:
   "u"               { \ p _ -> TokenCup               p }
   "∪"               { \ p _ -> TokenCup               p }
@@ -45,5 +47,8 @@ tokens :-
   ";"               { \ p _ -> TokenSemicolon         p }
   "?"               { \ p _ -> TokenTest              p }
   "a"               { \ p _ -> TokenA                 p }
+  "b"               { \ p _ -> TokenB                 p }
+  "c"               { \ p _ -> TokenC                 p }
+  "d"               { \ p _ -> TokenD                 p }
   -- Ints:
   $dig+             { \ p s -> TokenInt (read s)      p }
