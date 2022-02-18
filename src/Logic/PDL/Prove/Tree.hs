@@ -115,7 +115,7 @@ ruleFor (Neg (Box (Ap x) f), Just mark)    = Just ("At", 4, [ [(Neg f, Just mark
   projection (Box (Ap y) g) | x == y = Just g
   projection _                       = Nothing
 ruleFor (Neg (Box (NStar _) _),_) = Nothing -- per condition 4 no rule may be applied here. See Borzechowski page 19.
-ruleFor mf@(Box (NStar _) _   ,_) = error $ "I have no rule for this, There should never be an NStar node: " ++ show mf
+ruleFor (Box (NStar _) _   ,_) = Nothing -- TODO: think about whether this should actually be an error, can there be Box NStar nodes at all?
 
 extraNewFormChanges :: RuleApplication -> RuleApplication
 extraNewFormChanges (ruleName, ruleWeight, newFormLists, changeFunction) =

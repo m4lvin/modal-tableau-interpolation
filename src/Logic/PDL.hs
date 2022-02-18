@@ -3,6 +3,7 @@
 module Logic.PDL where
 
 import Data.List
+import Test.QuickCheck
 
 import Logic.Internal
 
@@ -154,15 +155,21 @@ simplifyProg = fixpoint simstep where
   simstep (NStar pr)    = NStar (simstep pr)
   simstep (Test   f)    = Test (simplify f)
 
--- | Get the immediate subformulas.
-immediateSubformulas :: Form -> [Form]
-immediateSubformulas Bot       = []
-immediateSubformulas (At _)    = []
-immediateSubformulas (Neg f)   = [f]
-immediateSubformulas (Con f g) = [f,g]
-immediateSubformulas (Box _ f)   = [f]
+immediateSubFormulas :: Form -> [Form]
+immediateSubFormulas Bot       = []
+immediateSubFormulas (At _)    = []
+immediateSubFormulas (Neg f)   = [f]
+immediateSubFormulas (Con f g) = [f,g]
+immediateSubFormulas (Box _ f)   = [f]
 -- FIXME: subformulas from Star?
 
+immediateSubPrograms :: Prog -> [Prog]
+immediateSubPrograms (Ap _) = []
+immediateSubPrograms (Cup p1 p2) = [p1, p2]
+immediateSubPrograms (p1 :- p2) =  [p1, p2]
+immediateSubPrograms (Star p1) = [p1]
+immediateSubPrograms (NStar p1) = [p1]
+immediateSubPrograms (Test f) = map Test $ immediateSubFormulas f
 
 ---- SEMANTICS ----
 
@@ -172,3 +179,31 @@ immediateSubformulas (Box _ f)   = [f]
 ---- RANDOM GENERATION ----
 
 -- TODO
+-- | Generate random formulas.
+instance Arbitrary Form where
+  arbitrary = simplify <$> sized genForm where
+    factor = 3
+    genForm 0 = elements [ Bot, top, o, p, q, r, s ]
+    genForm 1 = elements [ Bot, top, o, p, q, r, s ]
+    genForm n = oneof
+      [ elements [ Bot, top, o, p, q, r, s ]
+      , Neg <$> genForm (n `div` factor)
+      , Con <$> genForm (n `div` factor) <*> genForm (n `div` factor)
+      , Box <$> arbitrary <*> genForm (n `div` factor)
+      ]
+  shrink = immediateSubFormulas
+
+instance Arbitrary Prog where
+  arbitrary = simplifyProg <$> sized genProg where
+    factor = 3
+    genProg 0 = elements [ Test top, Test Bot, a, b, c, d ]
+    genProg 1 = elements [ Test top, Test Bot, a, b, c, d ]
+    genProg n = oneof
+      [ elements [ Test top, Test Bot, a, b, c, d ]
+      , Cup <$> genProg (n `div` factor) <*> genProg (n `div` factor)
+      , (:-) <$> genProg (n `div` factor) <*> genProg (n `div` factor)
+      , Star <$> genProg (n `div` factor)
+      -- TODO: also generate NStar formulas??
+      , Test <$> arbitrary
+      ]
+  shrink = immediateSubPrograms

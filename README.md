@@ -58,14 +58,15 @@ For PDL we also use the file [formulae_exp_unsat.txt](data/formulae_exp_unsat.tx
 
 ## PDL
 
-- [ ] random generation of formulas for QuickCheck (copy/adapt from BasicModal)
+- [X] random generation of formulas for QuickCheck (copy/adapt from BasicModal)
 
 Prover:
 
 - [X] restricted language with Con, not Imp as primitive, as Borzechowski does
 - [X] proper search: extend -> extensions (as in BasicModal)
-- [x] add M+ rule
-- [x] Only allow (At) on marked formulas (page 24 suggest that!) (otherwise, why not do (At)_C directly on page 56, without (M+) first?)
+- [X] add M+ rule
+- [X] Only allow (At) on marked formulas (page 24 suggest that!) (otherwise, why not do (At)_C directly on page 56, without (M+) first?)
+- [ ] Check priorities / preferences of all rules.
 - [ ] mark active formula (as in BasicModal), needed for interpolation
 - [ ] Implement all extra conditions from Borzechowski:
     1. [x] when reaching an atomic Box or NegBox, go back from n to *
@@ -91,7 +92,7 @@ Nice to have:
 
 ## Open Questions
 
-- May other rules like (¬), (^) etc. be applied to marked formulas?
+- May other rules like (¬), (^) etc. be applied to marked formulas? (only some, see page 24)
 
 - What *are* the nodes in the tableau? Concretely: lists, multisets or sets? Finite?
   This matters for the claim that "complexity goes down" / termination.

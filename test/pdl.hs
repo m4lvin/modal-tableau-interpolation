@@ -7,6 +7,7 @@ import Logic.PDL.Parse (parse)
 import Logic.PDL.Prove.Tree
 
 import Test.Hspec
+import Test.Hspec.QuickCheck
 
 main :: IO ()
 main = hspec $ do
@@ -33,6 +34,9 @@ main = hspec $ do
       inconsistent [ r `Con` Neg (Box a p), r --> Box a (p `Con` q) ]
   describe "borzechowski" $
     proveTest borzechowski -- FIXME this is currently failing!
+  describe "random formulas" $ do
+    prop "provable f `elem` [True,False] -- but no error"
+      (\f -> provable f `elem` [True,False])
 
 proveTest :: Form -> SpecWith ()
 proveTest f = it (toString f) $ provable f `shouldBe` True
