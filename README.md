@@ -58,33 +58,40 @@ For PDL we also use the file [formulae_exp_unsat.txt](data/formulae_exp_unsat.tx
 
 ## PDL
 
+- [ ] random generation of formulas for QuickCheck (copy/adapt from BasicModal)
+
+Prover:
+
 - [X] restricted language with Con, not Imp as primitive, as Borzechowski does
-- [ ] all the basic modal changes
-    - [X] proper search: extend -> extensions
-    - [ ] mark/highlight active formula
-    - FIXME what else actually?
-- [ ] Find test cases that fail due to the empty-side edge cases for (At)-interpolants?
-- [ ] Correct definition of (At)-interpolants in the empty-side edge cases.
+- [X] proper search: extend -> extensions (as in BasicModal)
+- [x] add M+ rule
+- [x] Only allow (At) on marked formulas (page 24 suggest that!) (otherwise, why not do (At)_C directly on page 56, without (M+) first?)
+- [ ] mark active formula (as in BasicModal), needed for interpolation
 - [ ] Implement all extra conditions from Borzechowski:
     1. [x] when reaching an atomic Box or NegBox, go back from n to *
     2. [ ] instead of X;[a^n]P reach X
     3. [ ] apply rules to n-formula whenever possible / prioritise them!
     4. [X] Never apply a rule to a ¬[a^n] node – FIXME and mark as end node!?
     5. [ ] directly after M+ do not apply M-
-    6. [ ] close normal nodes with critical predecessors when the whole path is loaded
-    7. [ ] ...
+    6. [ ] close normal nodes with critical same-set predecessors when the whole path is loaded
+    7. [ ] every loaded node that is not an end node by 6, has a successor.
+
+Interpolation:
+
+- [ ] copy from BasicModal
+- [ ] Correct definition of (At)-interpolants in the empty-side edge cases.
+- [ ] Find test cases that fail due to the empty-side edge cases for (At)-interpolants?
 
 Nice to have:
 
-- web interface
-
-- use Graphviz HTML labels for better readability, e.g. highlight the active formula.
+- [ ] use exact same syntax as Borzechowski (A for atomic programs etc.)
+- [ ] add applicable extra conditions to rule annotation
+- [ ] web interface
+- [ ] use Graphviz HTML labels for better readability, e.g. highlight the active formula.
 
 ## Open Questions
 
 - May other rules like (¬), (^) etc. be applied to marked formulas?
-
-- Can (At) only be applied to marked formulas? (page 24 suggest that!) (otherwise, why not do (At)_C directly on page 56, without (M+) first?)
 
 - What *are* the nodes in the tableau? Concretely: lists, multisets or sets? Finite?
   This matters for the claim that "complexity goes down" / termination.

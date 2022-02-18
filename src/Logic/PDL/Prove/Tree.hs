@@ -54,7 +54,7 @@ instance DispAble Tableaux where
         edge pref (pref ++ show y' ++ ":") [toLabel rule]
         ) (zip ts [(0::Integer)..])
 
-type RuleWeight = Int
+type RuleWeight = Int -- IDEA: use data RuleType = Local | Critical | Marking  or similar?
 
 -- | Rules: Given a formula, is their an applicable rule?
 -- If so, which rule, what replaces the active formula, and how do other formulas change and survive?
@@ -67,9 +67,19 @@ without :: Marked Form -> Form -> Marked Form
 without (f,Nothing) _ = (f, Nothing)
 without (f,Just current) toBeRemoved = (f, if current == toBeRemoved then Nothing else Just current)
 
+-- Mark  ¬[a_1]...[a_n]g  with  g.
+markRulesFor :: Marked Form -> [RuleApplication]
+markRulesFor (Neg f, Nothing) = case boxesOf f of
+  ([] , _)         -> []
+  (_:_, g) -> [ ("M+", 0, [ [ (Neg f, Just g) ] ], noChange) ]
+markRulesFor (_, Nothing) = []
+markRulesFor (_, Just _)  = [] -- TODO add M- rule here, but not immediately after M+
 
--- TODO rule which allows to add markers!!
+boxesOf :: Form -> ([Prog], Form)
+boxesOf (Box prog nextf) = let (rest,endf) = boxesOf nextf in (prog:rest, endf)
+boxesOf endf = ([], endf)
 
+-- | Eleven local rules (page 18/19) and the atomic rule (page 24).
 ruleFor :: Marked Form -> Maybe RuleApplication
 -- Nothing to do:
 ruleFor (At _,_)          = Nothing
@@ -77,6 +87,7 @@ ruleFor (Neg (At _),_)    = Nothing
 ruleFor (Bot,_)           = Nothing
 ruleFor (Neg Bot,_)       = Nothing
 -- Single-branch rules:
+-- TODO: page 19 suggests that only four of the local rules should be applied to marked formulas?!
 ruleFor (Neg (Neg f)          ,m) = Just ("¬",  1, [ [(f,m)]                                ], noChange)
 ruleFor (Con f g              ,m) = Just ("∧" , 1, [ [(f,m), (g,m)]                         ], noChange)
 ruleFor (Neg (Box (Test f) g) ,m) = Just ("¬?", 1, [ [(f,Nothing), (Neg g,m) `without` f ]  ], noChange)
@@ -94,7 +105,8 @@ ruleFor (Box (Test f) g       ,m) = Just ("?",  3, [ [(Neg f,m)], [(g,m)]       
 ruleFor (Neg (Box (Cup x y) f),m) = Just ("¬∪", 3, [ [(Neg $ Box x f,m)], [(Neg $ Box y f,m)] ], noChange)
 ruleFor (Neg (Box (Star x) f) ,m) = Just ("¬n", 3, [ [(Neg f,m) `without` f], [(Neg $ Box x (Box (NStar x) f),m)] ], noChange)
 -- TODO: need a marker here:
-ruleFor (Neg (Box (Ap x) f),m)    = Just ("At", 4, [ [(Neg f, m) `without` f] ], projection) where -- the critical rule
+ruleFor (Neg (Box (Ap _) _), Nothing)   = Nothing
+ruleFor (Neg (Box (Ap x) f), Just mark)    = Just ("At", 4, [ [(Neg f, Just mark) `without` f] ], projection) where -- the critical rule
   projection :: Form -> Maybe Form
   projection (Box (Ap y) g) | x == y = Just g
   projection _                       = Nothing
@@ -126,11 +138,9 @@ isClosedNode mfs = Bot `elem` map fst mfs || any (\(f,_) -> Neg f `elem` map fst
 
 -- TODO: we need some way to access predecessors!
 -- IDEA:
-isEndNodeAfter :: [ [WForm] ] -> [WForm] -> Bool
-isEndNodeAfter predecessors wfs = undefined
+--isEndNodeAfter :: [ [WForm] ] -> [WForm] -> Bool
+--isEndNodeAfter predecessors wfs = undefined
 
--- TODO: needs proper search, as in BasicModal:
--- extend :: Tableaux -> [Tableaux]
 extensions :: Tableaux -> [Tableaux]
 extensions End             = [End]
 extensions (Node wfs "" [])
@@ -153,24 +163,29 @@ extensionsUpTo :: Int -> Tableaux -> [Tableaux]
 extensionsUpTo 0 t = unsafePerformIO (putStrLn "\n ERROR too many steps! \n" >> return [t]) -- TODO throw error!
 extensionsUpTo k t = if extensions t /= [t] then concatMap (extensionsUpTo (k-1)) (extensions t) else [t]
 
-pairWithMaybe :: (a -> Maybe b) -> [a] -> [(a,b)]
-pairWithMaybe f xs = [ (x, fromJust $ f x) | x <- xs, isJust (f x) ]
+pairWithList :: (a -> [b]) -> [a] -> [(a,b)]
+pairWithList f xs = [ (x, y) | x <- xs, y <- f x ]
 
 whatshallwedo :: [WForm] -> [(WForm,RuleApplication)]
-whatshallwedo wfs = chooseRule $ pairWithMaybe (fmap extraNewFormChanges . ruleFor . collapse) wfs
+whatshallwedo wfs = chooseRule $ pairWithList (map extraNewFormChanges . availableRules . collapse) wfs where
+  availableRules mf =
+    markRulesFor mf
+    ++
+    maybeToList (ruleFor mf)
 
 -- | Choosing a rule.
 -- There might be multiple applicable rules of the same or different weight.
+-- (or lower is for marking rules which have 0)
 chooseRule :: [(WForm,RuleApplication)] -> [(WForm,RuleApplication)]
 chooseRule moves
-  -- if possible apply one weight 1 rule, ignore all others for now:
-  | any ((==) 1 . wOf) moves = take 1 $ filter ((==) 1 . wOf) moves
-  -- else, if possible apply one weight 2 rule, ignore all others for now:
-  | any ((==) 2 . wOf) moves = take 1 $ filter ((==) 2 . wOf) moves
-  -- else, if possible apply one weight 3 rule, do it, ignore all others for now:
-  | any ((==) 3 . wOf) moves = take 1 $ filter ((==) 3 . wOf) moves
-  -- else, if possible apply all weight 4 rules in parallel:
-  | any ((==) 4 . wOf) moves = filter ((==) 4 . wOf) moves
+  -- if possible apply one weight 1 rule, ignore all larger for now:
+  | any ((<= 1) . wOf) moves = take 1 $ filter ((<= 1) . wOf) moves
+  -- else, if possible apply one weight 2 rule, ignore all larger for now:
+  | any ((<= 2) . wOf) moves = take 1 $ filter ((<= 2) . wOf) moves
+  -- else, if possible apply one weight 3 rule, do it, ignore all larger for now:
+  | any ((<= 3) . wOf) moves = take 1 $ filter ((<= 3) . wOf) moves
+  -- else, if possible apply all weight 4 or lower rules in parallel:
+  | any ((<= 4) . wOf) moves = filter ((<= 4) . wOf) moves
   | otherwise = []
   where
      wOf (_,(_,weight,_,_))= weight
