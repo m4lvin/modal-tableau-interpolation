@@ -20,8 +20,12 @@ import Logic.PDL
 
 -- | Nodes are lists of weighted formulas, together
 -- with a rule that was applied to get the children.
-data Tableaux = Node [WForm] RuleName [Tableaux] | End
+data Tableaux = Node [WForm] History RuleName [Tableaux] | End
   deriving (Eq,Ord,Show)
+
+-- | A history is a list of pairs of a list of weighted formulas and the rule used.
+-- Note: head of this list is the immediate predecessor, last element is the root!
+type History = [([WForm],RuleName)]
 
 type RuleName = String -- FIXME: use data RuleName = Con NegCon etc.
 
@@ -47,7 +51,7 @@ instance DispAble Tableaux where
   toGraph = toGraph' "" where
     toGraph' pref End =
       node pref [shape PlainText, toLabel "✘"]
-    toGraph' pref (Node wfs rule ts) = do
+    toGraph' pref (Node wfs _ rule ts) = do
       node pref [shape PlainText, toLabel $ ppWForms wfs]
       mapM_ (\(t,y') -> do
         toGraph' (pref ++ show y' ++ ":") t
@@ -134,30 +138,38 @@ weightOf (Right _, _) = first Right
 
 isClosedNode :: [Marked Form] -> Bool
 isClosedNode mfs = Bot `elem` map fst mfs || any (\(f,_) -> Neg f `elem` map fst mfs) mfs
--- TODO should we also check extra condition 6 or 7 here??
 
--- TODO: we need some way to access predecessors!
--- IDEA:
---isEndNodeAfter :: [ [WForm] ] -> [WForm] -> Bool
---isEndNodeAfter predecessors wfs = undefined
+-- | Detect end nodes due to to extra condition 6.
+isEndNodeAfter :: [WForm] -> History -> Bool
+isEndNodeAfter wfsNow =
+  any ( \(wfsBefore,_) ->
+          -- There is a predecessor with the same set of formulas,
+          wfsNow == wfsBefore -- FIXME here we might need set-like equalitiy (or ensure nodes are always sorted)
+          -- and the path since then is, i.e. (At) has been used,
+          -- -- TODO !?
+          -- and the path is loaded (UNCLEAR: if X now is loaded?)
+          -- -- TODO !?
+      )
 
 extensions :: Tableaux -> [Tableaux]
 extensions End             = [End]
-extensions (Node wfs "" [])
-  | isClosedNode (map collapse wfs) = [ Node wfs "✘" [End] ]
-  | null (whatshallwedo wfs) = [ Node wfs "" [] ] -- we are stuck!
+extensions (Node wfs oldHistory "" [])
+  | isClosedNode (map collapse wfs) = [ Node wfs oldHistory "✘" [End] ]
+  | isEndNodeAfter wfs oldHistory   = [ Node wfs oldHistory "6" [End] ]
+  | null (whatshallwedo wfs) = [ Node wfs oldHistory "" [] ] -- we are stuck!
   | otherwise =
-      map (\ (wf,(therule,_,results,change)) ->
+      map (\ (wf,(ruleName,_,results,change)) ->
              let
                rest = delete wf wfs
-               ts = [ Node (nub . sort $ mapMaybe (applyW change) rest ++ newwfs) "" []
+               newHistory = ((wfs, ruleName) :  oldHistory)
+               ts = [ Node (nub . sort $ mapMaybe (applyW change) rest ++ newwfs) newHistory "" []
                     | newwfs <- map (map $ weightOf wf) results ]
              in
-               Node wfs therule ts)
+               Node wfs oldHistory ruleName ts)
           (whatshallwedo wfs)
-extensions (Node wfs rule ts@(_:_)) =
-  [ Node wfs rule ts' | ts' <- pickOneOfEach $ map (filterOneIfAny isClosedTab . extensions) ts ]
-extensions (Node _  rule@(_:_) []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"
+extensions (Node wfs history rule ts@(_:_)) =
+  [ Node wfs history rule ts' | ts' <- pickOneOfEach $ map (filterOneIfAny isClosedTab . extensions) ts ]
+extensions (Node _  _ rule@(_:_) []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"
 
 extensionsUpTo :: Int -> Tableaux -> [Tableaux]
 extensionsUpTo 0 t = unsafePerformIO (putStrLn "\n ERROR too many steps! \n" >> return [t]) -- TODO throw error!
@@ -192,7 +204,7 @@ chooseRule moves
 
 isClosedTab :: Tableaux -> Bool
 isClosedTab End = True
-isClosedTab (Node _ _ ts) = ts /= [] && all isClosedTab ts
+isClosedTab (Node _ _ _ ts) = ts /= [] && all isClosedTab ts
 
 globalSearchLimit :: Int
 globalSearchLimit = 30
@@ -201,9 +213,9 @@ globalSearchLimit = 30
 -- To prove f, start with  ¬f.
 prove :: Form -> Tableaux
 prove (Neg (Con f (Neg g))) = head $ filterOneIfAny isClosedTab $ extensionsUpTo globalSearchLimit $
-  Node [(Left       f, Nothing), (Right (Neg g), Nothing)] "" []
+  Node [(Left       f, Nothing), (Right (Neg g), Nothing)] [] "" []
 prove f                     = head $ filterOneIfAny isClosedTab $ extensionsUpTo globalSearchLimit $
-  Node [(Left $ Neg f, Nothing)                          ] "" []
+  Node [(Left $ Neg f, Nothing)                          ] [] "" []
 
 provable :: Form -> Bool
 provable = isClosedTab . prove
@@ -216,7 +228,7 @@ proveSlideshow f = do
   disp t
 
 tableauFor :: [Form] -> Tableaux
-tableauFor fs = head $ filterOneIfAny isClosedTab $ extensionsUpTo 10 $ Node (map (\f -> (Left f, Nothing)) fs) "" []
+tableauFor fs = head $ filterOneIfAny isClosedTab $ extensionsUpTo 10 $ Node (map (\f -> (Left f, Nothing)) fs) [] "" []
 
 inconsistent :: [Form] -> Bool
 inconsistent = isClosedTab . tableauFor
