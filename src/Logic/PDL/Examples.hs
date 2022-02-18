@@ -17,6 +17,8 @@ someValidities =
   , Con (Box a p) (Box b (Con p q)) --> Box (Cup a b) p
   , Con (Box (Star a) p) (Box b (Con p q)) --> Box (Cup (Star a) b) p
   , Box (Star a) p --> dia (Star a) p
+  , Box (Star a) p --> Box (Star (Star a)) p
+  , Box (Star (Star a)) p --> Box (Star a) p
   ]
 
 someNonValidities :: [Form]
@@ -36,9 +38,6 @@ segerbergFor f g x y =
   , Box (Star x)  f <--> Con f (Box (x :- Star x) f)
   , Box (Test f) g  <--> (f --> g)
   ]
-
-segerberg :: [Form]
-segerberg = segerbergFor p q a b
 
 -- | Example from Borzechowski page 55
 borzechowski :: Form

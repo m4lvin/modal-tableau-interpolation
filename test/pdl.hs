@@ -15,8 +15,8 @@ main = hspec $ do
     mapM_ proveTest someValidities
   describe "someNonValidities" $
     mapM_ disproveTest someNonValidities
-  describe "segeberg" $
-    mapM_ proveTest segerberg
+  describe "segerbergFor p q a b" $
+    mapM_ proveTest $ segerbergFor p q a b
   describe "parsing" $
     it "parse 'p1'" $
       (parse . alexScanTokens) "p1" `shouldBe` At "p1"
@@ -37,6 +37,8 @@ main = hspec $ do
   describe "random formulas" $ do
     prop "provable f `elem` [True,False] -- but no error"
       (\f -> provable f `elem` [True,False])
+    prop "segerbergFor" $
+      (\ f1 f2 p1 p2 -> all provable $ segerbergFor f1 f2 p1 p2 )
 
 proveTest :: Form -> SpecWith ()
 proveTest f = it (toString f) $ provable f `shouldBe` True
