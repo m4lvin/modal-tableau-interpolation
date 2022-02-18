@@ -72,7 +72,7 @@ Prover:
     1. [x] when reaching an atomic Box or NegBox, go back from n to *
     2. [ ] instead of X;[a^n]P reach X
     3. [ ] apply rules to n-formula whenever possible / prioritise them!
-    4. [X] Never apply a rule to a ¬[a^n] node – FIXME and mark as end node!?
+    4. [X] Never apply a rule to a ¬[a^n] node (and mark those as end nodes!)
     5. [ ] directly after M+ do not apply M-
     6. [ ] close normal nodes with critical same-set predecessors when the whole path is loaded
     7. [ ] every loaded node that is not an end node by 6, has a successor.

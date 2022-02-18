@@ -151,11 +151,18 @@ isEndNodeAfter wfsNow =
           -- -- TODO !?
       )
 
+-- | End nodes due to extra condition 4.
+isNotNStarNode :: [WForm] -> Bool
+isNotNStarNode = any (isNotNStar . (fst . collapse)) where
+  isNotNStar (Neg (Box (NStar _) _)) = True
+  isNotNStar _ = False
+
 extensions :: Tableaux -> [Tableaux]
 extensions End             = [End]
 extensions (Node wfs oldHistory "" [])
   | isClosedNode (map collapse wfs) = [ Node wfs oldHistory "✘" [End] ]
   | isEndNodeAfter wfs oldHistory   = [ Node wfs oldHistory "6" [End] ]
+  | isNotNStarNode wfs              = [ Node wfs oldHistory "4" [End] ]
   | null (whatshallwedo wfs) = [ Node wfs oldHistory "" [] ] -- we are stuck!
   | otherwise =
       map (\ (wf,(ruleName,_,results,change)) ->
@@ -172,7 +179,7 @@ extensions (Node wfs history rule ts@(_:_)) =
 extensions (Node _  _ rule@(_:_) []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"
 
 extensionsUpTo :: Int -> Tableaux -> [Tableaux]
-extensionsUpTo 0 t = unsafePerformIO (putStrLn "\n ERROR too many steps! \n" >> return [t]) -- TODO throw error!
+extensionsUpTo 0 t = unsafePerformIO (putStrLn " [ERROR: too many steps!] " >> return [t]) -- TODO throw error!
 extensionsUpTo k t = if extensions t /= [t] then concatMap (extensionsUpTo (k-1)) (extensions t) else [t]
 
 pairWithList :: (a -> [b]) -> [a] -> [(a,b)]
