@@ -32,8 +32,11 @@ tokens :-
   "Not"             { \ p _ -> TokenNeg               p }
   "not"             { \ p _ -> TokenNeg               p }
   "&"               { \ p _ -> TokenBinCon            p }
+  "∧"               { \ p _ -> TokenBinCon            p }
   "|"               { \ p _ -> TokenBinDis            p }
+  "∨"               { \ p _ -> TokenBinDis            p }
   "=>"              { \ p _ -> TokenImpl              p }
+  "-->"             { \ p _ -> TokenImpl              p }
   "iff"             { \ p _ -> TokenEqui              p }
   "AND"             { \ p _ -> TokenCon               p }
   "OR"              { \ p _ -> TokenDis               p }
