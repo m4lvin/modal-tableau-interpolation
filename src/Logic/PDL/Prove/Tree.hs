@@ -48,6 +48,9 @@ isLeft :: WForm -> Bool
 isLeft (Left  _, _) = True
 isLeft (Right _, _) = False
 
+isNormalNode :: [WForm] -> Bool
+isNormalNode = all (isNormal . fst. collapse)
+
 ppWForms :: [WForm] -> [WForm] -> String
 ppWForms wfs actives = intercalate ", " (map ppFormA (filter isLeft wfs)) ++ "   |   " ++ intercalate ", " (map ppFormA (filter (not . isLeft) wfs)) where
   ppFormA wf = [ '»' |  wf `elem` actives ] ++ toString (collapse wf) ++ [ '«' |  wf `elem` actives ]
@@ -152,11 +155,12 @@ isClosedBecause wfs =
   [ wf | wf <- wfs, Neg (fst (collapse wf)) `elem` map (fst . collapse) wfs ]
 
 -- | Detect end nodes due to to extra condition 6.
-isEndNodeBy :: [WForm] -> History -> [String] -- TODO: clean up this mess! should return Maybe String!
+isEndNodeBy :: [WForm] -> History -> [String]
 isEndNodeBy wfsNow history =
   [ show k
+  | -- isNormalNode wfsNow
+  (k, (wfsBefore, _)) <- zip [(1 :: Int) ..] history
   -- There is a predecessor
-  | (k, (wfsBefore, _)) <- zip [(1 :: Int) ..] history
   -- with the same set of formulas:
   , wfsNow == wfsBefore -- FIXME might need set-like equalitiy (or are nodes always sorted?)
   -- and the path since then is critical, i.e. (At) has been used:

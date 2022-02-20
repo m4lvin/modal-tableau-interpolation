@@ -76,7 +76,7 @@ Prover:
     3. [ ] apply rules to n-formula whenever possible / prioritise them!
     4. [X] Never apply a rule to a ¬[a^n] node (and mark those as end nodes!)
     5. [ ] directly after M+ do not apply M-
-    6. [ ] close normal nodes with critical same-set predecessors when the whole path is loaded
+    6. [X] close normal nodes with critical same-set predecessors when the whole path is loaded
     7. [ ] every loaded node that is not an end node by 6, has a successor.
 
 Interpolation:

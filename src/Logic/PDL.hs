@@ -56,6 +56,7 @@ instance HasAtoms Prog where
 
 class ContainsNStars a where
   nToStar :: a -> a
+  isNormal :: a -> Bool
 
 instance ContainsNStars Form where
   nToStar Bot           = Bot
@@ -64,6 +65,11 @@ instance ContainsNStars Form where
   nToStar (Neg f)       = Neg (nToStar f)
   nToStar (Con f g)     = Con (nToStar f) (nToStar g)
   nToStar (Box pr f)    = Box (nToStar pr) (nToStar f)
+  isNormal Bot           = True
+  isNormal (At _)        = True
+  isNormal (Neg f)       = isNormal f
+  isNormal (Con f g)     = isNormal f && isNormal g
+  isNormal (Box pr f)    = isNormal pr && isNormal f
 
 instance ContainsNStars Prog where
   nToStar (Ap ap)     = Ap ap
@@ -72,6 +78,12 @@ instance ContainsNStars Prog where
   nToStar (Test f)    = Test (nToStar f)
   nToStar (Star pr)   = Star (nToStar pr)
   nToStar (NStar pr)  = Star (nToStar pr)
+  isNormal (Ap _)     = True
+  isNormal (Cup p1 p2) = isNormal p1 && isNormal p2
+  isNormal (p1 :- p2)  = isNormal p1 && isNormal p2
+  isNormal (Test f)    = isNormal f
+  isNormal (Star pr)   = isNormal pr
+  isNormal (NStar _)   = False
 
 o,p,q,r,s :: Form
 [o,p,q,r,s] = map At ["o", "p", "q", "r", "s"]
