@@ -30,6 +30,7 @@ someNonValidities =
   , Box (a :- Star a) p --> dia (a :- Star a) p
   , Con (Box a p) (Box b q) --> Box (Cup a b) (Con p q)
   , Box (Star (Test p)) p
+  -- TODO: find non-validites that could be proven by unsound version of condition 6?
   , Box (Star a) (dia a top)
   ]
 

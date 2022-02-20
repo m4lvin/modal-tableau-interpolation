@@ -47,7 +47,10 @@ There is no interpolation implemented here yet, though we do have partitioning a
 
 Use `stack test` to run all [tests](tests/).
 
-For PDL we also use the file [formulae_exp_unsat.txt](data/formulae_exp_unsat.txt) from <http://users.cecs.anu.edu.au/~rpg/PDLComparisonBenchmarks/>.
+For PDL we also use the files [formulae_exp_unsat.txt](data/formulae_exp_unsat.txt)
+and [formulae_exp_sat.txt](data/formulae_exp_sat.txt)
+from <http://users.cecs.anu.edu.au/~rpg/PDLComparisonBenchmarks/>.
+Note: The files have been modified to use star as a postfix operator.
 
 # TODO list
 

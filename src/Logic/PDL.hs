@@ -173,7 +173,6 @@ immediateSubFormulas (At _)    = []
 immediateSubFormulas (Neg f)   = [f]
 immediateSubFormulas (Con f g) = [f,g]
 immediateSubFormulas (Box _ f)   = [f]
--- FIXME: subformulas from Star?
 
 immediateSubPrograms :: Prog -> [Prog]
 immediateSubPrograms (Ap _) = []

@@ -232,7 +232,7 @@ isClosedTab End = True
 isClosedTab (Node _ _ _ _ ts) = ts /= [] && all isClosedTab ts
 
 globalSearchLimit :: Int
-globalSearchLimit = 30
+globalSearchLimit = 30 -- TODO: adjust depending on formula size, see page 20 and 26
 
 -- To prove f --> g, start with proper partition.
 -- To prove f, start with  ¬f.
