@@ -41,7 +41,7 @@ The last command will also show this tableau:
 
 Work in progress, only the star-free fragment works at the moment.
 
-There is no interpolation implemented here yet.
+There is no interpolation implemented here yet, though we do have partitioning already.
 
 ## Automated Tests
 
@@ -67,7 +67,9 @@ Prover:
 - [X] add M+ rule
 - [X] Only allow (At) on marked formulas (page 24 suggest that!) (otherwise, why not do (At)_C directly on page 56, without (M+) first?)
 - [ ] Check priorities / preferences of all rules.
-- [ ] mark active formula (as in BasicModal), needed for interpolation
+- [X] mark active formula (as in BasicModal), needed for interpolation
+- [ ] also mark active formula for extra conditions 4 and 6
+- [ ] more uniform encoding of rules and closing conditions
 - [ ] Implement all extra conditions from Borzechowski:
     1. [x] when reaching an atomic Box or NegBox, go back from n to *
     2. [ ] instead of X;[a^n]P reach X
