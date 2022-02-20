@@ -73,8 +73,12 @@ noChange :: Form -> Maybe Form
 noChange = Just
 
 without :: Marked Form -> Form -> Marked Form
-without (f,Nothing) _ = (f, Nothing)
+without (f,Nothing     ) _           = (f, Nothing)
 without (f,Just current) toBeRemoved = (f, if current == toBeRemoved then Nothing else Just current)
+
+isMarked :: (a, Maybe Form) -> Bool
+isMarked (_,Nothing) = False
+isMarked (_,Just _ ) = True
 
 -- Mark  ¬[a_1]...[a_n]g  with  g.
 markRulesFor :: Marked Form -> [RuleApplication]
@@ -141,44 +145,39 @@ weightOf :: WForm -> (Marked Form -> WForm)
 weightOf (Left  _, _) = first Left
 weightOf (Right _, _) = first Right
 
-isClosedNode :: [Marked Form] -> Bool
-isClosedNode mfs = Bot `elem` map fst mfs || any (\(f,_) -> Neg f `elem` map fst mfs) mfs
-
 isClosedBecause :: [WForm] -> [WForm]
-isClosedBecause wfs = foo wfs where -- FIXME: rename foo to something meaningful
-  foo []                  = []
-  foo (wf@(ef,mark):rest) | ef `elem` [Left Bot, Right Bot] = [wf]
-                          | (fmap Neg ef, mark) `elem` wfs  = [wf, (fmap Neg ef, mark)]
-                          | otherwise                       = foo rest
+isClosedBecause wfs =
+  [ wf | wf <- wfs, fst (collapse wf) == Bot ]
+  ++
+  [ wf | wf <- wfs, Neg (fst (collapse wf)) `elem` map (fst . collapse) wfs ]
 
 -- | Detect end nodes due to to extra condition 6.
-isEndNodeAfter :: [WForm] -> History -> (Bool, String) -- TODO: clean up this mess! should return Maybe String!
-isEndNodeAfter wfsNow history =
-  case filter fst $ map ( \(k,(wfsBefore,_)) -> (
-          -- There is a predecessor with the same set of formulas,
-          wfsNow == wfsBefore -- FIXME here we might need set-like equalitiy (or ensure nodes are always sorted)
-          -- and the path since then is critical, i.e. (At) has been used,
-          -- -- TODO !?
-          -- and the path is loaded (UNCLEAR: if X now is loaded?)
-          -- -- TODO !?
-          , show k)
-         ) (zip [(1::Integer)..] history) of
-    [] -> (False, "")
-    (x:_) -> x
+isEndNodeBy :: [WForm] -> History -> [String] -- TODO: clean up this mess! should return Maybe String!
+isEndNodeBy wfsNow history =
+  [ show k
+  -- There is a predecessor
+  | (k, (wfsBefore, _)) <- zip [(1 :: Int) ..] history
+  -- with the same set of formulas:
+  , wfsNow == wfsBefore -- FIXME might need set-like equalitiy (or are nodes always sorted?)
+  -- and the path since then is critical, i.e. (At) has been used:
+  , "At" `elem` map snd (take k history)
+  -- and the path is loaded when the current node is loaded:
+  , all (any isMarked . fst) (take k history) == any isMarked wfsNow
+  ]
 
 -- | End nodes due to extra condition 4.
-isNotNStarNode :: [WForm] -> Bool
-isNotNStarNode = any (isNotNStar . (fst . collapse)) where
+isNotNStarNodeBecause :: [WForm] -> [WForm]
+isNotNStarNodeBecause = filter (isNotNStar . (fst . collapse)) where
   isNotNStar (Neg (Box (NStar _) _)) = True
   isNotNStar _ = False
 
 extensions :: Tableaux -> [Tableaux]
 extensions End             = [End]
 extensions (Node wfs oldHistory "" _ [])
-  | isClosedNode (map collapse wfs)     = [ Node wfs oldHistory "✘" (isClosedBecause wfs) [End] ]
-  | fst (isEndNodeAfter wfs oldHistory) = [ Node wfs oldHistory ("6: " ++ snd (isEndNodeAfter wfs oldHistory)) [] [End] ] -- BUG! missing active formulas!
-  | isNotNStarNode wfs                  = [ Node wfs oldHistory "4" [] [End] ] -- TODO: mark active notNStar formula?
-  | null (whatshallwedo wfs)            = [ Node wfs oldHistory "" [] [] ] -- we are stuck!
+  | not (null (isClosedBecause wfs))        = [ Node wfs oldHistory "✘" (isClosedBecause wfs)                       [End] ]
+  | not (null (isEndNodeBy wfs oldHistory)) = [ Node wfs oldHistory ("6: " ++ show (isEndNodeBy wfs oldHistory)) [] [End] ]
+  | not (null (isNotNStarNodeBecause wfs))  = [ Node wfs oldHistory "4" (isNotNStarNodeBecause wfs)                 [End] ]
+  | null (whatshallwedo wfs)                = [ Node wfs oldHistory "" [] [] ] -- we are stuck!
   | otherwise =
       map (\ (wf,(ruleName,_,results,change)) ->
              let

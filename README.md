@@ -68,7 +68,7 @@ Prover:
 - [X] Only allow (At) on marked formulas (page 24 suggest that!) (otherwise, why not do (At)_C directly on page 56, without (M+) first?)
 - [ ] Check priorities / preferences of all rules.
 - [X] mark active formula (as in BasicModal), needed for interpolation
-- [ ] also mark active formula for extra conditions 4 and 6
+- [x] also mark active formula for extra condition 4, and history-path for 6
 - [ ] more uniform encoding of rules and closing conditions
 - [ ] Implement all extra conditions from Borzechowski:
     1. [x] when reaching an atomic Box or NegBox, go back from n to *
