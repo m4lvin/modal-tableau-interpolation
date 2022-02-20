@@ -19,6 +19,8 @@ someValidities =
   , Box (Star a) p --> dia (Star a) p
   , Box (Star a) p --> Box (Star (Star a)) p
   , Box (Star (Star a)) p --> Box (Star a) p
+  , dia (Star a) p --> dia (Star (Star a)) p
+  , dia (Star (Star a)) p --> dia (Star a) p
   ]
 
 someNonValidities :: [Form]
@@ -27,6 +29,8 @@ someNonValidities =
   , dia (Cup a b) p --> dia a p
   , Box (a :- Star a) p --> dia (a :- Star a) p
   , Con (Box a p) (Box b q) --> Box (Cup a b) (Con p q)
+  , Box (Star (Test p)) p
+  , Box (Star a) (dia a top)
   ]
 
 segerbergFor :: Form -> Form -> Prog -> Prog -> [Form]
