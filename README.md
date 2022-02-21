@@ -88,6 +88,13 @@ Interpolation:
 - [ ] Correct definition of (At)-interpolants in the empty-side edge cases.
 - [ ] Find test cases that fail due to the empty-side edge cases for (At)-interpolants?
 
+Semantics:
+
+- [x] Kripke models
+- [x] satisfaction
+- [ ] arbitrary models
+- [ ] generate Kripke model from open tableau?
+
 Nice to have:
 
 - [ ] use exact same syntax as Borzechowski (A for atomic programs etc.)

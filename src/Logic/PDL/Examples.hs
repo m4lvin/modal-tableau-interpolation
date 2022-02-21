@@ -1,7 +1,9 @@
 module Logic.PDL.Examples where
 
 import Logic.PDL
+import Logic.PDL.Semantics
 
+-- | Formulas that should be provable.
 someValidities :: [Form]
 someValidities =
   [ top
@@ -23,6 +25,7 @@ someValidities =
   , dia (Star (Star a)) p --> dia (Star a) p
   ]
 
+-- | Formulas that should *not* be provable.
 someNonValidities :: [Form]
 someNonValidities =
   [ Neg top
@@ -34,6 +37,7 @@ someNonValidities =
   , Neg $ Box (Star a) (dia a top) -- proven by unsound version of extra condition 6:
   ]
 
+-- | Instances of the Segerberg axioms.
 segerbergFor :: Form -> Form -> Prog -> Prog -> [Form]
 segerbergFor f g x y =
   [ Box x top
@@ -49,3 +53,13 @@ borzechowski :: Form
 borzechowski = x1 --> x2 where
   x1 = Box (Star (a :- a)) (p `Con` Box (a :- (b `Cup` c)) Bot)
   x2 = Box (Star a) (p `dis` Box c q)
+
+-- | Example model with two worlds
+exampleLoop :: Model Int
+exampleLoop = KrM [1,2] myVal ["a"] myRel where
+  myVal 1 = ["p", "q"]
+  myVal 2 = ["r"]
+  myVal _ = undefined
+  myRel "a" 1 = [2]
+  myRel "b" 2 = [1]
+  myRel _   _ = []
