@@ -167,12 +167,12 @@ isClosedBecause wfs =
 isEndNodeBy :: [WForm] -> History -> [String]
 isEndNodeBy wfsNow history =
   [ show k
-  | -- isNormalNode wfsNow
-  (k, (wfsBefore, _)) <- zip [(1 :: Int) ..] history
+  | isNormalNode wfsNow
+  , (k, (wfsBefore, _)) <- zip [(1 :: Int) ..] history
   -- There is a predecessor
   -- with the same set of formulas:
-  , wfsNow == wfsBefore -- FIXME might need set-like equalitiy (or are nodes always sorted?)
-  -- and the path since then is critical, i.e. (At) has been used:
+  , wfsNow == wfsBefore -- Note: nodes are always sorted, and partitions must match (page 40).
+  -- and the path since then is critical, i.e. (At) has been used: -- TODO: but ignore whether At is used for first node of path (= last list element) (Def 13)
   , "At" `elem` map snd (take k history)
   -- and the path is loaded when the current node is loaded:
   , all (any isMarked . fst) (take k history) == any isMarked wfsNow
