@@ -14,6 +14,7 @@ import Data.GraphViz.Types.Monadic hiding ((-->))
 import Data.List
 import Data.Maybe
 import System.IO.Unsafe (unsafePerformIO)
+import System.Console.ANSI
 
 import Logic.Internal
 import Logic.PDL
@@ -189,7 +190,7 @@ isNotNStarNodeBecause = filter (isNotNStar . (fst . collapse)) where
 
 extensions :: Tableaux -> [Tableaux]
 extensions End             = [End]
-extensions (Node wfs oldHistory "" _ [])
+extensions (Node wfs oldHistory "" [] [])
   | not (null (isClosedBecause wfs))        = [ Node wfs oldHistory "✘" (isClosedBecause wfs)                       [End] ]
   | not (null (isEndNodeBy wfs oldHistory)) = [ Node wfs oldHistory ("6: " ++ show (isEndNodeBy wfs oldHistory)) [] [End] ]
   | not (null (isNotNStarNodeBecause wfs))  = [ Node wfs oldHistory "4" (isNotNStarNodeBecause wfs)                 [End] ]
@@ -206,10 +207,12 @@ extensions (Node wfs oldHistory "" _ [])
           (whatshallwedo wfs)
 extensions (Node wfs history rule actives ts@(_:_)) =
   [ Node wfs history rule actives ts' | ts' <- pickOneOfEach $ map (filterOneIfAny isClosedTab . extensions) ts ]
-extensions (Node _  _ rule@(_:_) _ []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"
+extensions (Node _  _ []         (_:_) []) = error "Cannot have active formulas without a rule!"
+extensions (Node _  _ rule@(_:_) _     []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"
 
 extensionsUpTo :: Int -> Tableaux -> [Tableaux]
-extensionsUpTo 0 t = unsafePerformIO (putStrLn " [ERROR: too many steps!] " >> return [t]) -- TODO throw error!
+extensionsUpTo 0 t = unsafePerformIO (let msg = "   [ !!! Tableau is too long, giving up !!! ]   "
+                                      in putStr msg >> cursorBackward (length msg) >> return [t]) -- TODO error or [] or Nothing?!
 extensionsUpTo k t = if extensions t /= [t] then concatMap (extensionsUpTo (k-1)) (extensions t) else [t]
 
 pairWithList :: (a -> [b]) -> [a] -> [(a,b)]
