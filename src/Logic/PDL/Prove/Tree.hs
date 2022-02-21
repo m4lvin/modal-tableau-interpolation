@@ -174,8 +174,11 @@ isEndNodeBy wfsNow history =
   , wfsNow == wfsBefore -- Note: nodes are always sorted, and partitions must match (page 40).
   -- and the path since then is critical, i.e. (At) has been used: -- TODO: but ignore whether At is used for first node of path (= last list element) (Def 13)
   , "At" `elem` map snd (take k history)
-  -- and the path is loaded when the current node is loaded:
+  -- the whole path is loaded *iff* the current node is loaded:
   , all (any isMarked . fst) (take k history) == any isMarked wfsNow
+  -- alternatively, the whole path is loaded *when* the current node is loaded:
+  -- , not (any isMarked wfsNow) || all (any isMarked . fst) (take k history)
+  -- TODO: Which of the above two did Borzechowski mean? Which one makes more sense?
   ]
 
 -- | End nodes due to extra condition 4.
