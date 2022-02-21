@@ -95,39 +95,48 @@ boxesOf :: Form -> ([Prog], Form)
 boxesOf (Box prog nextf) = let (rest,endf) = boxesOf nextf in (prog:rest, endf)
 boxesOf endf = ([], endf)
 
--- | Eleven local rules (page 18/19) and the atomic rule (page 24).
+-- | Eleven local rules (pages 15, 18, 19) and the atomic rule (page 24).
 ruleFor :: Marked Form -> Maybe RuleApplication
 -- Nothing to do:
-ruleFor (At _,_)          = Nothing
-ruleFor (Neg (At _),_)    = Nothing
-ruleFor (Bot,_)           = Nothing
-ruleFor (Neg Bot,_)       = Nothing
+ruleFor (At _       ,_) = Nothing
+ruleFor (Neg (At _) ,_) = Nothing
+ruleFor (Bot        ,_) = Nothing
+ruleFor (Neg Bot    ,_) = Nothing
 -- Single-branch rules:
--- TODO: page 19 suggests that only four of the local rules should be applied to marked formulas?!
-ruleFor (Neg (Neg f)          ,m) = Just ("¬",  1, [ [(f,m)]                                ], noChange)
-ruleFor (Con f g              ,m) = Just ("∧" , 1, [ [(f,m), (g,m)]                         ], noChange)
-ruleFor (Neg (Box (Test f) g) ,m) = Just ("¬?", 1, [ [(f,Nothing), (Neg g,m) `without` f ]  ], noChange)
-ruleFor (Neg (Box (x:-y) f)   ,m) = Just ("¬;", 1, [ [(Neg $ Box x (Box y f),m)]            ], noChange)
-ruleFor (Box (Ap _) _         ,_) = Nothing
-ruleFor (Box (Cup x y) f      ,m) = Just ("∪",  1, [ [(Box x f, m), (Box y f, m)]           ], noChange)
-ruleFor (Box (x :- y) f       ,m) = Just (";",  1, [ [(Box x (Box y f),m)]                  ], noChange)
--- The (n) rule infers NStar, but not if x is atomic:
--- TODO: assumption for now: only may be applied if there is a marking!?
-ruleFor (Box (Star x) f       ,m) = Just ("n",  2, [ [(f,m), (Box x (Box (starOperator x) f),m)] ], noChange) where
-  starOperator = if isAtomic x then Star else NStar -- per condition 1 -- FIXME this should also replace NStar with Star within f, I think? -- TODO remove this, condition is done later!
+-- Note: page 19 says that (only) the local rules ¬u, ¬; ¬n and ¬? should be applied to marked formulas.
+ruleFor (Neg (Neg f)     ,Nothing) = Just ("¬",  1, [ [(f,Nothing)]                            ], noChange)
+ruleFor (Neg (Neg _)     ,Just _ ) = Nothing
+ruleFor (Con f g         ,Nothing) = Just ("∧" , 1, [ [(f,Nothing), (g,Nothing)]               ], noChange)
+ruleFor (Con _ _         ,Just _ ) = Nothing
+ruleFor (Neg (Box (Test f) g)  ,m) = Just ("¬?", 1, [ [(f,Nothing), (Neg g,m) `without` g ]    ], noChange)
+ruleFor (Neg (Box (x:-y) f)    ,m) = Just ("¬;", 1, [ [(Neg $ Box x (Box y f),m)]              ], noChange)
+ruleFor (Box (Ap _) _          ,_) = Nothing
+ruleFor (Box (Cup x y) f ,Nothing) = Just ("∪",  1, [ [(Box x f, Nothing), (Box y f, Nothing)] ], noChange)
+ruleFor (Box (Cup _ _) _ ,Just _ ) = Nothing
+ruleFor (Box (x :- y) f  ,Nothing) = Just (";",  1, [ [(Box x (Box y f),Nothing)]              ], noChange)
+ruleFor (Box (_ :- _) _  ,Just _ ) = Nothing
+-- The (n) rule (note extra condition 1 below)
+ruleFor (Box (Star x) f  ,Nothing) = Just ("n",  2, [ [(f,Nothing), (Box x (Box (NStar x) f),Nothing)] ], noChange)
+ruleFor (Box (Star _) _  ,Just _ ) = Nothing -- (n) maye not be applied to marked formulas.
 -- Splitting rules:
-ruleFor (Neg (Con f g)        ,m) = Just ("¬∧", 3, [ [(Neg f,m)], [(Neg g,m)]               ], noChange)
-ruleFor (Box (Test f) g       ,m) = Just ("?",  3, [ [(Neg f,m)], [(g,m)]                   ], noChange) -- marker also on Test?
-ruleFor (Neg (Box (Cup x y) f),m) = Just ("¬∪", 3, [ [(Neg $ Box x f,m)], [(Neg $ Box y f,m)] ], noChange)
-ruleFor (Neg (Box (Star x) f) ,m) = Just ("¬n", 3, [ [(Neg f,m) `without` f], [(Neg $ Box x (Box (NStar x) f),m)] ], noChange)
--- TODO: need a marker here:
-ruleFor (Neg (Box (Ap _) _), Nothing)   = Nothing
-ruleFor (Neg (Box (Ap x) f), Just mark)    = Just ("At", 4, [ [(Neg f, Just mark) `without` f] ], projection) where -- the critical rule
-  projection :: Form -> Maybe Form
+ruleFor (Neg (Con f g)   ,Nothing) = Just ("¬∧", 3, [ [(Neg f,Nothing)]
+                                                    , [(Neg g,Nothing)]                    ], noChange)
+ruleFor (Neg (Con _ _)   ,Just _ ) = Nothing
+ruleFor (Box (Test f) g  ,Nothing) = Just ("?",  3, [ [(Neg f,Nothing)]
+                                                    , [(g,Nothing)]                        ], noChange)
+ruleFor (Box (Test _) _  ,Just _ ) = Nothing
+ruleFor (Neg (Box (Cup x y) f),m ) = Just ("¬∪", 3, [ [(Neg $ Box x f,m)]
+                                                    , [(Neg $ Box y f,m)]                  ], noChange)
+ruleFor (Neg (Box (Star x) f) ,m ) = Just ("¬n", 3, [ [(Neg f,m) `without` f]
+                                                    , [(Neg $ Box x (Box (NStar x) f),m)]  ], noChange)
+-- The critical rule:
+ruleFor (Neg (Box (Ap x) f), Just mf) = Just ("At", 4, [ [(Neg f, Just mf) `without` f]   ], projection) where
+  projection :: Form -> Maybe Form -- Definition 9
   projection (Box (Ap y) g) | x == y = Just g
   projection _                       = Nothing
-ruleFor (Neg (Box (NStar _) _),_) = Nothing -- per condition 4 no rule may be applied here. See Borzechowski page 19.
-ruleFor (Box (NStar _) _   ,_) = Nothing -- TODO: think about whether this should actually be an error, can there be Box NStar nodes at all?
+ruleFor (Neg (Box (Ap _) _), Nothing) = Nothing
+ruleFor (Neg (Box (NStar _) _)    ,_) = Nothing -- per condition 4 no rule may be applied here - see page 19.
+ruleFor (Box (NStar _) _          ,_) = Nothing -- FIXME: should this be an error? can there be Box NStar nodes at all?
 
 extraNewFormChanges :: RuleApplication -> RuleApplication
 extraNewFormChanges (ruleName, ruleWeight, newFormLists, changeFunction) =
@@ -187,7 +196,7 @@ extensions (Node wfs oldHistory "" _ [])
              let
                rest = delete wf wfs
                newHistory = ((wfs, ruleName) :  oldHistory)
-               ts = [ Node (nub . sort $ mapMaybe (applyW change) rest ++ newwfs) newHistory "" [] []
+               ts = [ Node (nub . sort $ mapMaybe (applyW change) rest ++ newwfs) newHistory "" [] [] -- NOTE: nub and sort!
                     | newwfs <- map (map $ weightOf wf) results ]
              in
                Node wfs oldHistory ruleName [wf] ts)
