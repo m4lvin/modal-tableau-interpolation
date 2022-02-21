@@ -215,9 +215,9 @@ pairWithList f xs = [ (x, y) | x <- xs, y <- f x ]
 whatshallwedo :: [WForm] -> [(WForm,RuleApplication)]
 whatshallwedo wfs = chooseRule $ pairWithList (map extraNewFormChanges . availableRules . collapse) wfs where
   availableRules mf =
-    markRulesFor mf
-    ++
     maybeToList (ruleFor mf)
+    ++
+    concat [ markRulesFor mf | not (any isMarked wfs) ]
 
 -- | Choosing a rule.
 -- There might be multiple applicable rules of the same or different weight.
@@ -225,11 +225,11 @@ whatshallwedo wfs = chooseRule $ pairWithList (map extraNewFormChanges . availab
 chooseRule :: [(WForm,RuleApplication)] -> [(WForm,RuleApplication)]
 chooseRule moves
   -- if possible apply one weight 1 rule, ignore all larger for now:
-  | any ((<= 1) . wOf) moves = take 1 $ filter ((<= 1) . wOf) moves
+  | any ((== 1) . wOf) moves = take 1 $ filter ((<= 1) . wOf) moves
   -- else, if possible apply one weight 2 rule, ignore all larger for now:
-  | any ((<= 2) . wOf) moves = take 1 $ filter ((<= 2) . wOf) moves
+  | any ((== 2) . wOf) moves = take 1 $ filter ((<= 2) . wOf) moves
   -- else, if possible apply one weight 3 rule, do it, ignore all larger for now:
-  | any ((<= 3) . wOf) moves = take 1 $ filter ((<= 3) . wOf) moves
+  | any ((== 3) . wOf) moves = take 1 $ filter ((<= 3) . wOf) moves
   -- else, if possible apply all weight 4 or lower rules in parallel:
   | any ((<= 4) . wOf) moves = filter ((<= 4) . wOf) moves
   | otherwise = []
