@@ -31,8 +31,9 @@ instance (Stringable a, Stringable b) => Stringable (a, Maybe b) where
 instance Stringable Form where
   toString Bot        = "⊥"
   toString (At at)    = at
+  toString (Neg Bot)  = "⊤"
   toString (Neg f)    = "¬" ++ toString f
-  toString (Con f g)  = "(" ++ toString f ++ " & " ++ toString g ++ ")"
+  toString (Con f g)  = "(" ++ toString f ++ " ∧ " ++ toString g ++ ")"
   toString (Box pr f) = "[" ++ toString pr ++ "]" ++ toString f ++ ""
 
 instance Stringable Prog where

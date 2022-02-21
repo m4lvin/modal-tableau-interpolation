@@ -35,6 +35,7 @@ tokens :-
   "∧"               { \ p _ -> TokenBinCon            p }
   "|"               { \ p _ -> TokenBinDis            p }
   "∨"               { \ p _ -> TokenBinDis            p }
+  "v"               { \ p _ -> TokenBinDis            p }
   "=>"              { \ p _ -> TokenImpl              p }
   "-->"             { \ p _ -> TokenImpl              p }
   "iff"             { \ p _ -> TokenEqui              p }
