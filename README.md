@@ -39,13 +39,13 @@ The last command will also show this tableau:
 
 ### PDL
 
-Work in progress, only the star-free fragment works at the moment.
+Work in progress, the star-free fragment should be fine, but the star rules are not sound at this time.
 
-There is no interpolation implemented here yet, though we do have partitioning already.
+There is no interpolation implemented for PDL yet, though we do have partitioning already.
 
 ## Automated Tests
 
-Use `stack test` to run all [tests](tests/).
+Use `stack test` to run all tests from the [test](test/) folder.
 
 For PDL we also use the files [formulae_exp_unsat.txt](data/formulae_exp_unsat.txt)
 and [formulae_exp_sat.txt](data/formulae_exp_sat.txt)
