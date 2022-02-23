@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>taPDLeau</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0" />
+    <script src="jquery.js"></script>
+    <style type="text/css">
+      #textinput {
+          font-size:110%;
+          min-width: 500px;
+          width:50%;
+      }
+      #runbutton {
+          font-size:110%;
+      }
+      #output {
+          border: 2px solid #666;
+          margin-top: 1em;
+          padding: 1em;
+          overflow-x: auto;
+      }
+    </style>
+    <link rel="icon" href="data:,">
+  </head>
+  <body>
+    <p>
+      This is the web interface of
+      <a href="https://github.com/m4lvin/modal-tableau-interpolation">modal-tableau-interpolation</a>.
+    </p>
+    <div>
+      <input id="textinput" name="textinput" placeholder="[a*]p -> [a**]p" />
+      <input id="runbutton" type="submit" value="Try to prove this!" onclick="prove()" />
+    </div>
+    <div id="output"></div>
+    <script>
+      "use strict";
+      function prove() {
+          $('#output').html("");
+          $.ajax({
+              type: "POST",
+              url: "/prove",
+              data: { "textinput": $('#textinput').val() },
+              success:
+              function(data,textStatus,jqXHR) {
+                  $('#output').html(data);
+                  // MathJax.typesetPromise();
+              },
+              timeout: 1000,
+              error:
+              function(jqXHR,textStatus,errorThrown) {
+                  $('#output').html("<pre>" + textStatus + " " + errorThrown + "</pre>" );
+              }
+          });
+      }
+      $('#textinput').on('keypress', function (e) {
+          if(e.which === 13){
+              prove();
+          }
+      });
+      </script>
+  </body>
+</html>

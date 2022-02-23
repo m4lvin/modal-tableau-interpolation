@@ -1,7 +1,9 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, DeriveGeneric #-}
 
 module Logic.PDL where
 
+import GHC.Generics (Generic)
+import Control.DeepSeq(NFData)
 import Data.List
 import Test.QuickCheck
 
@@ -12,10 +14,12 @@ import Logic.Internal
 type Atom = String
 
 data Form = Bot | At Atom | Neg Form | Con Form Form | Box Prog Form
-  deriving (Eq,Ord,Show)
+  deriving (Eq,Ord,Show,Generic)
+instance NFData Form
 
 data Prog = Ap Atom | Cup Prog Prog | Prog :- Prog | Star Prog | NStar Prog | Test Form
-  deriving (Eq,Ord,Show)
+  deriving (Eq,Ord,Show,Generic)
+instance NFData Prog
 
 class Stringable a where
   toString :: a -> String

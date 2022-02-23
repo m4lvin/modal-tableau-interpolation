@@ -2,6 +2,8 @@ module Logic.Internal where
 
 import Data.GraphViz
 import Data.GraphViz.Types.Monadic hiding ((-->))
+import System.IO.Temp
+import System.IO.Unsafe
 
 (⊆) :: Eq a => [a] -> [a] -> Bool
 (⊆) xs ys = all (`elem` ys) xs
@@ -25,6 +27,10 @@ class DispAble t where
   toGraph :: t -> DotM String ()
   disp :: t -> IO ()
   disp x = runGraphvizCanvas Dot (digraph' $ toGraph x) Xlib
+  svg :: t -> String
+  svg x = unsafePerformIO $ withSystemTempDirectory "tapdleau" $ \tmpdir -> do
+    _ <- runGraphvizCommand Dot (digraph' $ toGraph x) Svg (tmpdir ++ "/temp.svg")
+    readFile (tmpdir ++ "/temp.svg")
 
 -- | Pick one element of each list to form new lists.
 -- Example: pickOneOfEach [[1,2],[3,4,5]] == [[1,3],[1,4],[1,5],[2,3],[2,4],[2,5]]

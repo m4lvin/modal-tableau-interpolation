@@ -15,6 +15,7 @@ extra-source-files:
   - package.yaml
   - src/Logic/PDL/Parse.y
   - src/Logic/PDL/Lex.x
+  - exec/index.html
 
 build-tools:
   - alex
@@ -28,12 +29,29 @@ library:
     - base >= 4.7 && < 5
     - array
     - containers
+    - deepseq
     - graphviz
     - hspec
     - process
     - QuickCheck
     - random
     - temporary
+
+executables:
+  tapdleau:
+    source-dirs: exec
+    main: tapdleau.hs
+    ghc-options: -threaded
+    dependencies:
+      - base >= 4.8 && < 5
+      - deepseq
+      - file-embed
+      - scotty
+      - Logic
+      - text
+      - warp
+      - js-jquery >= 3
+      - template-haskell
 
 tests:
   propositional:

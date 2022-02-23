@@ -99,7 +99,7 @@ Nice to have:
 
 - [ ] use exact same syntax as Borzechowski (A for atomic programs etc.)
 - [ ] add applicable extra conditions to rule annotation
-- [ ] web interface
+- [x] web interface
 - [ ] use Graphviz HTML labels for better readability, e.g. highlight the active formula.
 
 ## Open Questions
