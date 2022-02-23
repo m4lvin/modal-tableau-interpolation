@@ -39,7 +39,7 @@
           $('#output').html("");
           $.ajax({
               type: "POST",
-              url: "/prove",
+              url: "prove",
               data: { "textinput": $('#textinput').val() },
               success:
               function(data,textStatus,jqXHR) {

@@ -39,6 +39,8 @@ The last command will also show this tableau:
 
 ### PDL
 
+Public web interface (might be outdated): <https://w4eg.de/malvin/illc/tapdleau/>
+
 Work in progress, the star-free fragment should be fine, but the star rules are not sound at this time.
 
 There is no interpolation implemented for PDL yet, though we do have partitioning already.
