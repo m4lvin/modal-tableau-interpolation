@@ -23,9 +23,11 @@ tokens :-
   -- Formulas:
   "Top"             { \ p _ -> TokenTop               p }
   "True"            { \ p _ -> TokenTop               p }
+  "T"               { \ p _ -> TokenTop               p }
   "⊤"               { \ p _ -> TokenTop               p }
   "Bot"             { \ p _ -> TokenBot               p }
   "False"           { \ p _ -> TokenBot               p }
+  "F"               { \ p _ -> TokenBot               p }
   "⊥"               { \ p _ -> TokenBot               p }
   "¬"               { \ p _ -> TokenNeg               p }
   "~"               { \ p _ -> TokenNeg               p }
@@ -33,12 +35,16 @@ tokens :-
   "not"             { \ p _ -> TokenNeg               p }
   "&"               { \ p _ -> TokenBinCon            p }
   "∧"               { \ p _ -> TokenBinCon            p }
+  "^"               { \ p _ -> TokenBinCon            p }
   "|"               { \ p _ -> TokenBinDis            p }
   "∨"               { \ p _ -> TokenBinDis            p }
   "v"               { \ p _ -> TokenBinDis            p }
   "=>"              { \ p _ -> TokenImpl              p }
+  "->"              { \ p _ -> TokenImpl              p }
   "-->"             { \ p _ -> TokenImpl              p }
   "iff"             { \ p _ -> TokenEqui              p }
+  "<->"             { \ p _ -> TokenEqui              p }
+  "<-->"            { \ p _ -> TokenEqui              p }
   "AND"             { \ p _ -> TokenCon               p }
   "OR"              { \ p _ -> TokenDis               p }
   "p"               { \ p _ -> TokenP                 p }

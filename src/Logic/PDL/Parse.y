@@ -26,6 +26,7 @@ import Logic.PDL
   '|'    { TokenBinDis _ }
   '~'    { TokenNeg    _ }
   '=>'   { TokenImpl   _ }
+  '<-->' { TokenEqui   _ }
   'a'    { TokenA      _ }
   'b'    { TokenB      _ }
   'c'    { TokenC      _ }
@@ -59,6 +60,7 @@ Form : TOP { top }
      | Form '=>' Form { imp $1 $3 }
      | Form '&'  Form { Con $1 $3 }
      | Form '|'  Form { dis $1 $3 }
+     | Form '<-->' Form { $1 <--> $3 }
      | 'p' INT { At ('p' : show $2) }
      | 'p' { At ("p") }
      | 'q' { At ("q") }
