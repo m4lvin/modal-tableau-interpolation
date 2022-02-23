@@ -3,7 +3,9 @@
 module Logic.PDL.Prove.Tree
   ( provable
   , inconsistent
+  , prove
   , proveSlideshow
+  , isClosedTab
   , tableauShow
   , tableauFor
   ) where
@@ -252,10 +254,9 @@ globalSearchLimit = 30 -- TODO: adjust depending on formula size, see page 20 an
 -- To prove f --> g, start with proper partition.
 -- To prove f, start with  ¬f.
 prove :: Form -> Tableaux
-prove (Neg (Con f (Neg g))) = head $ filterOneIfAny isClosedTab $ extensionsUpTo globalSearchLimit $
-  Node [(Left       f, Nothing), (Right (Neg g), Nothing)] [] "" [] []
-prove f                     = head $ filterOneIfAny isClosedTab $ extensionsUpTo globalSearchLimit $
-  Node [(Left $ Neg f, Nothing)                          ] [] "" [] []
+prove frm = head $ filterOneIfAny isClosedTab $ extensionsUpTo globalSearchLimit $ case frm of
+  (Neg (Con f (Neg g))) -> Node [(Left       f, Nothing), (Right (Neg g), Nothing)] [] "" [] []
+  f                     -> Node [(Left $ Neg f, Nothing)                          ] [] "" [] []
 
 provable :: Form -> Bool
 provable = isClosedTab . prove
@@ -268,7 +269,9 @@ proveSlideshow f = do
   disp t
 
 tableauFor :: [Form] -> Tableaux
-tableauFor fs = head $ filterOneIfAny isClosedTab $ extensionsUpTo 10 $ Node (map (\f -> (Left f, Nothing)) fs) [] "" [] []
+tableauFor fs = head $ filterOneIfAny isClosedTab $ extensionsUpTo globalSearchLimit $ case fs of
+  [ Neg (Neg (Con f (Neg g))) ] -> Node [(Left f, Nothing), (Right (Neg g), Nothing)] [] "" [] []
+  _                             -> Node (map (\f -> (Left f, Nothing)) fs)            [] "" [] []
 
 inconsistent :: [Form] -> Bool
 inconsistent = isClosedTab . tableauFor
