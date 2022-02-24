@@ -149,6 +149,32 @@ disSet []     = top
 disSet [f]    = f
 disSet (f:fs) = dis f (disSet fs)
 
+-- | Measure of a formula or a program (Lemma 2, page 20)
+class HasMeasure a where
+  measure :: a -> Integer
+
+instance HasMeasure Prog where
+  measure (Ap _)    = 0
+  measure (NStar _) = 0
+  measure (Test f)   = maximum [measure f, measure (Neg f)] + 1
+  measure (p1 :- p2) = measure p1 + measure p2 + 1
+  measure (Cup p1 p2) = measure p1 + measure p2 + 1
+  measure (Star pr)  = 1 + measure pr
+
+instance HasMeasure Form where
+  measure Bot              = 0
+  measure (Neg Bot)        = 0 -- TODO: is this okay? Borzechowski omits this case.
+  measure (At _)           = 0
+  measure (Neg (At _))     = 0
+  measure (Neg (Neg f))    = 1 + measure f
+  measure (Con f g)        = 1 + measure f + measure g
+  measure (Neg (Con f g))  = 1 + measure (Neg f) + measure (Neg g)
+  measure (Box pr f)       = 1 + measure pr + measure f
+  measure (Neg (Box pr f)) = 1 + measure pr + measure f
+
+instance HasMeasure a => HasMeasure [a] where
+  measure = sum . map measure
+
 -- | Simplify a formula by removing double negations etc.
 simplify :: Form -> Form
 simplify = fixpoint simstep where
