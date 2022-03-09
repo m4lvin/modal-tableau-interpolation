@@ -46,11 +46,11 @@ main = hspec $ do
   describe "random formulas" $ do
     prop "provable f `elem` [True,False] -- but no error"
       (\f -> provable f `elem` [True,False])
-    describe "segerbergFor" $
-      mapM_ (\ k -> do
-               prop (show k)
-                 (\ f1 f2 p1 p2 -> provable (segerbergFor f1 f2 p1 p2 !! k) )
-            ) [0..(length (segerbergFor p q a b) - 1)]
+    -- describe "segerbergFor" $
+    --   mapM_ (\ k -> do
+    --            prop (show k)
+    --              (\ f1 f2 p1 p2 -> provable (segerbergFor f1 f2 p1 p2 !! k) )
+    --         ) [0..(length (segerbergFor p q a b) - 1)]
 
 proveTest :: Form -> SpecWith ()
 proveTest f = it (toString f) $ provable f `shouldBe` True
