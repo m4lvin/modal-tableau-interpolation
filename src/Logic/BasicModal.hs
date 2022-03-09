@@ -46,7 +46,7 @@ dia :: Form -> Form
 dia = Neg . Box . Neg
 
 -- | Atoms occurring in a formula.
-atomsIn :: Form -> [Atom]
+atomsIn :: Valuation Form
 atomsIn Bot       = []
 atomsIn (At a)    = [a]
 atomsIn (Neg f)   = atomsIn f
@@ -118,24 +118,31 @@ substitute g a (Box f)   = Box $ substitute g a f
 
 ---- SEMANTICS ----
 
-type World = Integer
+type Valuation w = w -> [Atom]
 
-type Valuation = World -> [Atom]
+type Relation w = w -> [w]
 
-type Relation = World -> [World]
+data Model w = KrM { worlds :: [w], val :: Valuation w, rel :: Relation w }
 
-data Model = KrM { worlds :: [World], val :: Valuation, rel :: Relation}
-
-exampleModel :: Model
+exampleModel :: Model Int
 exampleModel = KrM [1,2] myval (const [1]) where
   myval 1 = "pq"
   myval 2 = "r"
   myval _ = undefined
 
-instance Show Model where
-  show m = "KrM " ++ concatMap (\w -> show w ++ ":" ++ ppAts (val m w) ++ ":" ++ show (rel m w) ++ "; ") (worlds m) ++ "\n"
+instance Show w => Show (Model w) where
+  show m  = concat
+    [ "KrM "
+    , show (worlds m)
+    , " (\\w -> concat $ "
+    , intercalate " ++ " (map (\w -> "[ " ++ show (val m w) ++ " | w == " ++ show w ++ "] " ) (worlds m)),
+    ") "
+    , "(\\w -> concat $ "
+    , intercalate " ++ " (map (\w -> "[ " ++ show (rel m w) ++ " | w == " ++ show w ++ "]") (worlds m))
+    , ")"
+    ]
 
-instance DispAble Model where
+instance Show w => DispAble (Model w) where
   toGraph m =
     mapM_ (\w -> do
       node (show w) [shape Circle, toLabel $ show w ++ ":" ++ ppAts (val m w)]
@@ -143,14 +150,14 @@ instance DispAble Model where
       ) (worlds m)
 
 -- | Evaluate formula on a model at a world
-eval :: (Model,World) -> Form -> Bool
+eval :: (Model w, w) -> Form -> Bool
 eval (_,_) Bot       = False
 eval (m,w) (At a)    = a `elem` val m w
 eval (m,w) (Neg f)   = not $ eval (m,w) f
 eval (m,w) (Con f g) = eval (m,w) f && eval (m,w) g
 eval (m,w) (Box f)   = all (\w' -> eval (m,w') f) (rel m w)
 
-globeval :: Model -> Form -> Bool
+globeval :: Model w -> Form -> Bool
 globeval m f = all (\w -> eval (m,w) f) (worlds m)
 
 -- | All possible valuations for a given set of atoms.
@@ -162,7 +169,7 @@ allVals = powerset
 -- There are 2^(length myAts) possible valuations, we have to pick n many
 -- and there are (2^n) subsets of [1..n], we need n many for the relation.
 -- Hence `length (allModels myAts n) = n^(2^(length myAts)) * n^(2^n)`
-allModels :: [Atom] -> Integer -> [Model]
+allModels :: [Atom] -> Integer -> [Model Integer]
 allModels _   0 = error "Empty model!?"
 allModels myAts 1 =
     [ KrM [1] (const myValFor1) myRel | myValFor1 <- allVals myAts, myRel <- [ const [], const [1] ] ]

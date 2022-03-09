@@ -127,11 +127,6 @@ extensions (Node fs rule actives ts@(_:_)) = [ Node fs rule actives ts' | ts' <-
 extensions (Node _  rule@(_:_) _ []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"
 
 
--- To prove f, start with ¬f.
--- Special case: to prove f --> g (which is ¬(f & ¬g)) start with partition [f ; ¬g]
-startFor :: Form -> Tableaux
-startFor (Neg (f `Con` Neg g)) = Node [Left f, Right (Neg g)] "" [] []
-startFor f                     = Node [Left $ Neg f]          "" [] []
 
 isClosedTab :: Tableaux -> Bool
 isClosedTab End = True
@@ -140,7 +135,12 @@ isClosedTab (Node _ _ _ ts) = ts /= [] && all isClosedTab ts
 -- | Try to prove something by generating all extended tableauxs.
 -- Returns a closed tableaux if there is one in the list.
 prove :: Form -> Tableaux
-prove f = head $ filterOneIfAny isClosedTab $ extensions $ startFor f
+prove = head . filterOneIfAny isClosedTab . extensions . startFor where
+  -- To prove f, start with ¬f.
+  -- Special: to prove f --> g (which is ¬(f & ¬g)) start with [f ; ¬g]
+  startFor :: Form -> Tableaux
+  startFor (Neg (f `Con` Neg g)) = Node [Left f, Right (Neg g)] "" [] []
+  startFor f                     = Node [Left $ Neg f]          "" [] []
 
 tableauFor :: [Form] -> Tableaux
 tableauFor fs = head . filterOneIfAny isClosedTab $ extensions $
@@ -148,6 +148,9 @@ tableauFor fs = head . filterOneIfAny isClosedTab $ extensions $
 
 inconsistent :: [Form] -> Bool
 inconsistent = isClosedTab . tableauFor
+
+consistent :: [Form] -> Bool
+consistent = not . inconsistent
 
 provable :: Form -> Bool
 provable = isClosedTab . prove

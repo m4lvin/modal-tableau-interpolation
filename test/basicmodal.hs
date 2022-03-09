@@ -1,5 +1,6 @@
 module Main where
 
+import Data.Maybe
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
@@ -8,6 +9,7 @@ import Logic.BasicModal
 import Logic.BasicModal.Prove.Tree
 import Logic.BasicModal.Interpolation
 import Logic.BasicModal.Interpolation.ProofTree
+import Logic.BasicModal.Consistent
 
 main :: IO ()
 main = hspec $ do
@@ -55,9 +57,13 @@ main = hspec $ do
         testIPgen interpolate (Box (Neg (Box (Neg (Box (At 's'))))),Box (imp (imp (Neg (At 'q')) (Box (At 'r'))) (Neg (Box Bot))))
     it "(Neg (imp (Neg (Box (imp (At 's') (At 'q')))) (Neg (Box (At 'p')))),Neg (Box (imp (At 'p') (At 'q'))))" $
       testIPgen interpolate (Neg (imp (Neg (Box (imp (At 's') (At 'q')))) (Neg (Box (At 'p')))),Neg (Box (imp (At 'p') (At 'q'))))
-
     prop "interpolate randomly generated examples"
       (\(f,g) -> provable (f `imp` g) ==> testIPgen interpolate (f,g))
     modifyMaxDiscardRatio (const 1000) $
-      prop "interpolate randomly generated nice examples" $
+      prop "interpolate randomly generated nice examples"
         (\(f,g) -> isNice (f,g) ==> testIPgen interpolate (f,g))
+  describe "consistency" $ modifyMaxSuccess (const 100000) $ do
+    prop "if consistent, then tabToMod provides a model"
+      (\ f -> consistent [f] ==> isJust (tabToMod (tableauFor [f])))
+    prop "if not provable, then true in tabToMod provides a model"
+      (\ f -> consistent [f] ==> fromJust (tabToMod (tableauFor [f])) `eval` f)

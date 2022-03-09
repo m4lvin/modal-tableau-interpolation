@@ -8,12 +8,13 @@ See <https://malv.in/2020/borzechowski-pdl/> for the original German text and an
 
 ### Propositional Logic
 
-There are two different provers: one based on lists and one a proper tableau.
-See [src/Logic/Propositional/Prove](src/Logic/Propositional/Prove).
+There are two different provers:
+one [based on lists](src/Logic/Propositional/Prove/List.hs).
+and [a proper tableau](src/Logic/Propositional/Prove/Tree.hs).
 
 Interpolation is also implemented twice:
-- [Logic.Propositional.Interpolation.Naive](src/Logic/Propositional/Interpolation/Naive.hs) replaces atoms by constants as described in [Wikipedia: Craig interpolation](https://en.wikipedia.org/wiki/Craig_interpolation#Proof_of_Craig's_interpolation_theorem).
-- [Logic.Propositional.Interpolation.ProofTree](src/Logic/Propositional/Interpolation/ProofTree.hs) uses Tableaux.
+once [replacing atoms by constants](src/Logic/Propositional/Interpolation/Naive.hs) as described in [Wikipedia: Craig interpolation](https://en.wikipedia.org/wiki/Craig_interpolation#Proof_of_Craig's_interpolation_theorem), and
+ [using the tableaux](src/Logic/Propositional/Interpolation/ProofTree.hs).
 
 ### Basic modal logic K
 
@@ -36,6 +37,8 @@ Interpolation is also implemented twice:
 The last command will also show this tableau:
 
 ![](docu/BasicModal-example.png)
+
+See [the test file](test/basicmodal.hs) for more examples, including interpolation and consistency checks.
 
 ### PDL
 
@@ -118,5 +121,9 @@ Nice to have:
 
 - Roman Kuznets (2015): Craig Interpolation via Hypersequents.
   <https://sites.google.com/site/kuznets/interpol_hyper_v2.pdf>
+
+- Francesca Perin (2019): Implementing Maehara's Method for Star-Free Propositional Dynamic Logic.
+  <https://fse.studenttheses.ub.rug.nl/20770/>
+  <https://github.com/FrancescaPerin/BScProject>
 
 - TODO: compare to other PDL and tableaux provers mentioned at <http://www.cs.man.ac.uk/~schmidt/tools/>.
