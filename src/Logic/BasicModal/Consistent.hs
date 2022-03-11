@@ -8,7 +8,7 @@ import Logic.BasicModal.Prove.Tree
 -- | Given a tableaux, build a Kripke model if possible.
 tabToMod :: Tableaux -> Maybe (Model [Form], [Form])
 -- no model when closed:
-tabToMod End = Nothing -- FIXME: make error, should never be reached anyway?
+tabToMod End = error "cannot make model for end marker"
 tabToMod (Node _ "✘" _ _) = Nothing
 -- same model as child for single-branch rules:
 tabToMod (Node _ "¬" _ [child]) = tabToMod child
