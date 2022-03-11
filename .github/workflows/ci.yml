@@ -16,12 +16,6 @@ jobs:
         path: |
           ~/.stack
           ~/.stack-work
-    - name: Setup
-      uses: haskell/actions/setup@v1
-      with:
-        ghc-version: '8.10.7' # Exact version of ghc to use
-        enable-stack: true
-        stack-version: 'latest'
     - uses: actions/checkout@v2
     - name: Compile
       run: stack --system-ghc test --no-run-tests
