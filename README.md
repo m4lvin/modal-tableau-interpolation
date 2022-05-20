@@ -25,14 +25,14 @@ once [replacing atoms by constants](src/Logic/Propositional/Interpolation/Naive.
     False
     
     stack ghci src/Logic/BasicModal/Interpolation/ProofTree.hs
-    λ> let (f,g) = ( Box (Imp (At 'p') (At 'q')) , Imp (Neg (Box (Imp (At 's') (At 'q')))) (Neg (Box (At 'p'))) )
+    λ> let (f,g) = ( Box ((At 'p') --> (At 'q')) , (Neg (Box ((At 's') --> (At 'q')))) --> (Neg (Box (At 'p'))) )
     λ> mapM_ (putStrLn .ppForm) [f, g]
-    ☐(p → q)
-    (¬☐(s → q) → ¬☐p)
+    ☐¬(p & ¬q)
+    ¬(¬☐¬(s & ¬q) & ¬¬☐p)
     λ> interpolateShow (f,g)
     Showing tableau with GraphViz ...
-    Interpolant: ☐(¬¬p → q)
-    Simplified interpolant: ☐(p → q)
+    Interpolant: ☐¬(¬¬p & ¬¬¬q)
+    Simplified interpolant: ☐¬(p & ¬q)
 
 The last command will also show this tableau:
 
