@@ -50,6 +50,8 @@ tokens :-
   "p"               { \ p _ -> TokenP                 p }
   "q"               { \ p _ -> TokenQ                 p }
   "r"               { \ p _ -> TokenR                 p }
+  "s"               { \ p _ -> TokenS                 p }
+  "t"               { \ p _ -> TokenT                 p }
   -- PDL Programs:
   "u"               { \ p _ -> TokenCup               p }
   "∪"               { \ p _ -> TokenCup               p }
@@ -60,5 +62,6 @@ tokens :-
   "b"               { \ p _ -> TokenB                 p }
   "c"               { \ p _ -> TokenC                 p }
   "d"               { \ p _ -> TokenD                 p }
+  "e"               { \ p _ -> TokenE                 p }
   -- Ints:
   $dig+             { \ p s -> TokenInt (read s)      p }

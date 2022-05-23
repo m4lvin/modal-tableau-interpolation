@@ -7,6 +7,8 @@ data Token a -- == AlexPn
   | TokenP                 {apn :: a}
   | TokenQ                 {apn :: a}
   | TokenR                 {apn :: a}
+  | TokenS                 {apn :: a}
+  | TokenT                 {apn :: a}
   | TokenNeg               {apn :: a}
   | TokenOB                {apn :: a}
   | TokenCB                {apn :: a}
@@ -24,6 +26,7 @@ data Token a -- == AlexPn
   | TokenB                 {apn :: a}
   | TokenC                 {apn :: a}
   | TokenD                 {apn :: a}
+  | TokenE                 {apn :: a}
   | TokenCup               {apn :: a}
   | TokenSemicolon         {apn :: a}
   | TokenTest              {apn :: a}

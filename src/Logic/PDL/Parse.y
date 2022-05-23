@@ -16,6 +16,8 @@ import Logic.PDL
   'p'    { TokenP      _ }
   'q'    { TokenQ      _ }
   'r'    { TokenR      _ }
+  's'    { TokenS      _ }
+  't'    { TokenT      _ }
   '('    { TokenOB     _ }
   ')'    { TokenCB     _ }
   '['    { TokenCOB    _ }
@@ -31,6 +33,7 @@ import Logic.PDL
   'b'    { TokenB      _ }
   'c'    { TokenC      _ }
   'd'    { TokenD      _ }
+  'e'    { TokenE      _ }
   ':-'   { TokenSemicolon _ }
   '?'    { TokenTest   _ }
   'u'    { TokenCup    _ }
@@ -65,6 +68,8 @@ Form : TOP { top }
      | 'p' { At ("p") }
      | 'q' { At ("q") }
      | 'r' { At ("r") }
+     | 's' { At ("s") }
+     | 't' { At ("t") }
      | '[' Prog ']' Form { Box $2 $4 }
      | '<' Prog '>' Form { dia $2 $4 }
 
@@ -73,6 +78,7 @@ Prog : 'a' INT { Ap ('a' : show $2) }
      | 'b' { Ap "b" }
      | 'c' { Ap "c" }
      | 'd' { Ap "d" }
+     | 'e' { Ap "e" }
      | '(' Prog ')' { $2 }
      | Prog 'u' Prog { Cup $1 $3 }
      | Prog ':-' Prog { $1 :- $3 }
