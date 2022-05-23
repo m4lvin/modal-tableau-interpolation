@@ -2,6 +2,8 @@ module Logic.Internal where
 
 import Data.GraphViz
 import Data.GraphViz.Types.Monadic hiding ((-->))
+import GHC.IO.Handle
+import System.IO
 import System.IO.Temp
 import System.IO.Unsafe
 
@@ -27,6 +29,10 @@ class DispAble t where
   toGraph :: t -> DotM String ()
   disp :: t -> IO ()
   disp x = runGraphvizCanvas Dot (digraph' $ toGraph x) Xlib
+  dot :: t -> IO String
+  dot x = graphvizWithHandle Dot (digraph' $ toGraph x) Canon $ \h -> do
+    hSetEncoding h utf8
+    hGetContents' h
   svg :: t -> String
   svg x = unsafePerformIO $ withSystemTempDirectory "tapdleau" $ \tmpdir -> do
     _ <- runGraphvizCommand Dot (digraph' $ toGraph x) Svg (tmpdir ++ "/temp.svg")
