@@ -109,6 +109,7 @@ interpolateShow pair = do
   let (t,ip) = proveAndInterpolate pair
   putStrLn "Showing tableau with GraphViz ..."
   disp t
+  -- dot t
   putStrLn $ "Interpolant: " ++ ppForm ip
   putStrLn $ "Simplified interpolant: " ++ ppForm (simplify ip)
 
