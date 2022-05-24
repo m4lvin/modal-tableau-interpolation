@@ -4,9 +4,12 @@ module Logic.PDL.Parse where
 import Logic.PDL.Token
 import Logic.PDL.Lex
 import Logic.PDL
+import qualified Logic.BasicModal
+
 }
 
-%name parse Form
+%name parseK KForm
+%name parsePDL PDLForm
 %tokentype { Token AlexPosn }
 %error { parseError }
 
@@ -56,22 +59,39 @@ import Logic.PDL
 
 %%
 
-Form : TOP { top }
+KForm : TOP { Logic.BasicModal.top }
+     | BOT { Logic.BasicModal.Bot }
+     | '(' KForm ')' { $2 }
+     | '~' KForm { Logic.BasicModal.Neg $2 }
+     | KForm '=>' KForm { Logic.BasicModal.imp $1 $3 }
+     | KForm '&'  KForm { Logic.BasicModal.Con $1 $3 }
+     | KForm '|'  KForm { Logic.BasicModal.dis $1 $3 }
+     | KForm '<-->' KForm { $1 Logic.BasicModal.<--> $3 }
+     | 'p' INT { Logic.BasicModal.At ('p' : show $2) }
+     | 'p' { Logic.BasicModal.At ("p") }
+     | 'q' { Logic.BasicModal.At ("q") }
+     | 'r' { Logic.BasicModal.At ("r") }
+     | 's' { Logic.BasicModal.At ("s") }
+     | 't' { Logic.BasicModal.At ("t") }
+     | '[' ']' KForm { Logic.BasicModal.Box $3 }
+     | '<' '>' KForm { Logic.BasicModal.dia $3 }
+
+PDLForm : TOP { top }
      | BOT { Bot }
-     | '(' Form ')' { $2 }
-     | '~' Form { Neg $2 }
-     | Form '=>' Form { imp $1 $3 }
-     | Form '&'  Form { Con $1 $3 }
-     | Form '|'  Form { dis $1 $3 }
-     | Form '<-->' Form { $1 <--> $3 }
+     | '(' PDLForm ')' { $2 }
+     | '~' PDLForm { Neg $2 }
+     | PDLForm '=>' PDLForm { imp $1 $3 }
+     | PDLForm '&'  PDLForm { Con $1 $3 }
+     | PDLForm '|'  PDLForm { dis $1 $3 }
+     | PDLForm '<-->' PDLForm { $1 <--> $3 }
      | 'p' INT { At ('p' : show $2) }
      | 'p' { At ("p") }
      | 'q' { At ("q") }
      | 'r' { At ("r") }
      | 's' { At ("s") }
      | 't' { At ("t") }
-     | '[' Prog ']' Form { Box $2 $4 }
-     | '<' Prog '>' Form { dia $2 $4 }
+     | '[' Prog ']' PDLForm { Box $2 $4 }
+     | '<' Prog '>' PDLForm { dia $2 $4 }
 
 Prog : 'a' INT { Ap ('a' : show $2) }
      | 'a' { Ap "a" }
@@ -83,7 +103,7 @@ Prog : 'a' INT { Ap ('a' : show $2) }
      | Prog 'u' Prog { Cup $1 $3 }
      | Prog ':-' Prog { $1 :- $3 }
      | Prog '*' { Star $1 }
-     | '?' Form { Test $2 }
+     | '?' PDLForm { Test $2 }
 
 {
 parseError :: [Token AlexPosn] -> a
@@ -91,6 +111,12 @@ parseError []     = error ("Empty parseError!")
 parseError (t:ts) = error ("Parse error in line " ++ show lin ++ ", column " ++ show col ++ ": " ++ show t)
   where (AlexPn abs lin col) = apn t
 
-fromString :: String -> Form
-fromString = parse . alexScanTokens
+class MyParsable a where
+  fromString :: String -> a
+
+instance MyParsable Logic.BasicModal.Form where
+  fromString = parseK . alexScanTokens
+
+instance MyParsable Logic.PDL.Form where
+  fromString = parsePDL . alexScanTokens
 }

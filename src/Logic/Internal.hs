@@ -1,8 +1,11 @@
+{-# LANGUAGE FlexibleInstances #-}
+
 module Logic.Internal where
 
 import qualified Data.ByteString as SB
 import Data.GraphViz
 import Data.GraphViz.Types.Monadic hiding ((-->))
+import Data.List
 import GHC.IO.Handle
 import System.IO
 import System.IO.Temp
@@ -24,6 +27,18 @@ powerset (x:xs) = concat [ [x:rest, rest] | rest <- powerset xs ]
 fixpoint :: Eq a => (a -> a) -> a -> a
 fixpoint f x | f x == x  = x
              | otherwise = fixpoint f (f x)
+
+-- | Pretty-printable things.
+class Stringable a where
+  toString :: a -> String
+  toStrings :: [a] -> String
+  toStrings xs = intercalate ", " $ map toString xs
+  pp :: a -> IO ()
+  pp = putStrLn . toString
+
+instance (Stringable a, Stringable b) => Stringable (a, Maybe b) where
+  toString (x, Just  y) = toString x ++ " ^ " ++ toString y
+  toString (x, Nothing) = toString x
 
 -- | Displayable things, using graphviz.
 class DispAble t where

@@ -33,7 +33,7 @@ rightsOf wfs = [f | Right f <- wfs]
 
 ppWForms :: [WForm] -> [WForm] -> String
 ppWForms wfs actives = intercalate ", " (map ppFormA (filter isLeft wfs)) ++ "   |   " ++ intercalate ", " (map ppFormA (filter (not . isLeft) wfs)) where
-  ppFormA wf = [ '»' |  wf `elem` actives ] ++ ppForm (collapse wf) ++ [ '«' |  wf `elem` actives ]
+  ppFormA wf = [ '»' |  wf `elem` actives ] ++ toString (collapse wf) ++ [ '«' |  wf `elem` actives ]
 
 instance DispAble Tableaux where
   toGraph = toGraph' "" where

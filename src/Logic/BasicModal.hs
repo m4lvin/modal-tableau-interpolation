@@ -1,33 +1,38 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 module Logic.BasicModal where
 
+import Control.DeepSeq(NFData)
 import Data.List
 import Data.GraphViz
 import Data.GraphViz.Types.Monadic hiding ((-->))
+import GHC.Generics (Generic)
 import Test.QuickCheck
 
 import Logic.Internal
 
 ---- SYNTAX ----
 
-type Atom = Char
+type Atom = String
 
-data Form = Bot | At Atom | Neg Form | Con Form Form | Box Form
-  deriving (Eq,Ord,Show)
+data Form = Bot | At String | Neg Form | Con Form Form | Box Form
+  deriving (Eq,Ord,Show,Generic)
+instance NFData Form
 
-ppForm :: Form -> String
-ppForm Bot       = "⊥"
-ppForm (At a)    = [a]
-ppForm (Neg f)   = "¬" ++ ppForm f
-ppForm (Con f g) = "(" ++ ppForm f ++ " & " ++ ppForm g ++ ")"
-ppForm (Box f)   = "☐" ++ ppForm f
+instance Stringable Form where
+  toString Bot       = "⊥"
+  toString (At a)    = a
+  toString (Neg f)   = "¬" ++ toString f
+  toString (Con f g) = "(" ++ toString f ++ " & " ++ toString g ++ ")"
+  toString (Box f)   = "☐" ++ toString f
 
 o,p,q,r,s :: Form
-[o,p,q,r,s] = map At ['o','p','q','r','s']
+[o,p,q,r,s] = map At ["o","p","q","r","s"]
 
 ppAts :: [Atom] -> String
 ppAts []  = [ ]
-ppAts [a] = [a]
-ppAts (a:as) = a : "," ++ ppAts as
+ppAts [a] = a
+ppAts (a:as) = a ++ "," ++ ppAts as
 
 top :: Form
 top = Neg Bot
@@ -126,8 +131,8 @@ data Model w = KrM { worlds :: [w], val :: Valuation w, rel :: Relation w }
 
 exampleModel :: Model Int
 exampleModel = KrM [1,2] myval (const [1]) where
-  myval 1 = "pq"
-  myval 2 = "r"
+  myval 1 = ["p", "q"]
+  myval 2 = ["r"]
   myval _ = undefined
 
 instance Show w => Show (Model w) where
@@ -200,11 +205,11 @@ isValid f = do
 instance Arbitrary Form where
   arbitrary = simplify <$> sized genForm where
     factor = 3
-    genForm 0 = oneof [ pure Bot, At <$> choose ('p','q') ]
-    genForm 1 = At <$> choose ('p','s')
+    genForm 0 = oneof [ pure Bot, At . return <$> choose ('p','q') ]
+    genForm 1 = At . return <$> choose ('p','s')
     genForm n = oneof
       [ pure Bot
-      , At <$> choose ('p','s')
+      , At . return <$> choose ('p','s')
       , Neg <$> genForm (n `div` factor)
       , Con <$> genForm (n `div` factor) <*> genForm (n `div` factor)
       , Box <$> genForm (n `div` factor)

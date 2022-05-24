@@ -30,6 +30,8 @@
     </p>
     <div>
       <input id="textinput" name="textinput" value="[a*]p -> [a**]p" />
+      <input type="radio" id="PDL" name="logic" value="PDL" /><label for="PDL">PDL</label>
+      <input type="radio" id="K" name="logic" value="K" /><label for="K">K</label>
       <input id="runbutton" type="submit" value="Try to prove this!" onclick="prove()" />
     </div>
     <div id="output"></div>
@@ -40,7 +42,7 @@
           $.ajax({
               type: "POST",
               url: "prove",
-              data: { "textinput": $('#textinput').val() },
+              data: { "logic": $('input[name=\"logic\"]:checked').val(), "textinput": $('#textinput').val() },
               success:
               function(data,textStatus,jqXHR) {
                   $('#output').html(data);

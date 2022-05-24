@@ -2,9 +2,9 @@
 
 module Logic.PDL where
 
-import GHC.Generics (Generic)
 import Control.DeepSeq(NFData)
 import Data.List
+import GHC.Generics (Generic)
 import Test.QuickCheck
 
 import Logic.Internal
@@ -20,17 +20,6 @@ instance NFData Form
 data Prog = Ap Atom | Cup Prog Prog | Prog :- Prog | Star Prog | NStar Prog | Test Form
   deriving (Eq,Ord,Show,Generic)
 instance NFData Prog
-
-class Stringable a where
-  toString :: a -> String
-  toStrings :: [a] -> String
-  toStrings xs = intercalate ", " $ map toString xs
-  pp :: a -> IO ()
-  pp = putStrLn . toString
-
-instance (Stringable a, Stringable b) => Stringable (a, Maybe b) where
-  toString (x, Just  y) = toString x ++ " ^ " ++ toString y
-  toString (x, Nothing) = toString x
 
 instance Stringable Form where
   toString Bot        = "⊥"

@@ -16,7 +16,7 @@ data TableauxIP = Node ([WForm],Interpolant) RuleName [WForm] [TableauxIP] | End
   deriving (Eq,Ord,Show)
 
 ppIP :: Interpolant -> String
-ppIP (Just f) = ppForm f
+ppIP (Just f) = toString f
 ppIP Nothing  = "∅"
 
 instance DispAble TableauxIP where
@@ -94,7 +94,7 @@ fillAllIPs = fixpoint fillIPs -- TODO is this necessary?
 
 proveAndInterpolate :: (Form,Form) -> (TableauxIP,Form)
 proveAndInterpolate (ante,cons)
-  | not $ provable (ante --> cons) = error $ "This implication is not valid " ++ ppForm (ante --> cons)
+  | not $ provable (ante --> cons) = error $ "This implication is not valid " ++ toString (ante --> cons)
   | otherwise = (ipt1,ip) where
       t1 = prove (ante --> cons)
       ipt0 = toEmptyTabIP t1 :: TableauxIP
@@ -110,8 +110,8 @@ interpolateShow pair = do
   putStrLn "Showing tableau with GraphViz ..."
   disp t
   -- dot t
-  putStrLn $ "Interpolant: " ++ ppForm ip
-  putStrLn $ "Simplified interpolant: " ++ ppForm (simplify ip)
+  putStrLn $ "Interpolant: " ++ toString ip
+  putStrLn $ "Simplified interpolant: " ++ toString (simplify ip)
 
 isNice :: (Form,Form) -> Bool
 isNice (f,g) = provable (f `imp` g)
