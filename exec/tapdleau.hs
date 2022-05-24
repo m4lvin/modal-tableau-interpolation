@@ -19,8 +19,10 @@ import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort)
 import System.Environment (lookupEnv)
 import Text.Read (readMaybe)
 
-import qualified Logic.BasicModal
+import qualified Logic.BasicModal as BM
 import qualified Logic.BasicModal.Prove.Tree
+import qualified Logic.BasicModal.Interpolation.ProofTree
+import Logic.BasicModal.Interpolation.ProofTree (forgetIPs)
 
 import Logic.PDL
 import Logic.Internal
@@ -42,11 +44,20 @@ main = do
     post "/prove" $ do
       logic <- param "logic"
       textinput <- param "textinput"
-      parseResult <- liftIO $ myCatch (if logic == ("K" :: String) then Left ( parseK (alexScanTokens textinput) :: Logic.BasicModal.Form) else Right (fromString textinput :: Logic.PDL.Form))
+      parseResult <- liftIO $ myCatch (if logic == ("K" :: String) then Left ( parseK (alexScanTokens textinput) :: BM.Form) else Right (fromString textinput :: Logic.PDL.Form))
       html $ mconcat $ map TL.pack $ case parseResult of
         Left err ->
           [ "<pre> INPUT: " ++ show (textinput :: String) ++ "</pre>"
           , "<pre> PARSE ERRROR: " ++ err ++ "</pre>" ]
+        Right (Left bmlF@(BM.Neg (f `BM.Con` BM.Neg g))) ->
+          let (t,_) = Logic.BasicModal.Interpolation.ProofTree.proveAndInterpolate (f,g)
+          in
+          [ "<pre>Parsed input: " ++ toString bmlF  ++ "</pre>"
+          , if Logic.BasicModal.Prove.Tree.isClosedTab (forgetIPs t)
+              then "PROVED. <style type='text/css'> #output { border-color: green; } </style>"
+              else "NOT proved. <style type='text/css'> #output { border-color: red; } </style>"
+          , "<div align='center'>" ++ svg t ++ "<div>"
+          ]
         Right (Left bmlF) ->
           let t = Logic.BasicModal.Prove.Tree.prove bmlF
           in

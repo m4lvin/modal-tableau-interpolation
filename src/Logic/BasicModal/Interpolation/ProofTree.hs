@@ -35,6 +35,10 @@ toEmptyTabIP T.End = End
 toEmptyTabIP (T.Node wfs rule actives ts) =
   Node (wfs,Nothing) rule actives (map toEmptyTabIP ts)
 
+forgetIPs :: TableauxIP -> Tableaux
+forgetIPs End = T.End
+forgetIPs (Node (wfs,_) rule actives ts) = T.Node wfs rule actives (map forgetIPs ts)
+
 hasIP :: TableauxIP -> Bool
 hasIP End = False
 hasIP (Node (_,Just _ ) _ _ _) = True
