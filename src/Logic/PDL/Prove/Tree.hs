@@ -180,9 +180,12 @@ isEndNodeBy wfsNow history =
   -- new version:
   -- for each node on the path:  it is loaded *iff* the current node is loaded:
   , all ((any isMarked wfsNow ==) . any isMarked . fst) (take k history) --- now <a*>[a]p yields an infinite tableau :-/
-  -- old version:
-  -- all node on the path  are loaded  *iff*  the current node is loaded:
-  -- , all (any isMarked . fst) (take k history) == any isMarked wfsNow -- with this <a*>[a]p is provable :-(
+
+  -- alternative versions/readings of condition 6:
+  -- - for each node on the path:  it is loaded *iff* the current node is loaded:
+  -- , all ((any isMarked wfsNow ==) . any isMarked . fst) (take k history) --- <a*>[a]p yields an infinite tableau :-/
+  -- - all nodes on the path  are loaded  *iff*  the current node is loaded:
+  -- , all (any isMarked . fst) (take k history) == any isMarked wfsNow -- with this <a*>[a]¬p is valid :-(
   ]
 
 -- | End nodes due to extra condition 4.

@@ -33,6 +33,8 @@ someNonValidities =
   , Box (a :- Star a) p --> dia (a :- Star a) p
   , Con (Box a p) (Box b q) --> Box (Cup a b) (Con p q)
   , Box (Star (Test p)) p
+  -- , Box (Star a) (dia a p) -- problematic with condition 6
+  -- , Neg $ Box (Star a) (dia a p) -- problematic with condition 6
   , Box (Star a) (dia a top)
   , Neg $ Box (Star a) (dia a top) -- proven by unsound version of extra condition 6:
   ]
