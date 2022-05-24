@@ -1,11 +1,10 @@
 module Main where
 
+import Logic.Internal
 import Logic.PDL
 import Logic.PDL.Examples
-import Logic.PDL.Lex (alexScanTokens)
-import Logic.PDL.Parse (parse)
+import Logic.PDL.Parse
 import Logic.PDL.Prove.Tree
-import Logic.PDL.Tools
 
 import Test.Hspec
 import Test.Hspec.QuickCheck
@@ -20,19 +19,19 @@ main = hspec $ do
     mapM_ proveTest $ segerbergFor p q a b
   describe "parsing" $
     it "parse 'p1'" $
-      (parse . alexScanTokens) "p1" `shouldBe` At "p1"
+      fromString "p1" `shouldBe` At "p1"
   describe "prove negation of each line of data/formulae_exp_unsat.txt" $ do
     fileLines <- runIO $ readFile "data/formulae_exp_unsat.txt"
     mapM_
-      (\l -> it (myExcerpt l) $ (provable . Neg) ((parse . alexScanTokens) l))
+      (\l -> it (myExcerpt l) $ (provable . Neg) (fromString l))
       (filter (not . null) (lines fileLines))
   let str = "~p & [a*](<a>True & ((~p & [a]p) | (p & [a]~p)))"
    in it ("negation of " ++ str ++ " from sat file is not provable") $ -- failing, due to unsound condition 6 maybe?
-        not. provable . Neg $ myParse str
+        not. provable . Neg $ fromString str
   -- describe "do not prove negation of each line of data/formulae_exp_sat.txt" $ do
   --   fileLines <- runIO $ readFile "data/formulae_exp_sat.txt"
   --   mapM_
-  --     (\l -> it (myExcerpt l) $ (not . provable . Neg) ((parse . alexScanTokens) l))
+  --     (\l -> it (myExcerpt l) $ (not . provable . Neg) (fromString l))
   --     (filter (not . null) (lines fileLines))
   describe "inconsistent" $ do
     it "{ [a]p, ¬[a](p ∨ r), ¬[a](q ∨ r) }" $

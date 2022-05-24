@@ -51,12 +51,12 @@ main = hspec $ do
     it "Borzechowski Example 2:  { r ⋀ ~□p, r ↣ □(p ⋀ q) }" $
       inconsistent [ r `Con` Neg (Box p), r --> Box (p `Con` q) ]
   describe "interpolate" $ do
-    it "(Box (At 'r'),Box (imp (At 's') (At 'r')))" $
-      testIPgen interpolate (Box (At 'r'),Box (imp (At 's') (At 'r')))
-    it "(Box (Neg (Box (Neg (Box (At 's'))))),Box (imp (imp (Neg (At 'q')) (Box (At 'r'))) (Neg (Box Bot))))" $
-        testIPgen interpolate (Box (Neg (Box (Neg (Box (At 's'))))),Box (imp (imp (Neg (At 'q')) (Box (At 'r'))) (Neg (Box Bot))))
-    it "(Neg (imp (Neg (Box (imp (At 's') (At 'q')))) (Neg (Box (At 'p')))),Neg (Box (imp (At 'p') (At 'q'))))" $
-      testIPgen interpolate (Neg (imp (Neg (Box (imp (At 's') (At 'q')))) (Neg (Box (At 'p')))),Neg (Box (imp (At 'p') (At 'q'))))
+    it "(Box (At \"r\"),Box (imp (At \"s\") (At \"r\")))" $
+      testIPgen interpolate (Box (At "r"),Box (imp (At "s") (At "r")))
+    it "(Box (Neg (Box (Neg (Box (At \"s\"))))),Box (imp (imp (Neg (At \"q\")) (Box (At \"r\"))) (Neg (Box Bot))))" $
+        testIPgen interpolate (Box (Neg (Box (Neg (Box (At "s"))))),Box (imp (imp (Neg (At "q")) (Box (At "r"))) (Neg (Box Bot))))
+    it "(Neg (imp (Neg (Box (imp (At \"s\") (At \"q\")))) (Neg (Box (At \"p\")))),Neg (Box (imp (At \"p\") (At \"q\"))))" $
+      testIPgen interpolate (Neg (imp (Neg (Box (imp (At "s") (At "q")))) (Neg (Box (At "p")))),Neg (Box (imp (At "p") (At "q"))))
     prop "interpolate randomly generated examples"
       (\(f,g) -> provable (f `imp` g) ==> testIPgen interpolate (f,g))
     modifyMaxDiscardRatio (const 1000) $
