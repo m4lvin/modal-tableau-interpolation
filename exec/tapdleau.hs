@@ -49,23 +49,16 @@ main = do
         Left err ->
           [ "<pre> INPUT: " ++ show (textinput :: String) ++ "</pre>"
           , "<pre> PARSE ERRROR: " ++ err ++ "</pre>" ]
-        Right (Left bmlF@(BM.Neg (f `BM.Con` BM.Neg g))) ->
-          let (t,_) = Logic.BasicModal.Interpolation.ProofTree.proveAndInterpolate (f,g)
-          in
-          [ "<pre>Parsed input: " ++ toString bmlF  ++ "</pre>"
-          , if Logic.BasicModal.Prove.Tree.isClosedTab (forgetIPs t)
-              then "PROVED. <style type='text/css'> #output { border-color: green; } </style>"
-              else "NOT proved. <style type='text/css'> #output { border-color: red; } </style>"
-          , "<div align='center'>" ++ svg t ++ "<div>"
-          ]
         Right (Left bmlF) ->
           let t = Logic.BasicModal.Prove.Tree.prove bmlF
+              closed = Logic.BasicModal.Prove.Tree.isClosedTab t
+              tWithInt = Logic.BasicModal.Interpolation.ProofTree.proveWithInt bmlF
           in
           [ "<pre>Parsed input: " ++ toString bmlF  ++ "</pre>"
-          , if Logic.BasicModal.Prove.Tree.isClosedTab t
+          , if closed
               then "PROVED. <style type='text/css'> #output { border-color: green; } </style>"
               else "NOT proved. <style type='text/css'> #output { border-color: red; } </style>"
-          , "<div align='center'>" ++ svg t ++ "<div>"
+          , "<div align='center'>" ++ if closed then svg tWithInt else svg t ++ "<div>"
           ]
         Right (Right pdlF) ->
           let t = prove pdlF

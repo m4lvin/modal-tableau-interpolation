@@ -96,6 +96,12 @@ fillIPs n@(Node (wfs,Nothing) rule actives ts)
 fillAllIPs :: TableauxIP -> TableauxIP
 fillAllIPs = fixpoint fillIPs -- TODO is this necessary?
 
+proveWithInt :: Form -> TableauxIP
+proveWithInt f = ipt1 where
+  t1 = prove f
+  ipt0 = toEmptyTabIP t1 :: TableauxIP
+  ipt1 = fillAllIPs ipt0
+
 proveAndInterpolate :: (Form,Form) -> (TableauxIP,Form)
 proveAndInterpolate (ante,cons)
   | not $ provable (ante --> cons) = error $ "This implication is not valid " ++ toString (ante --> cons)
