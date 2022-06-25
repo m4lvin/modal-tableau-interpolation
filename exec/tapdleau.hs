@@ -22,7 +22,6 @@ import Text.Read (readMaybe)
 import qualified Logic.BasicModal as BM
 import qualified Logic.BasicModal.Prove.Tree
 import qualified Logic.BasicModal.Interpolation.ProofTree
-import Logic.BasicModal.Interpolation.ProofTree (forgetIPs)
 
 import Logic.PDL
 import Logic.Internal

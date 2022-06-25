@@ -28,6 +28,28 @@
       This is the web interface of
       <a href="https://github.com/m4lvin/modal-tableau-interpolation">modal-tableau-interpolation</a>.
     </p>
+    <p>
+      Please write your own formula below or
+      <label for="examples">choose an example:</label>
+      <select name="examples" id="examples">
+        <option value="PDL" selected>[a*]p -> [a**]p</option>
+        <option value="PDL">[a**]p -> [a*]p</option>
+        <option value="PDL">[(a u b)*](p ^ q) -> ([b*]q v [b*]r)</option>
+        <option value="PDL">[a*]q -> [(a u ?p)*]q</option><!-- Borzechowski page 29 -->
+        <option value="PDL">~[(a u ?p)*]q -> ~[a*]q</option><!-- Borzechowski page 29 -->
+        <option value="PDL">[(a; a)*](p ^ [a; (b u c)]F) -> [a*](p v [c]q)</option><!-- Borzechowski page 42 -->
+        <option value="PDL">~[a*](p v [c]q) -> ~[(a; a)*](p ^ [a; (b u c)]F)</option><!-- Borzechowski page 42 -->
+        <option value="K">[](p ^ q) -> ([]q | []r)</option>
+        <option value="K">[][][][]T</option>
+        <option value="K">~<><><>F</option>
+        <!-- below are not valid -->
+        <option value="K">~~~~F</option>
+        <option value="K">[]p -> [][]p</option>
+        <option value="PDL">[a*]p -> [a* ; b*]p</option>
+        <option value="PDL">[a*]&lt;a&gt;p</option>
+        <option value="PDL">~[a*]&lt;a&gt;p</option>
+      </select>
+    </p>
     <div>
       <input id="textinput" name="textinput" value="[a*]p -> [a**]p" />
       <input type="radio" id="PDL" name="logic" value="PDL" checked="checked" /><label for="PDL">PDL</label>
@@ -59,6 +81,11 @@
           if(e.which === 13){
               prove();
           }
+      });
+      $('#examples').change(function (e) {
+          $('#textinput').val( $('#examples option:selected').text() );
+          $('input:radio[name="logic"]').val([ $('#examples option:selected').val() ]);
+          prove();
       });
       </script>
   </body>
