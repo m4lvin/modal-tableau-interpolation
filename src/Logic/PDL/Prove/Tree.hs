@@ -27,7 +27,7 @@ data Tableaux = Node -- ^ A node contains:
 -- Note: head of this list is the immediate predecessor, last element is the root!
 type History = [([WForm],RuleName)]
 
-type RuleName = String -- FIXME: use data RuleName = Con NegCon etc.
+type RuleName = String -- TODO: data RuleName = Con | NegCon | ...  and "¬" etc. with OverloadedStrings
 
 -- We can mark formulas with other formulas
 type Marked a = (a, Maybe a)

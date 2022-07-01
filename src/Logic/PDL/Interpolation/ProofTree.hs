@@ -2,6 +2,7 @@ module Logic.PDL.Interpolation.ProofTree where
 
 import Data.GraphViz
 import Data.GraphViz.Types.Monadic hiding ((-->))
+import Data.Maybe
 
 import Logic.PDL
 import Logic.PDL.Prove.Tree hiding (Node,End)
@@ -71,38 +72,49 @@ fillIPs :: TableauxIP -> TableauxIP
 fillIPs End = End
 fillIPs t@(Node _ (Just _) _ _ _ _) = t
 -- Closed end nodes: use the active formulas or a constant as interpolant:
-fillIPs (Node wfs Nothing history "✘" actives [End]) = Node wfs (Just ip) history "✘" actives [End] where
-  ip = case actives of -- QUESTION: do we care about markings here??
-    [(Left  Bot, _)]             -> Bot
-    [(Right Bot, _)]             -> top
-    [(Left  f, _), (Right _, _)] -> f
-    [(Right _, _), (Left  f, _)] -> f
-    [(Left  _, _), (Left  _, _)] -> Bot -- inconsistency implies bot
-    [(Right _, _), (Right _, _)] -> top -- top implies Neg inconsistency
-    _                            -> error $ "End node, but wrong actives: " ++ show actives
+fillIPs (Node wfs Nothing history "✘" actives [End]) = Node wfs mip history "✘" actives [End] where
+  candidates = map fst actives -- NOTE: ignore markings
+  mip = listToMaybe $ lrIp candidates
+  lrIp fs = [ Bot | Left  Bot `elem` fs ]
+         ++ [ top | Right Bot `elem` fs ]
+         ++ [     f | Left  f <- fs, Right (Neg f) `elem` fs ]
+         ++ [ Neg f | Right f <- fs, Left  (Neg f) `elem` fs ]
+         ++ [ Bot   | Left  f <- fs, Left  (Neg f) `elem` fs ] -- inconsistency implies bot
+         ++ [ top   | Right f <- fs, Right (Neg f) `elem` fs ] -- top implies Neg inconsistency
+
 fillIPs n@(Node wfs Nothing history rule actives ts)
 -- Non-end nodes where children are missing IPs: recurse
-  | not (all hasIP ts) = fillIPs $ Node wfs Nothing history rule actives (map fillIPs ts)
+  | not (all hasIP ts) = Node wfs Nothing history rule actives (map fillIPs ts)
 -- Non-end nodes where children already have IPs: distinguish rules
-  | otherwise = Node wfs (Just newIP) history rule actives ts where
-      newIP = case (rule,actives) of
+  | otherwise = Node wfs newMIP history rule actives ts where
+      newMIP = case (rule,actives) of
         -- single-child rules are easy, the interpolant stays the same:
-        ("¬",_) -> ipOf t where [t] = ts
-        ("∧",_) -> ipOf t where [t] = ts
+        ("¬" ,_) -> Just $ ipOf t where [t] = ts
+        ("∧" ,_) -> Just $ ipOf t where [t] = ts
+        ("¬?",_) -> Just $ ipOf t where [t] = ts
+        ("¬;",_) -> Just $ ipOf t where [t] = ts
+        ("∪" ,_) -> Just $ ipOf t where [t] = ts
+        (";" ,_) -> Just $ ipOf t where [t] = ts
+        ("n" ,_) -> Just $ ipOf t where [t] = ts -- QUESTION: is this okay?
+        ("M+",_) -> Just $ ipOf t where [t] = ts -- QUESTION: is this okay?
+        ("M-",_) -> Just $ ipOf t where [t] = ts -- QUESTION: is this okay?
         -- for the branching rule we combine the two previous interpolants
         -- with a connective depending on the side of the active formula:
-        ("¬∧",_) -> connective (ipOf t1) (ipOf t2) where
+        ("¬∧",_) -> Just $ connective (ipOf t1) (ipOf t2) where
           [t1,t2] = ts
           connective = case actives of
             [(Left  _, _)] -> dis -- left side is active
             [(Right _, _)] -> Con -- right side is active
-            _         -> error "Could not find the active side."
+            _         -> error $ "Could not find the active side: " ++ show actives
+        ("?" , _) -> Nothing -- TODO
+        ("¬∪", _) -> Nothing -- TODO
+        ("¬n", _) -> Nothing -- TODO
         -- for the critical rule, we prefix the previous interpolant with diamond or Box, depending on the active side
         -- moroever, if one of the sides is empty we should use Bot or Top as interpolants, but for basic modal logic we do not need that
         -- (it will matter for PDL, because <a>T and T have different vocabulary!)
         -- (see Borzechowski page 44)
-        ("¬☐",[(Left  _,_)]) -> let [t] = ts in dia undefined (ipOf t) -- TODO: get and use the atomic program!!
-        ("¬☐",[(Right _,_)]) -> let [t] = ts in Box undefined (ipOf t) -- TODO: get and use the atomic program!!
+        ("At",[(Left  _,_)]) -> Nothing -- TODO -- let [t] = ts in dia undefined $ ipOf t -- TODO: get and use the atomic program!!
+        ("At",[(Right _,_)]) -> Nothing -- TODO -- let [t] = ts in Box undefined $ ipOf t -- TODO: get and use the atomic program!!
         (rl,_) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms wfs actives ++ " Unable to interpolate!:\n" ++ show n
 
 fillAllIPs :: TableauxIP -> TableauxIP
@@ -114,26 +126,16 @@ proveWithInt f = ipt1 where
   ipt0 = toEmptyTabIP t1 :: TableauxIP
   ipt1 = fillAllIPs ipt0
 
-proveAndInterpolate :: (Form,Form) -> (TableauxIP,Form)
+proveAndInterpolate :: (Form,Form) -> (TableauxIP,Maybe Form)
 proveAndInterpolate (ante,cons)
   | not $ provable (ante --> cons) = error $ "This implication is not valid " ++ toString (ante --> cons)
-  | otherwise = (ipt1,ip) where
+  | otherwise = (ipt1,mip) where
       t1 = prove (ante --> cons)
       ipt0 = toEmptyTabIP t1 :: TableauxIP
-      ipt1 = fillAllIPs ipt0
-      ip = ipOf ipt1
+      ipt1@(Node _ mip _ _ _ _) = fillAllIPs ipt0
 
-interpolate :: (Form,Form) -> Form
+interpolate :: (Form,Form) -> Maybe Form
 interpolate = snd . proveAndInterpolate
-
-interpolateShow :: (Form,Form) -> IO ()
-interpolateShow pair = do
-  let (t,ip) = proveAndInterpolate pair
-  putStrLn "Showing tableau with GraphViz ..."
-  disp t
-  -- dot t
-  putStrLn $ "Interpolant: " ++ toString ip
-  putStrLn $ "Simplified interpolant: " ++ toString (simplify ip)
 
 isNice :: (Form,Form) -> Bool
 isNice (f,g) = provable (f `imp` g)

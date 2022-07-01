@@ -10,5 +10,7 @@ isInterpolantFor i (f,g) =
   && provable (i --> g)
   && atomsIn i ⊆ (atomsIn f ∩ atomsIn g)
 
-testIPgen :: ((Form,Form) -> Form) -> (Form,Form) -> Bool
-testIPgen intfct (f,g) = intfct (f,g) `isInterpolantFor` (f,g)
+testIPgen :: ((Form,Form) -> Maybe Form) -> (Form,Form) -> Bool
+testIPgen intfct (f,g) = case intfct (f,g) of
+  Just h -> h `isInterpolantFor` (f,g)
+  Nothing -> True -- FIXME mwah

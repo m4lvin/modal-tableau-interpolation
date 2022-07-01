@@ -1,13 +1,17 @@
 module Main where
 
+import Test.Hspec
+import Test.Hspec.QuickCheck
+import Test.QuickCheck
+
 import Logic.Internal
 import Logic.PDL
 import Logic.PDL.Examples
 import Logic.PDL.Parse
 import Logic.PDL.Prove.Tree
 
-import Test.Hspec
-import Test.Hspec.QuickCheck
+import Logic.PDL.Interpolation
+import Logic.PDL.Interpolation.ProofTree
 
 main :: IO ()
 main = hspec $ do
@@ -50,6 +54,13 @@ main = hspec $ do
     --            prop (show k)
     --              (\ f1 f2 p1 p2 -> provable (segerbergFor f1 f2 p1 p2 !! k) )
     --         ) [0..(length (segerbergFor p q a b) - 1)]
+  describe "interpolate" $ do
+    prop "interpolate randomly generated examples"
+      (\(f,g) -> provable (f `imp` g) ==> testIPgen interpolate (f,g))
+    -- modifyMaxDiscardRatio (const 1000) $
+    --   prop "interpolate randomly generated nice examples"
+    --     (\(f,g) -> isNice (f,g) ==> testIPgen interpolate (f,g))
+
 
 proveTest :: Form -> SpecWith ()
 proveTest f = it (toString f) $ provable f `shouldBe` True
