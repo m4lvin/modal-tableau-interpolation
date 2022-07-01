@@ -90,7 +90,7 @@ Prover:
 Interpolation:
 
 - [X] copy from BasicModal and get it to compile
-- [ ] expose in web interface
+- [X] expose in web interface
 - [ ] fillIPs: atomic rule
 - [ ] fillIPs: all local rules
 - [ ] add tests for star-free formulas

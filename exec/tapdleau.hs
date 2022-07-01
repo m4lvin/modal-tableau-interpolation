@@ -28,6 +28,7 @@ import Logic.Internal
 import Logic.PDL.Lex
 import Logic.PDL.Parse
 import Logic.PDL.Prove.Tree
+import Logic.PDL.Interpolation.ProofTree
 
 main :: IO ()
 main = do
@@ -61,12 +62,14 @@ main = do
           ]
         Right (Right pdlF) ->
           let t = prove pdlF
+              closed = isClosedTab t
+              tWithInt = fillAllIPs $ toEmptyTabIP t
           in
           [ "<pre>Parsed input: " ++ toString pdlF  ++ "</pre>"
-          , if isClosedTab t
+          , if closed
               then "PROVED. <style type='text/css'> #output { border-color: green; } </style>"
               else "NOT proved. <style type='text/css'> #output { border-color: red; } </style>"
-          , "<div align='center'>" ++ svg t ++ "<div>"
+          , "<div align='center'>" ++ if closed then svg tWithInt else svg t ++ "<div>"
           ]
 
 myCatch :: NFData a => a -> IO (Either String a)
