@@ -114,10 +114,14 @@ fillIPs n@(Node wfs Nothing history rule actives ts)
         ("?" ,_) -> branchIP ts actives
         ("¬∪",_) -> branchIP ts actives
         ("¬n",_) -> branchIP ts actives
-        -- for the critical rule, we prefix the previous interpolant with diamond or Box, depending on the active side
-        -- TODO: if one of the sides is empty, use Bot or Top as interpolants, because <a>T and T have different vocabulary - see page 44
-        ("At",[(Left  (Neg (Box (Ap x) _)),_)]) -> let [t] = ts in Just $ dia (Ap x) $ ipOf t
-        ("At",[(Right (Neg (Box (Ap x) _)),_)]) -> let [t] = ts in Just $ Box (Ap x) $ ipOf t
+        -- for the critical rule we prefix the previous interpolant with diamond or Box, depending on the active side
+        -- if the other side is empty, then use Bot or Top as interpolant (note: <a>T and T have different voc) - see page 44
+        ("At",[(Left  (Neg (Box (Ap x) _)),_)]) ->
+          let [t] = ts
+          in Just $ if null $ catMaybes [ projection x g | (Right g, _) <- wfs ] then Bot else dia (Ap x) (ipOf t)
+        ("At",[(Right (Neg (Box (Ap x) _)),_)]) ->
+          let [t] = ts
+          in Just $ if null $ catMaybes [ projection x g | (Left g, _) <- wfs ] then top else Box (Ap x) (ipOf t)
         (rl  ,_) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms wfs actives ++ " Unable to interpolate!:\n" ++ show n
 
 fillAllIPs :: TableauxIP -> TableauxIP
