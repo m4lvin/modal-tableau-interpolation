@@ -91,12 +91,14 @@ Interpolation:
 
 - [X] copy from BasicModal and get it to compile
 - [X] expose in web interface
-- [ ] fillIPs: atomic rule
-- [ ] fillIPs: all local rules
-- [ ] add tests for star-free formulas
+- [X] fillIPs: all local rules
+- [X] fillIPs: atomic rule
+- [X] add interpolate tests for star-free formulas
+- [X] Find test cases that fail due to the empty-side edge cases for (At)-interpolants?
 - [ ] Correct definition of (At)-interpolants in the empty-side edge cases.
-- [ ] Find test cases that fail due to the empty-side edge cases for (At)-interpolants?
-- [ ] fillIPs: star-related rules
+- [ ] add warning in web interface if root interpolant is not actually an interpolant!
+- [ ] fillIPs: end notes due to extra condition 4 ??
+- [ ] fillIPs: end notes due to extra condition 6 !!
 
 Semantics:
 

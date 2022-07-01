@@ -2,6 +2,7 @@ module Logic.PDL.Examples where
 
 import Logic.PDL
 import Logic.PDL.Semantics
+import Logic.PDL.Parse
 
 -- | Formulas that should be provable.
 someValidities :: [Form]
@@ -23,6 +24,8 @@ someValidities =
   , Box (Star (Star a)) p --> Box (Star a) p
   , dia (Star a) p --> dia (Star (Star a)) p
   , dia (Star (Star a)) p --> dia (Star a) p
+  , fromString "[a* u ?p]q -> [a u ?r]q"
+  , fromString "q -> [c]~F"
   ]
 
 -- | Formulas that should *not* be provable.

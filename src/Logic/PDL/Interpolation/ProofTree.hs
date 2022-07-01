@@ -67,6 +67,17 @@ interpolateNode wfs = filter evil (leftsOf wfs) where
   evil (Neg f) = f `elem` rightsOf wfs || Neg (Neg f) `elem` rightsOf wfs
   evil f       = Neg f `elem` rightsOf wfs
 
+
+-- For any branching rule we combine the two previous interpolants
+-- with a connective depending on the side of the active formula (see page ??)
+branchIP :: ([TableauxIP] -> [(Either Form Form, Maybe Form)] -> Maybe Form)
+branchIP [t1,t2] actives  = Just $ connective (ipOf t1) (ipOf t2) where
+  connective = case actives of
+    [(Left  _, _)] -> dis -- left side is active, use disjunction
+    [(Right _, _)] -> Con -- right side is active, use conjunction
+    _              -> error $ "Could not find the active side: " ++ show actives
+branchIP _ _ = undefined
+
 fillIPs :: TableauxIP -> TableauxIP
 -- Ends and already interpolated nodes: nothing to do:
 fillIPs End = End
@@ -81,7 +92,6 @@ fillIPs (Node wfs Nothing history "✘" actives [End]) = Node wfs mip history "�
          ++ [ Neg f | Right f <- fs, Left  (Neg f) `elem` fs ]
          ++ [ Bot   | Left  f <- fs, Left  (Neg f) `elem` fs ] -- inconsistency implies bot
          ++ [ top   | Right f <- fs, Right (Neg f) `elem` fs ] -- top implies Neg inconsistency
-
 fillIPs n@(Node wfs Nothing history rule actives ts)
 -- Non-end nodes where children are missing IPs: recurse
   | not (all hasIP ts) = Node wfs Nothing history rule actives (map fillIPs ts)
@@ -100,22 +110,15 @@ fillIPs n@(Node wfs Nothing history rule actives ts)
         ("M-",_) -> Just $ ipOf t where [t] = ts -- QUESTION: is this okay?
         -- for the branching rule we combine the two previous interpolants
         -- with a connective depending on the side of the active formula:
-        ("¬∧",_) -> Just $ connective (ipOf t1) (ipOf t2) where
-          [t1,t2] = ts
-          connective = case actives of
-            [(Left  _, _)] -> dis -- left side is active
-            [(Right _, _)] -> Con -- right side is active
-            _         -> error $ "Could not find the active side: " ++ show actives
-        ("?" , _) -> Nothing -- TODO
-        ("¬∪", _) -> Nothing -- TODO
-        ("¬n", _) -> Nothing -- TODO
+        ("¬∧",_) -> branchIP ts actives
+        ("?" ,_) -> branchIP ts actives
+        ("¬∪",_) -> branchIP ts actives
+        ("¬n",_) -> branchIP ts actives
         -- for the critical rule, we prefix the previous interpolant with diamond or Box, depending on the active side
-        -- moroever, if one of the sides is empty we should use Bot or Top as interpolants, but for basic modal logic we do not need that
-        -- (it will matter for PDL, because <a>T and T have different vocabulary!)
-        -- (see Borzechowski page 44)
-        ("At",[(Left  _,_)]) -> Nothing -- TODO -- let [t] = ts in dia undefined $ ipOf t -- TODO: get and use the atomic program!!
-        ("At",[(Right _,_)]) -> Nothing -- TODO -- let [t] = ts in Box undefined $ ipOf t -- TODO: get and use the atomic program!!
-        (rl,_) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms wfs actives ++ " Unable to interpolate!:\n" ++ show n
+        -- TODO: if one of the sides is empty, use Bot or Top as interpolants, because <a>T and T have different vocabulary - see page 44
+        ("At",[(Left  (Neg (Box (Ap x) _)),_)]) -> let [t] = ts in Just $ dia (Ap x) $ ipOf t
+        ("At",[(Right (Neg (Box (Ap x) _)),_)]) -> let [t] = ts in Just $ Box (Ap x) $ ipOf t
+        (rl  ,_) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms wfs actives ++ " Unable to interpolate!:\n" ++ show n
 
 fillAllIPs :: TableauxIP -> TableauxIP
 fillAllIPs = fixpoint fillIPs -- TODO is this necessary?

@@ -55,6 +55,15 @@ main = hspec $ do
     --              (\ f1 f2 p1 p2 -> provable (segerbergFor f1 f2 p1 p2 !! k) )
     --         ) [0..(length (segerbergFor p q a b) - 1)]
   describe "interpolate" $ do
+    describe "some valid implications, including empty edge cases" $
+      mapM_ (\st -> let (Neg (Con f (Neg g))) = fromString st
+                    in it st $ testIPgen interpolate (f,g))
+      [ "[a* u ?p]q -> [a u ?r]q"
+      , "q -> [a]T"
+      , "[?p u ?~p](r & ~r) -> q"
+      , "[?p u ?~p]F -> q"
+      , "T -> [c]T"
+      ]
     prop "interpolate randomly generated examples"
       (\(f,g) -> provable (f `imp` g) ==> testIPgen interpolate (f,g))
     -- modifyMaxDiscardRatio (const 1000) $
