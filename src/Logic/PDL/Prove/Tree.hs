@@ -174,29 +174,22 @@ isClosedBy wfs
                 ++
                 [ wf | wf@(Right (Neg f), _) <- wfs, f `elem` map (fst . collapse) wfs ]
 
--- | Detect end nodes due to to extra condition 6.
+-- | End nodes due to to extra condition 6 (page 25).
 isEndNodeBy :: [WForm] -> History -> [String]
 isEndNodeBy wfsNow history =
   [ show k
   | isNormalNode wfsNow
-  , (k, (wfsBefore, _)) <- zip [(1 :: Int) ..] history
   -- There is a predecessor
+  , (k, (wfsBefore, _)) <- zip [(1 :: Int) ..] history
   -- with the same set of formulas:
   , wfsNow == wfsBefore -- Note: nodes are always sorted, and partitions must match (page 40).
   -- and the path since then is critical, i.e. (At) has been used: -- TODO: but ignore whether At is used for first node of path (= last list element) (Def 13)
   , "At" `elem` map snd (take k history)
-  -- new version:
-  -- for each node on the path:  it is loaded *iff* the current node is loaded:
-  , all ((any isMarked wfsNow ==) . any isMarked . fst) (take k history) --- now <a*>[a]p yields an infinite tableau :-/
-
-  -- alternative versions/readings of condition 6:
-  -- - for each node on the path:  it is loaded *iff* the current node is loaded:
-  -- , all ((any isMarked wfsNow ==) . any isMarked . fst) (take k history) --- <a*>[a]p yields an infinite tableau :-/
-  -- - all nodes on the path  are loaded  *iff*  the current node is loaded:
-  -- , all (any isMarked . fst) (take k history) == any isMarked wfsNow -- with this <a*>[a]¬p is valid :-(
+  -- and if X is loaded, then the path from s to t is loaded:
+  , isLoadedNode wfsNow  `implies` all (isLoadedNode . fst) (take k history) --- now <a*>[a]p yields an infinite tableau :-/
   ]
 
--- | End nodes due to extra condition 4.
+-- | End nodes due to extra condition 4 (page 25).
 isNotNStarBy :: [WForm] -> [WForm]
 isNotNStarBy = filter (isNotNStar . (fst . collapse)) where
   isNotNStar (Neg (Box (NStar _) _)) = True
@@ -263,8 +256,8 @@ isClosedTab End = False -- check must succeed above the End!
 isClosedTab (Node wfs _ _       _ [End]) | not (isNormalNode wfs) = True
 isClosedTab (Node wfs _ _       _ [End]) | isLoadedNode wfs = True
 isClosedTab (Node _   _ "✘"     _ [End]) = True
-isClosedTab (Node _   _ "4"     _ [End]) = True
-isClosedTab (Node _   _ ('6':_) _ [End]) = True
+isClosedTab (Node _   _ "4"     _ [End]) = False -- QUESTION: really? check page 15 ...
+isClosedTab (Node _   _ ('6':_) _ [End]) = False -- normal and free, but not closed!
 isClosedTab (Node _   _ rule    _ [End]) = error $ "rule " ++ rule ++ " should not create an End node!"
 isClosedTab (Node _   _ _       _ []   ) = False
 isClosedTab (Node _   _ _       _ ts   ) = all isClosedTab ts
