@@ -28,7 +28,7 @@ data Tableaux = Node -- ^ A node contains:
                 RuleName   -- ^ name of the rule that is applied here
                 [WForm]    -- ^ list of *active* wformulas to which the rule is applied
                 [Tableaux] -- ^ list of child nodes
-              | End
+              | End -- ^ End of a tableau (not necessarily closed!)
   deriving (Eq,Ord,Show)
 
 -- | A history is a list of pairs of a list of weighted formulas and the rule used.
@@ -54,6 +54,9 @@ isLeft (Right _, _) = False
 isNormalNode :: [WForm] -> Bool
 isNormalNode = all (isNormal . fst. collapse)
 
+isLoadedNode :: [WForm] -> Bool
+isLoadedNode = any (isJust . snd)
+
 ppWForms :: [WForm] -> [WForm] -> String
 ppWForms wfs actives = intercalate ", " (map ppFormA (filter isLeft wfs)) ++ "   |   " ++ intercalate ", " (map ppFormA (filter (not . isLeft) wfs)) where
   ppFormA wf = [ '»' |  wf `elem` actives ] ++ toString (collapse wf) ++ [ '«' |  wf `elem` actives ]
@@ -61,7 +64,7 @@ ppWForms wfs actives = intercalate ", " (map ppFormA (filter isLeft wfs)) ++ "  
 instance DispAble Tableaux where
   toGraph = toGraph' "" where
     toGraph' pref End =
-      node pref [shape PlainText, toLabel "✘"]
+      node pref [shape PlainText, toLabel "."]
     toGraph' pref (Node wfs _ rule actives ts) = do
       node pref [shape PlainText, toLabel $ ppWForms wfs actives]
       mapM_ (\(t,y') -> do
@@ -98,6 +101,11 @@ boxesOf :: Form -> ([Prog], Form)
 boxesOf (Box prog nextf) = let (rest,endf) = boxesOf nextf in (prog:rest, endf)
 boxesOf endf = ([], endf)
 
+-- Definition 9
+projection :: Atom -> Form -> Maybe Form
+projection x (Box (Ap y) g) | x == y = Just g
+projection _ _                       = Nothing
+
 -- | Eleven local rules (pages 15, 18, 19) and the atomic rule (page 24).
 ruleFor :: Marked Form -> Maybe RuleApplication
 -- Nothing to do:
@@ -133,13 +141,10 @@ ruleFor (Neg (Box (Cup x y) f),m ) = Just ("¬∪", 3, [ [(Neg $ Box x f,m)]
 ruleFor (Neg (Box (Star x) f) ,m ) = Just ("¬n", 3, [ [(Neg f,m) `without` f]
                                                     , [(Neg $ Box x (Box (NStar x) f),m)]  ], noChange)
 -- The critical rule:
-ruleFor (Neg (Box (Ap x) f), Just mf) = Just ("At", 4, [ [(Neg f, Just mf) `without` f]   ], projection) where
-  projection :: Form -> Maybe Form -- Definition 9
-  projection (Box (Ap y) g) | x == y = Just g
-  projection _                       = Nothing
+ruleFor (Neg (Box (Ap x) f), Just mf) = Just ("At", 4, [ [(Neg f, Just mf) `without` f]   ], projection x)
 ruleFor (Neg (Box (Ap _) _), Nothing) = Nothing
 ruleFor (Neg (Box (NStar _) _)    ,_) = Nothing -- per condition 4 no rule may be applied here - see page 19.
-ruleFor (Box (NStar _) _          ,_) = Nothing -- FIXME: should this be an error? can there be Box NStar nodes at all?
+ruleFor (Box (NStar _) _          ,_) = Nothing -- QUESTION: can there be Box NStar nodes at all?
 
 extraNewFormChanges :: RuleApplication -> RuleApplication
 extraNewFormChanges (ruleName, ruleWeight, newFormLists, changeFunction) =
@@ -160,11 +165,14 @@ weightOf :: WForm -> (Marked Form -> WForm)
 weightOf (Left  _, _) = first Left
 weightOf (Right _, _) = first Right
 
-isClosedBecause :: [WForm] -> [WForm]
-isClosedBecause wfs =
-  [ wf | wf <- wfs, fst (collapse wf) == Bot ]
-  ++
-  [ wf | wf <- wfs, Neg (fst (collapse wf)) `elem` map (fst . collapse) wfs ]
+isClosedBy :: [WForm] -> [WForm]
+isClosedBy wfs
+  | Bot `elem` map (fst . collapse) wfs = take 1 [ wf | wf <- wfs, fst (collapse wf) == Bot ]
+  | otherwise = [ wf | wf <- wfs, Neg (fst (collapse wf)) `elem` map (fst . collapse) wfs ]
+                ++
+                [ wf | wf@(Left (Neg f), _) <- wfs, f `elem` map (fst . collapse) wfs ]
+                ++
+                [ wf | wf@(Right (Neg f), _) <- wfs, f `elem` map (fst . collapse) wfs ]
 
 -- | Detect end nodes due to to extra condition 6.
 isEndNodeBy :: [WForm] -> History -> [String]
@@ -189,17 +197,17 @@ isEndNodeBy wfsNow history =
   ]
 
 -- | End nodes due to extra condition 4.
-isNotNStarNodeBecause :: [WForm] -> [WForm]
-isNotNStarNodeBecause = filter (isNotNStar . (fst . collapse)) where
+isNotNStarBy :: [WForm] -> [WForm]
+isNotNStarBy = filter (isNotNStar . (fst . collapse)) where
   isNotNStar (Neg (Box (NStar _) _)) = True
   isNotNStar _ = False
 
 extensions :: Tableaux -> [Tableaux]
 extensions End             = [End]
 extensions (Node wfs oldHistory "" [] [])
-  | not (null (isClosedBecause wfs))        = [ Node wfs oldHistory "✘" (isClosedBecause wfs)                       [End] ]
-  | not (null (isEndNodeBy wfs oldHistory)) = [ Node wfs oldHistory ("6: " ++ show (isEndNodeBy wfs oldHistory)) [] [End] ]
-  | not (null (isNotNStarNodeBecause wfs))  = [ Node wfs oldHistory "4" (isNotNStarNodeBecause wfs)                 [End] ]
+  | not (null (isClosedBy wfs))             = [ Node wfs oldHistory "✘"                                          (isClosedBy wfs)   [End] ]
+  | not (null (isEndNodeBy wfs oldHistory)) = [ Node wfs oldHistory ("6: " ++ show (isEndNodeBy wfs oldHistory)) []                 [End] ]
+  | not (null (isNotNStarBy wfs))           = [ Node wfs oldHistory "4"                                          (isNotNStarBy wfs) [End] ]
   | null (whatshallwedo wfs)                = [ Node wfs oldHistory "" [] [] ] -- we are stuck!
   | otherwise =
       map (\ (wf,(ruleName,_,results,change)) ->
@@ -248,9 +256,18 @@ chooseRule moves
   where
      wOf (_,(_,weight,_,_))= weight
 
+-- Definition 16, page 29
+-- "A tableau T is called closed iff all normal free end nodes of T are closed."
 isClosedTab :: Tableaux -> Bool
-isClosedTab End = True
-isClosedTab (Node _ _ _ _ ts) = ts /= [] && all isClosedTab ts
+isClosedTab End = False -- check must succeed above the End!
+isClosedTab (Node wfs _ _       _ [End]) | not (isNormalNode wfs) = True
+isClosedTab (Node wfs _ _       _ [End]) | isLoadedNode wfs = True
+isClosedTab (Node _   _ "✘"     _ [End]) = True
+isClosedTab (Node _   _ "4"     _ [End]) = True
+isClosedTab (Node _   _ ('6':_) _ [End]) = True
+isClosedTab (Node _   _ rule    _ [End]) = error $ "rule " ++ rule ++ " should not create an End node!"
+isClosedTab (Node _   _ _       _ []   ) = False
+isClosedTab (Node _   _ _       _ ts   ) = all isClosedTab ts
 
 globalSearchLimit :: Int
 globalSearchLimit = 30 -- TODO: adjust depending on formula size, see page 20 and 26
