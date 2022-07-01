@@ -84,14 +84,19 @@ Prover:
     3. [ ] apply rules to n-formula whenever possible / prioritise them!
     4. [X] Never apply a rule to a ¬[a^n] node (and mark those as end nodes!)
     5. [ ] directly after M+ do not apply M-
-    6. [X] close normal nodes with critical same-set predecessors when the whole path is loaded
+    6. [X] close normal nodes with critical same-set predecessors (if loaded when whole path is loaded)
     7. [ ] every loaded node that is not an end node by 6, has a successor.
 
 Interpolation:
 
-- [ ] copy from BasicModal
+- [X] copy from BasicModal and get it to compile
+- [ ] expose in web interface
+- [ ] fillIPs: atomic rule
+- [ ] fillIPs: all local rules
+- [ ] add tests for star-free formulas
 - [ ] Correct definition of (At)-interpolants in the empty-side edge cases.
 - [ ] Find test cases that fail due to the empty-side edge cases for (At)-interpolants?
+- [ ] fillIPs: star-related rules
 
 Semantics:
 

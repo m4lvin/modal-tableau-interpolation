@@ -1,16 +1,24 @@
-module Logic.BasicModal.Interpolation.ProofTree where
+module Logic.PDL.Interpolation.ProofTree where
 
 import Data.GraphViz
 import Data.GraphViz.Types.Monadic hiding ((-->))
 
-import Logic.BasicModal
-import Logic.BasicModal.Prove.Tree hiding (Node,End)
-import qualified Logic.BasicModal.Prove.Tree as T (Tableaux(Node,End))
+import Logic.PDL
+import Logic.PDL.Prove.Tree hiding (Node,End)
+import qualified Logic.PDL.Prove.Tree as T (Tableaux(Node,End))
 import Logic.Internal
 
 type Interpolant = Maybe Form
 
-data TableauxIP = Node ([WForm],Interpolant) RuleName [WForm] [TableauxIP] | End
+-- | A Tableau with interpolants.
+data TableauxIP = Node
+                  [WForm]
+                  Interpolant -- ^ Maybe a formula that is an interpolant for this node.
+                  History
+                  RuleName
+                  [WForm]
+                  [TableauxIP]
+                | End
   deriving (Eq,Ord,Show)
 
 ppIP :: Interpolant -> String
@@ -20,8 +28,8 @@ ppIP Nothing  = "∅"
 instance DispAble TableauxIP where
   toGraph = toGraph' "" where
     toGraph' pref End =
-      node pref [shape PlainText, toLabel "✘"]
-    toGraph' pref (Node (wfs,ip) rule actives ts) = do
+      node pref [shape PlainText, toLabel "."]
+    toGraph' pref (Node wfs ip _ rule actives ts) = do
       node pref [shape PlainText, toLabel $ ppWForms wfs actives ++ "  ::  " ++ ppIP ip]
       mapM_ (\(t,y') -> do
         toGraph' (pref ++ show y' ++ ":") t
@@ -30,22 +38,28 @@ instance DispAble TableauxIP where
 
 toEmptyTabIP :: Tableaux -> TableauxIP
 toEmptyTabIP T.End = End
-toEmptyTabIP (T.Node wfs rule actives ts) =
-  Node (wfs,Nothing) rule actives (map toEmptyTabIP ts)
+toEmptyTabIP (T.Node wfs history rule actives ts) =
+  Node wfs Nothing history rule actives (map toEmptyTabIP ts)
 
 forgetIPs :: TableauxIP -> Tableaux
 forgetIPs End = T.End
-forgetIPs (Node (wfs,_) rule actives ts) = T.Node wfs rule actives (map forgetIPs ts)
+forgetIPs (Node wfs _ history rule actives ts) =
+  T.Node wfs history rule actives (map forgetIPs ts)
 
 hasIP :: TableauxIP -> Bool
 hasIP End = False
-hasIP (Node (_,Just _ ) _ _ _) = True
-hasIP (Node (_,Nothing) _ _ _) = False
+hasIP (Node _ (Just _) _ _ _ _) = True
+hasIP (Node _ Nothing  _ _ _ _) = False
 
 ipOf :: TableauxIP -> Form
 ipOf End = error "End nodes do not have interpolants."
-ipOf (Node (_,Just f ) _ _ _) = f
-ipOf (Node (_,Nothing) _ _ _) = error "No interpolant here."
+ipOf (Node _ (Just f ) _ _ _ _) = f
+ipOf (Node _ Nothing   _ _ _ _) = error "No interpolant here."
+
+-- Get left or right formulas, and ignore markings!
+leftsOf, rightsOf :: [WForm] -> [Form]
+leftsOf  wfs = [f | (Left  f,_) <- wfs]
+rightsOf wfs = [f | (Right f,_) <- wfs]
 
 interpolateNode :: [WForm] -> [Form]
 interpolateNode wfs = filter evil (leftsOf wfs) where
@@ -55,22 +69,22 @@ interpolateNode wfs = filter evil (leftsOf wfs) where
 fillIPs :: TableauxIP -> TableauxIP
 -- Ends and already interpolated nodes: nothing to do:
 fillIPs End = End
-fillIPs t@(Node (_, Just _) _ _ _) = t
+fillIPs t@(Node _ (Just _) _ _ _ _) = t
 -- Closed end nodes: use the active formulas or a constant as interpolant:
-fillIPs (Node (wfs, Nothing) "✘" actives [End]) = Node (wfs, Just ip) "✘" actives [End] where
-  ip = case actives of
-    [Left  Bot]        -> Bot
-    [Right Bot]        -> top
-    [Left  f, Right _] -> f
-    [Right _, Left  f] -> f
-    [Left  _, Left  _] -> Bot -- inconsistency implies bot
-    [Right _, Right _] -> top -- top implies Neg inconsistency
-    _                  -> error $ "End node, but wrong actives: " ++ show actives
-fillIPs n@(Node (wfs,Nothing) rule actives ts)
+fillIPs (Node wfs Nothing history "✘" actives [End]) = Node wfs (Just ip) history "✘" actives [End] where
+  ip = case actives of -- QUESTION: do we care about markings here??
+    [(Left  Bot, _)]             -> Bot
+    [(Right Bot, _)]             -> top
+    [(Left  f, _), (Right _, _)] -> f
+    [(Right _, _), (Left  f, _)] -> f
+    [(Left  _, _), (Left  _, _)] -> Bot -- inconsistency implies bot
+    [(Right _, _), (Right _, _)] -> top -- top implies Neg inconsistency
+    _                            -> error $ "End node, but wrong actives: " ++ show actives
+fillIPs n@(Node wfs Nothing history rule actives ts)
 -- Non-end nodes where children are missing IPs: recurse
-  | not (all hasIP ts) = fillIPs $ Node (wfs, Nothing) rule actives (map fillIPs ts)
+  | not (all hasIP ts) = fillIPs $ Node wfs Nothing history rule actives (map fillIPs ts)
 -- Non-end nodes where children already have IPs: distinguish rules
-  | otherwise = Node (wfs, Just newIP) rule actives ts where
+  | otherwise = Node wfs (Just newIP) history rule actives ts where
       newIP = case (rule,actives) of
         -- single-child rules are easy, the interpolant stays the same:
         ("¬",_) -> ipOf t where [t] = ts
@@ -80,15 +94,15 @@ fillIPs n@(Node (wfs,Nothing) rule actives ts)
         ("¬∧",_) -> connective (ipOf t1) (ipOf t2) where
           [t1,t2] = ts
           connective = case actives of
-            [Left  _] -> dis -- left side is active
-            [Right _] -> Con -- right side is active
+            [(Left  _, _)] -> dis -- left side is active
+            [(Right _, _)] -> Con -- right side is active
             _         -> error "Could not find the active side."
         -- for the critical rule, we prefix the previous interpolant with diamond or Box, depending on the active side
         -- moroever, if one of the sides is empty we should use Bot or Top as interpolants, but for basic modal logic we do not need that
         -- (it will matter for PDL, because <a>T and T have different vocabulary!)
         -- (see Borzechowski page 44)
-        ("¬☐",[Left  _]) -> let [t] = ts in dia (ipOf t)
-        ("¬☐",[Right _]) -> let [t] = ts in Box (ipOf t)
+        ("¬☐",[(Left  _,_)]) -> let [t] = ts in dia undefined (ipOf t) -- TODO: get and use the atomic program!!
+        ("¬☐",[(Right _,_)]) -> let [t] = ts in Box undefined (ipOf t) -- TODO: get and use the atomic program!!
         (rl,_) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms wfs actives ++ " Unable to interpolate!:\n" ++ show n
 
 fillAllIPs :: TableauxIP -> TableauxIP

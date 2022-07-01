@@ -1,14 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module Logic.PDL.Prove.Tree
-  ( provable
-  , inconsistent
-  , prove
-  , proveSlideshow
-  , isClosedTab
-  , tableauShow
-  , tableauFor
-  ) where
+module Logic.PDL.Prove.Tree where
 
 import Control.Arrow
 import Data.GraphViz hiding (Shape(Star))
