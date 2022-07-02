@@ -1,7 +1,6 @@
 module Logic.PDL.Examples where
 
 import Logic.PDL
-import Logic.PDL.Semantics
 import Logic.PDL.Parse
 
 -- | Formulas that should be provable.
