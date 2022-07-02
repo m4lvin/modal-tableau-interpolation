@@ -251,11 +251,10 @@ globeval m f = all (\w -> eval (m,w) f) (worlds m)
 
 ---- RANDOM GENERATION ----
 
--- TODO
 -- | Generate random formulas.
 instance Arbitrary Form where
   arbitrary = simplify <$> sized genForm where
-    factor = 3
+    factor = 4
     genForm 0 = elements [ Bot, top, o, p, q, r, s ]
     genForm 1 = elements [ Bot, top, o, p, q, r, s ]
     genForm n = oneof
@@ -264,11 +263,11 @@ instance Arbitrary Form where
       , Con <$> genForm (n `div` factor) <*> genForm (n `div` factor)
       , Box <$> arbitrary <*> genForm (n `div` factor)
       ]
-  shrink = immediateSubFormulas
+  shrink f = immediateSubFormulas f ++ [ simplify f | simplify f /= f]
 
 instance Arbitrary Prog where
   arbitrary = simplifyProg <$> sized genProg where
-    factor = 3
+    factor = 4
     genProg 0 = elements [ Test top, Test Bot, a, b, c, d ]
     genProg 1 = elements [ Test top, Test Bot, a, b, c, d ]
     genProg n = oneof
@@ -276,7 +275,6 @@ instance Arbitrary Prog where
       , Cup <$> genProg (n `div` factor) <*> genProg (n `div` factor)
       , (:-) <$> genProg (n `div` factor) <*> genProg (n `div` factor)
       , Star <$> genProg (n `div` factor)
-      -- TODO: also generate NStar formulas??
       , Test <$> arbitrary
       ]
-  shrink = immediateSubPrograms
+  shrink x = immediateSubPrograms x ++ [ simplifyProg x | simplifyProg x /= x ]
