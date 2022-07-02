@@ -25,19 +25,16 @@ main = hspec $ do
   describe "parsing" $
     it "parse 'p1'" $
       fromString "p1" `shouldBe` At "p1"
-  describe "prove negation of each line of data/formulae_exp_unsat.txt" $ do
+  describe "prove negation of the first three formulas in data/formulae_exp_unsat.txt" $ do
     fileLines <- runIO $ readFile "data/formulae_exp_unsat.txt"
     mapM_
       (\l -> it (myExcerpt l) $ (provable . Neg) (fromString l))
-      (filter (not . null) (lines fileLines))
-  let str = "~p & [a*](<a>True & ((~p & [a]p) | (p & [a]~p)))"
-   in it ("negation of " ++ str ++ " from sat file is not provable") $ -- failing, due to unsound condition 6 maybe?
-        not. provable . Neg $ fromString str
-  -- describe "do not prove negation of each line of data/formulae_exp_sat.txt" $ do
-  --   fileLines <- runIO $ readFile "data/formulae_exp_sat.txt"
-  --   mapM_
-  --     (\l -> it (myExcerpt l) $ (not . provable . Neg) (fromString l))
-  --     (filter (not . null) (lines fileLines))
+      (take 3 $ filter (not . null) (lines fileLines))
+  describe "do NOT prove negation of first three formulas in data/formulae_exp_sat.txt" $ do
+    fileLines <- runIO $ readFile "data/formulae_exp_sat.txt"
+    mapM_
+      (\l -> it (myExcerpt l) $ (not . provable . Neg) (fromString l))
+      (take 3 $ filter (not . null) (lines fileLines))
   describe "inconsistent" $ do
     it "{ [a]p, ¬[a](p ∨ r), ¬[a](q ∨ r) }" $
       inconsistent [ Box a p, Neg (Box a (p `dis` r)), Neg (Box a (q `dis` r)) ]

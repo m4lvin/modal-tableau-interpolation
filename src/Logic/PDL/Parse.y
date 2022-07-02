@@ -47,8 +47,8 @@ import qualified Logic.BasicModal
   INT    { TokenInt $$ _ }
 
 %left '=>'
-%left '|' '&'
-%nonassoc '|' '&'
+%left '|'
+%left '&'
 %left '[' Prog ']'
 %left '<' Prog '>'
 %left '~'
