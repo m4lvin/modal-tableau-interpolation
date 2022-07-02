@@ -1,5 +1,6 @@
 module Main where
 
+import Data.String(fromString)
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
@@ -7,7 +8,7 @@ import Test.QuickCheck
 import Logic.Internal
 import Logic.PDL
 import Logic.PDL.Examples
-import Logic.PDL.Parse
+import Logic.PDL.Parse()
 import Logic.PDL.Prove.Tree
 
 import Logic.PDL.Interpolation
@@ -45,11 +46,11 @@ main = hspec $ do
     it "Borzechowski Example 2:  { r ∧ ~□p, r --> □(p ∧ q) }" $
       inconsistent [ r `Con` Neg (Box a p), r --> Box a (p `Con` q) ]
   describe "borzechowski" $
-    proveTest borzechowski -- FIXME this is currently failing!
+    proveTest borzechowski
   describe "random formulas" $ do
     prop "provable f `elem` [True,False] -- but no error"
       (\f -> provable f `elem` [True,False])
-    -- describe "segerbergFor" $
+    -- describe "segerbergFor random formulas" $
     --   mapM_ (\ k -> do
     --            prop (show k)
     --              (\ f1 f2 p1 p2 -> provable (segerbergFor f1 f2 p1 p2 !! k) )

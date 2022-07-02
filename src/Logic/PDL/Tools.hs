@@ -1,6 +1,8 @@
 module Logic.PDL.Tools where
 
-import Logic.PDL.Parse
+import Data.String(fromString)
+
+import Logic.PDL.Parse()
 import Logic.PDL.Prove.Tree
 
 parseNprove :: String -> Bool

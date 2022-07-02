@@ -1,11 +1,14 @@
 {
 {-# OPTIONS_GHC -w #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Logic.PDL.Parse where
+
+import Data.String( IsString(..) )
+
 import Logic.PDL.Token
 import Logic.PDL.Lex
 import Logic.PDL
 import qualified Logic.BasicModal
-
 }
 
 %name parseK KForm
@@ -111,12 +114,9 @@ parseError []     = error ("Empty parseError!")
 parseError (t:ts) = error ("Parse error in line " ++ show lin ++ ", column " ++ show col ++ ": " ++ show t)
   where (AlexPn abs lin col) = apn t
 
-class MyParsable a where
-  fromString :: String -> a
-
-instance MyParsable Logic.BasicModal.Form where
+instance IsString Logic.BasicModal.Form where
   fromString = parseK . alexScanTokens
 
-instance MyParsable Logic.PDL.Form where
+instance IsString Logic.PDL.Form where
   fromString = parsePDL . alexScanTokens
 }

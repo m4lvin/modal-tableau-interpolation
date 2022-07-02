@@ -13,6 +13,7 @@ import Web.Scotty
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as E
 import qualified Data.Text.Lazy as TL
+import Data.String(fromString)
 import qualified Language.Javascript.JQuery as JQuery
 import Language.Haskell.TH.Syntax
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort)
