@@ -29,12 +29,17 @@ instance Stringable Form where
   toString (Neg Bot)  = "⊤"
   toString (Neg f)    = "¬" ++ toString f
   toString (Con f g)  = "(" ++ toString f ++ " ∧ " ++ toString g ++ ")"
+  toString (Box (Cup p1 p2) f) = "[" ++ toString p1 ++ " ∪ " ++ toString p2 ++ "]" ++ toString f ++ ""
+  toString (Box (p1 :- p2) f)  = "[" ++ toString p1 ++ " ; " ++ toString p2 ++ "]" ++ toString f ++ ""
   toString (Box pr f) = "[" ++ toString pr ++ "]" ++ toString f ++ ""
 
 instance Stringable Prog where
   toString (Ap ap)     = ap
   toString (Cup p1 p2) = "(" ++ toString p1 ++ " ∪ " ++ toString p2 ++ ")"
   toString (p1 :- p2)  = "(" ++ toString p1 ++ " ; " ++ toString p2 ++ ")"
+  toString (Test (At at))   = "?" ++ at
+  toString (Test Bot)       = "?⊥"
+  toString (Test (Neg Bot)) = "?⊤"
   toString (Test f)    = "?(" ++ toString f ++ ")"
   toString (Star pr)   = toString pr ++ "*"
   toString (NStar pr)  = toString pr ++ "ⁿ"
