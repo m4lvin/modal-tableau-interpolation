@@ -118,6 +118,10 @@ f <--> g = Con (f --> g) (g --> f)
 dia :: Prog -> Form -> Form
 dia pr f = Neg (Box pr (Neg f))
 
+-- | n-ary conjunction and disjunction.
+multicon, multidis :: [Form] -> Form
+[multicon,multidis] = map (uncurry foldl) [(Con, top), (dis, Bot)]
+
 -- | Atoms occurring in a formula or program.
 class ContainsAtoms t where
   atomsIn :: t -> [Atom]

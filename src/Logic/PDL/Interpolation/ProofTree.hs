@@ -95,8 +95,10 @@ fillIPs (Node wfs Nothing history "✘" actives [End]) = Node wfs mip history "�
 fillIPs n@(Node wfs Nothing history rule actives ts)
 -- Non-end nodes where children are missing IPs: recurse
   | not (all hasIP ts) = Node wfs Nothing history rule actives (map fillIPs ts)
+-- If left side is empty, then T is an interpolant:
+  | null (leftsOf wfs) = Node wfs (Just top) history rule actives ts
 -- Non-end nodes where children already have IPs: distinguish rules
-  | otherwise = Node wfs newMIP history rule actives ts where
+  | otherwise = let
       newMIP = case (rule,actives) of
         -- single-child rules are easy, the interpolant stays the same:
         ("¬" ,_) -> Just $ ipOf t where [t] = ts
@@ -123,9 +125,90 @@ fillIPs n@(Node wfs Nothing history rule actives ts)
           let [t] = ts
           in Just $ if null $ catMaybes [ projection x g | (Left g, _) <- wfs ] then top else Box (Ap x) (ipOf t)
         (rl  ,_) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms wfs actives ++ " Unable to interpolate!:\n" ++ show n
+      in Node wfs newMIP history rule actives ts
 
 fillAllIPs :: TableauxIP -> TableauxIP
 fillAllIPs = fixpoint fillIPs -- TODO is this necessary?
+
+-- Definitions to deal with condition 6 end nodes
+
+wfsOf :: TableauxIP -> [WForm]
+wfsOf (Node wfs _ _ _ _ _) = wfs
+wfsOf End = []
+
+-- Definition 27: sub-tableau T^J
+tj :: TableauxIP -> TableauxIP
+tj (Node wfs ip history rule actives ts) =
+  Node wfs ip history rule actives (if stop then [] else map tj ts) where
+  stop = or
+    [ False -- TODO: stop at M- rule
+    , (not . isLoadedNode) wfs -- Stop at free nodes.
+    , length ts == 1 && null (leftsOf (wfsOf (head ts))) -- Stop when first component of (unique!?) successor is empty.
+    , wfs `elem` map fst history -- Stop when there is a predecessor with same pair. -- FIXME? History might go too far up?
+    ]
+tj End = End
+
+-- helper for Def 28
+allWfsOf :: TableauxIP -> [[WForm]]
+allWfsOf (Node wfs _ _ _ _ ts) = wfs : concatMap allWfsOf ts
+allWfsOf End = []
+
+-- Definition 28
+-- D(T): disjunction of conjunctions of all formulas in all nodes of T^J
+dt :: TableauxIP -> Form
+dt tj = multidis [ multicon [ f
+                            | (Left f, _) <- wfs ] -- QUESTION: ignoring marking is okay?
+                 | wfs <- allWfsOf tj ]
+-- T(Y): all nodes where the right side is Y
+nodesWithThisLeftPart :: TableauxIP -> [Form] -> [[WForm]]
+nodesWithThisLeftPart t y = filter (seteq y . rightsOf) (allWfsOf t)
+
+-- Definition 29:
+-- T(Y)^ε
+tOfEpsilon :: TableauxIP -> [Form] -> [TableauxIP]
+tOfEpsilon t y = undefined -- TODO!
+-- T(Y)^I
+tOfI :: TableauxIP -> [Form] -> [TableauxIP] -- nodes where we (should) already have interpolants!
+tOfI t y = undefined -- TODO!
+-- T(Y)^◁
+tOfTriangle :: TableauxIP -> [Form] -> [TableauxIP]
+tOfTriangle t y = undefined -- TODO!
+
+-- Definition 30: I(Y)
+iOf :: TableauxIP -> [Form] -> Form
+iOf t y = case tOfI t y of
+  [] -> Bot
+  ts -> multidis (map ipOf ts)
+
+-- Alternative kind of tableau for T^K. No rules, no actives, but annotated with 1,2,3.
+data TypeTK = One | Two | Three
+  deriving (Eq,Ord,Show)
+
+data TK = NodeTK
+          [WForm]
+          TypeTK
+          Interpolant -- ^ Maybe a formula that is an interpolant for this node.
+          -- History -- TODO: do we need it here?
+          [TK]
+        | EndTK
+  deriving (Eq,Ord,Show)
+
+-- Definition 31: T^K
+-- Idea: Nodes in T^K here correspond to Y-regions in T^J.
+tk :: TableauxIP -> TK
+tk = undefined
+
+-- Definition 32: canonical programs, from given node to all immediate successors
+canonProg :: TK -> [(Prog, TK)]
+canonProg = undefined -- TODO: distingusih three cases
+-- Two Three
+-- One Two
+-- Three One
+
+-- Definition 33
+-- TODO
+
+-- General functions --
 
 proveWithInt :: Form -> TableauxIP
 proveWithInt f = ipt1 where

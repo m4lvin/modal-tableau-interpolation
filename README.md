@@ -113,6 +113,7 @@ Nice to have:
 - [ ] add applicable extra conditions to rule annotation
 - [x] web interface
 - [ ] use Graphviz HTML labels for better readability, e.g. highlight the active formula.
+- [ ] color the loading part of formulas/nodes
 - [ ] store current/submitted formula in (base64?) URL hash, provide perma-link for sharing
 
 ## Open Questions
