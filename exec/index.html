@@ -32,7 +32,8 @@
       Please write your own formula below or
       <label for="examples">choose an example:</label>
       <select name="examples" id="examples">
-        <option value="PDL" selected>[a*]p -> [a**]p</option>
+        <option value="PDL" selected>[(a u b)*]p -> [a*]p</option>
+        <option value="PDL">[a*]p -> [a**]p</option>
         <option value="PDL">[a**]p -> [a*]p</option>
         <option value="PDL">[(a u b)*](p ^ q) -> ([b*]q v [b*]r)</option>
         <option value="PDL">[a* u ?p]q -> [a u ?r]q</option>
@@ -52,7 +53,7 @@
       </select>
     </p>
     <div>
-      <input id="textinput" name="textinput" value="[a*]p -> [a**]p" />
+      <input id="textinput" name="textinput" value="[(a u b)*]p -> [a*]p" />
       <input type="radio" id="PDL" name="logic" value="PDL" checked="checked" /><label for="PDL">PDL</label>
       <input type="radio" id="K" name="logic" value="K" /><label for="K">K</label>
       <input id="runbutton" type="submit" value="Try to prove this!" onclick="prove()" />
