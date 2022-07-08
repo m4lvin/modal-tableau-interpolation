@@ -6,7 +6,7 @@ name: CI
 
 jobs:
   build:
-    name: Build
+    name: Build and run tests
     runs-on: ubuntu-latest
     steps:
     - name: Cache
@@ -19,5 +19,23 @@ jobs:
     - uses: actions/checkout@v2
     - name: Compile
       run: stack --system-ghc test --no-run-tests
-    - name: Run tests
-      run: stack --system-ghc test
+    - name: "Run tests: propositional"
+      run: stack --system-ghc test Logic:test:propositional
+    - name: "Run tests: basicmodal"
+      run: stack --system-ghc test Logic:test:basicmodal
+    - name: "Run tests: pdl"
+      run: stack --system-ghc test Logic:test:pdl
+  build-web:
+    name: Buld web interface
+    runs-on: ubuntu-latest
+    steps:
+    - name: Cache
+      uses: actions/cache@v2
+      with:
+        key: stack
+        path: |
+          ~/.stack
+          ~/.stack-work
+    - uses: actions/checkout@v2
+    - name: Compile web interface
+      run: stack --system-ghc build Logic:exe:tapdleau
