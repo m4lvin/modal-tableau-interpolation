@@ -1,6 +1,6 @@
 module Logic.PDL.Interpolation.ProofTree where
 
-import Data.GraphViz
+import Data.GraphViz hiding (Star)
 import Data.GraphViz.Types.Monadic hiding ((-->))
 import Data.Maybe
 
@@ -76,7 +76,7 @@ branchIP [t1,t2] actives  = Just $ connective (ipOf t1) (ipOf t2) where
     [(Left  _, _)] -> dis -- left side is active, use disjunction
     [(Right _, _)] -> Con -- right side is active, use conjunction
     _              -> error $ "Could not find the active side: " ++ show actives
-branchIP _ _ = undefined
+branchIP _ _ = error "branchIP only works for exactly two branches."
 
 fillIPs :: TableauxIP -> TableauxIP
 -- Ends and already interpolated nodes: nothing to do:
@@ -180,32 +180,78 @@ iOf t y = case tOfI t y of
   [] -> Bot
   ts -> multidis (map ipOf ts)
 
--- Alternative kind of tableau for T^K. No rules, no actives, but annotated with 1,2,3.
+-- Alternative kind of tableau for T^K. Annotated with 1,2,3.
+-- NOTE: we *do* need rules here to catch the modal rule in Def 32, third bullet.
 data TypeTK = One | Two | Three
   deriving (Eq,Ord,Show)
 
 data TK = NodeTK
           [WForm]
           TypeTK
-          Interpolant -- ^ Maybe a formula that is an interpolant for this node.
           -- History -- TODO: do we need it here?
+          RuleName
+          [WForm]     -- ^ *active* wformulas
+          Interpolant -- ^ Maybe a formula that is an interpolant for this node.
           [TK]
         | EndTK
   deriving (Eq,Ord,Show)
 
 -- Definition 31: T^K
 -- Idea: Nodes in T^K here correspond to Y-regions in T^J.
-tk :: TableauxIP -> TK
-tk = undefined
+tkOf :: TableauxIP -> TK
+tkOf = undefined -- TODO
 
--- Definition 32: canonical programs, from given node to all immediate successors
-canonProg :: TK -> [(Prog, TK)]
-canonProg = undefined -- TODO: distingusih three cases
--- Two Three
--- One Two
--- Three One
+-- A path, given by the indices to go from start to end.
+type PathTK = [Int]
 
--- Definition 33
+-- IDEA: Instead of using index-paths, add "Maybe Prog" to [TK] in data TK?
+
+-- All successors of a node in a TK tableau, with the paths to them.
+-- This is <, transitive closure of ◁.
+allSuccsOf :: TK -> [(PathTK, TK)]
+allSuccsOf (NodeTK _ _ _ _ _ tks) = nexts ++ laters where
+  nexts = zip (map return [0..]) tks
+  laters = [ (i:path,suc)
+           | ([i],tk) <- nexts
+           , (path,suc) <- allSuccsOf tk ]
+allSuccsOf EndTK = []
+
+-- canonical program from s to t along a path
+canonProg :: TK -> PathTK -> Prog
+canonProg _    []  = error "No canonical program for empty path."
+canonProg tk_s [i] = fst $ canonProgStep tk_s !! i
+canonProg tk_s (i:rest) =
+  let (prog, next) = canonProgStep tk_s !! i
+  in prog :- canonProg next rest
+
+-- Definition 32: canonical programs
+-- One step programs, from given node to all immediate successors:
+canonProgStep :: TK -> [(Prog, TK)]
+canonProgStep si@(NodeTK si_wfs itype si_rule si_actives _ tks) =
+  [ (progTo t, t) | t <- tks ] where
+  progTo (NodeTK sj_wfs jtype _ _ _ _) = case (itype, jtype) of
+    -- distinguish three cases:
+    (Two, Three) -> Test $ Neg $ iOf undefined y where y = rightsOf sj_wfs
+                    -- PROBLEM: iOf (Def 30) needs original TableauxIP ??
+    (One, Two)   -> let
+      tls = [ (tl, si_to_tl) -- TODO: si_to_tl, but we want sj_to_tl.
+            -- QUESTION: What if si_to_tl does not include sj? Is that possible?
+            | (si_to_tl , tl@(NodeTK tl_wfs One _ _ _ _)) <- allSuccsOf si
+            , tl_wfs == si_wfs ]
+      n = length tls
+      in if n == 0
+           then Test top
+           else Star $ multicup (map (uncurry canonProg) tls)
+    (Three, One) ->
+      if si_rule == "At"
+        then let [(Neg (Box (Ap x) _), _)] = map collapse si_actives
+             in Ap x -- Get program from active formula.
+        else Test top
+    ij -> error $ "Impossible transition in TK: " ++ show ij
+  progTo EndTK = error "No canonical program to End markers."
+canonProgStep EndTK = []
+
+-- Definition 33: Interpolants for nodes in TK
 -- TODO
 
 -- General functions --

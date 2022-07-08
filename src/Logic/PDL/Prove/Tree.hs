@@ -15,11 +15,11 @@ import Logic.PDL
 
 -- | A Tablaux is either a node or an end marker.
 data Tableaux = Node -- ^ A node contains:
-                [WForm]    -- ^ current list of weighted (and possibly marked) formulas
+                [WForm]    -- ^ current weighted (and possibly marked) formulas
                 History    -- ^ previous formula lists and rules up to the root
                 RuleName   -- ^ name of the rule that is applied here
-                [WForm]    -- ^ list of *active* wformulas to which the rule is applied
-                [Tableaux] -- ^ list of child nodes
+                [WForm]    -- ^ *active* wformulas to which the rule is applied
+                [Tableaux] -- ^ child nodes
               | End -- ^ End of a tableau (not necessarily closed!)
   deriving (Eq,Ord,Show)
 
