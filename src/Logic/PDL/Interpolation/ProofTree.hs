@@ -1,8 +1,9 @@
 module Logic.PDL.Interpolation.ProofTree where
 
-import Data.GraphViz hiding (Star)
-import Data.GraphViz.Types.Monadic hiding ((-->))
-import Data.Maybe
+import Data.GraphViz (shape, Shape(PlainText), toLabel)
+import Data.GraphViz.Types.Monadic (edge, node)
+import Data.Maybe (listToMaybe, catMaybes)
+import Data.List ((\\))
 
 import Logic.PDL
 import Logic.PDL.Prove.Tree hiding (Node,End)
@@ -21,6 +22,10 @@ data TableauxIP = Node
                   [TableauxIP]
                 | End
   deriving (Eq,Ord,Show)
+
+isEndNode :: TableauxIP -> Bool
+isEndNode (Node _ _ _ _ _ [End]) = True
+isEndNode _ = False
 
 ppIP :: Interpolant -> String
 ppIP (Just f) = toString f
@@ -50,7 +55,7 @@ hasIP (Node _ Nothing  _ _ _ _) = False
 ipOf :: TableauxIP -> Form
 ipOf End = error "End nodes do not have interpolants."
 ipOf (Node _ (Just f ) _ _ _ _) = f
-ipOf (Node _ Nothing   _ _ _ _) = error "No interpolant here."
+ipOf (Node _ Nothing   _ _ _ _) = error "No interpolant here (yet)."
 
 -- Get left or right formulas, and ignore markings!
 leftsOf, rightsOf :: [WForm] -> [Form]
@@ -113,11 +118,11 @@ fillIPs n@(Node wfs Nothing history rule actives ts)
         ("At",[(Right (Neg (Box (Ap x) _)),_)]) ->
           let [t] = ts
           in Just $ if null $ catMaybes [ projection x g | (Left g, _) <- wfs ] then top else Box (Ap x) (ipOf t)
-        (rl  ,_) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms wfs actives ++ " Unable to interpolate!:\n" ++ show n
+        (rl  ,_) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms wfs actives ++ "\n  Unable to interpolate: " ++ show n
       in Node wfs newMIP history rule actives ts
 
 fillAllIPs :: TableauxIP -> TableauxIP
-fillAllIPs = fixpoint fillIPs -- TODO is this necessary?
+fillAllIPs = fixpoint fillIPs -- FIXME: is this necessary?
 
 -- Definitions to deal with condition 6 end nodes
 
@@ -126,54 +131,86 @@ wfsOf (Node wfs _ _ _ _ _) = wfs
 wfsOf End = []
 
 -- Definition 27: sub-tableau T^J
-tj :: TableauxIP -> TableauxIP
-tj (Node wfs ip history rule actives ts) =
-  Node wfs ip history rule actives (if stop then [] else map tj ts) where
+tjOf :: TableauxIP -> TableauxIP
+tjOf (Node wfs ip history rule actives ts) =
+  Node wfs ip history rule actives (if stop then [] else map tjOf ts) where
   stop = or
-    [ False -- TODO: stop at M- rule
+    [ rule == "M-" -- Stop when the rule (M-) is applied.
     , (not . isLoadedNode) wfs -- Stop at free nodes.
     , length ts == 1 && null (leftsOf (wfsOf (head ts))) -- Stop when first component of (unique!?) successor is empty.
     , wfs `elem` map fst history -- Stop when there is a predecessor with same pair. -- FIXME? History might go too far up?
     ]
-tj End = End
-
--- helper for Def 28
-allWfsOf :: TableauxIP -> [[WForm]]
-allWfsOf (Node wfs _ _ _ _ ts) = wfs : concatMap allWfsOf ts
-allWfsOf End = []
+tjOf End = End
 
 -- Definition 28
--- D(T): disjunction of conjunctions of all formulas in all nodes of T^J
-dt :: TableauxIP -> Form
-dt tj = multidis [ multicon [ f
-                            | (Left f, _) <- wfs ] -- QUESTION: ignoring marking is okay?
-                 | wfs <- allWfsOf tj ]
+-- D(T): disjunction of conjunctions of each of the given nodes (of T^J)
+dOf :: [[WForm]] -> Form
+dOf tjNodes = multidis [ multicon [ f | (Left f, _) <- wfs ] | wfs <- tjNodes ]
 -- T(Y): all nodes where the right side is Y
-nodesWithThisLeftPart :: TableauxIP -> [Form] -> [[WForm]]
-nodesWithThisLeftPart t y = filter (seteq y . rightsOf) (allWfsOf t)
+pathsInToNodeWith :: TableauxIP -> [Form] -> [Path]
+pathsInToNodeWith t y = filter (seteq y . rightsOf . wfsOf . at t) (allPathsIn t)
+
+-- A path, given by the indices to go from start to end.
+type Path = [Int]
+
+at :: TableauxIP -> Path -> TableauxIP
+at n [] = n
+at (Node _ _ _ _ _ ts) (i:rest) = ts !! i `at` rest
+at End _ = error "Reached End marker."
+
+allPathsIn :: TableauxIP -> [Path]
+allPathsIn (Node _ _ _ _ _ ts) = [] : [ i:rest | (i,t) <- zip [0..] ts, rest <- allPathsIn t ]
+allPathsIn End = error "Reached End marker."
+
+-- ≤
+isPrefixOf :: Path -> Path -> Bool
+isPrefixOf p1 p2 = take (length p1) p2 == p1
+
+-- <
+isProperPrefixOf :: Path -> Path -> Bool
+isProperPrefixOf p1 p2 = take (length p1) p2 == p1 && length p1 /= length p2
+
+-- ◁
+isImmediatePredOf :: Path -> Path -> Bool
+isImmediatePredOf p1 p2 = p1 `isPrefixOf` p2 && length p1 + 1 == length p2
+
+-- Definition 15: ◁' which is ◁ plus "loops" (page 21, needed for Def 29)
+-- NOTE: s and t are given by paths from tab root; tab and sp need not be the same.
+trianglePrime :: TableauxIP -> Path -> Path -> Bool
+trianglePrime tab sp tp =
+  tp `isImmediatePredOf` sp
+  ||
+  (    isEndNode (tab `at` sp)
+    && any (\up -> up `isProperPrefixOf` sp
+                   && up `isImmediatePredOf` tp
+                   && wfsOf (tab `at ` up) == wfsOf (tab `at` sp))
+           (allPathsIn tab) )
 
 -- Definition 29:
 -- T(Y)^ε
-tOfEpsilon :: TableauxIP -> [Form] -> [TableauxIP]
-tOfEpsilon t y = undefined -- TODO!
--- T(Y)^I
-tOfI :: TableauxIP -> [Form] -> [TableauxIP] -- nodes where we (should) already have interpolants!
-tOfI t y = undefined -- TODO!
+tOfEpsilon :: TableauxIP -> [Form] -> [Path]
+tOfEpsilon tabTJ y = [ root_to_s | root_to_s <- pathsInToNodeWith tabTJ y
+                                 , not $ any (trianglePrime tabTJ root_to_s) (pathsInToNodeWith tabTJ y) ]
+-- T(Y)^I  -- nodes where we (should) already have interpolants!
+tOfI :: TableauxIP -> [Form] -> [Path]
+tOfI tabTJ y = filter (\root_to_s -> not $ any (trianglePrime tabTJ root_to_s) (allPathsIn tabTJ))
+                      (tOfEpsilon tabTJ y)
 -- T(Y)^◁
-tOfTriangle :: TableauxIP -> [Form] -> [TableauxIP]
-tOfTriangle t y = undefined -- TODO!
+tOfTriangle :: TableauxIP -> [Form] -> [Path]
+tOfTriangle tabTJ y = tOfEpsilon tabTJ y \\ tOfI tabTJ y
 
 -- Definition 30: I(Y)
 iOf :: TableauxIP -> [Form] -> Form
 iOf t y = case tOfI t y of
   [] -> Bot
-  ts -> multidis (map ipOf ts)
+  ts -> multidis (map (ipOf . at t) ts)
 
 -- Alternative kind of tableau for T^K. Annotated with 1,2,3.
 -- NOTE: we *do* need rules here to catch the modal rule in Def 32, third bullet.
 data TypeTK = One | Two | Three
   deriving (Eq,Ord,Show)
 
+-- IDEA: add TypeTK to TableauxIP directly, avoid this separate TK type completely.
 data TK = NodeTK
           [WForm]
           TypeTK
@@ -190,14 +227,9 @@ data TK = NodeTK
 tkOf :: TableauxIP -> TK
 tkOf = undefined -- TODO
 
--- A path, given by the indices to go from start to end.
-type PathTK = [Int]
-
--- IDEA: Instead of using index-paths, add "Maybe Prog" to [TK] in data TK?
-
 -- All successors of a node in a TK tableau, with the paths to them.
 -- This is <, transitive closure of ◁.
-allSuccsOf :: TK -> [(PathTK, TK)]
+allSuccsOf :: TK -> [(Path, TK)]
 allSuccsOf (NodeTK _ _ _ _ _ tks) = nexts ++ laters where
   nexts = zip (map return [0..]) tks
   laters = [ (i:path,suc)
@@ -206,7 +238,8 @@ allSuccsOf (NodeTK _ _ _ _ _ tks) = nexts ++ laters where
 allSuccsOf EndTK = []
 
 -- canonical program from s to t along a path
-canonProg :: TK -> PathTK -> Prog
+-- IDEA: Instead of using index-paths here, add "Maybe Prog" to [TK] in data TK?
+canonProg :: TK -> Path -> Prog
 canonProg _    []  = error "No canonical program for empty path."
 canonProg tk_s [i] = fst $ canonProgStep tk_s !! i
 canonProg tk_s (i:rest) =
