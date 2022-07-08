@@ -33,10 +33,6 @@ toEmptyTabIP T.End = End
 toEmptyTabIP (T.Node wfs rule actives ts) =
   Node (wfs,Nothing) rule actives (map toEmptyTabIP ts)
 
-forgetIPs :: TableauxIP -> Tableaux
-forgetIPs End = T.End
-forgetIPs (Node (wfs,_) rule actives ts) = T.Node wfs rule actives (map forgetIPs ts)
-
 hasIP :: TableauxIP -> Bool
 hasIP End = False
 hasIP (Node (_,Just _ ) _ _ _) = True
@@ -46,11 +42,6 @@ ipOf :: TableauxIP -> Form
 ipOf End = error "End nodes do not have interpolants."
 ipOf (Node (_,Just f ) _ _ _) = f
 ipOf (Node (_,Nothing) _ _ _) = error "No interpolant here."
-
-interpolateNode :: [WForm] -> [Form]
-interpolateNode wfs = filter evil (leftsOf wfs) where
-  evil (Neg f) = f `elem` rightsOf wfs || Neg (Neg f) `elem` rightsOf wfs
-  evil f       = Neg f `elem` rightsOf wfs
 
 fillIPs :: TableauxIP -> TableauxIP
 -- Ends and already interpolated nodes: nothing to do:

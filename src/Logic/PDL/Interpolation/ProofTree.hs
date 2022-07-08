@@ -42,11 +42,6 @@ toEmptyTabIP T.End = End
 toEmptyTabIP (T.Node wfs history rule actives ts) =
   Node wfs Nothing history rule actives (map toEmptyTabIP ts)
 
-forgetIPs :: TableauxIP -> Tableaux
-forgetIPs End = T.End
-forgetIPs (Node wfs _ history rule actives ts) =
-  T.Node wfs history rule actives (map forgetIPs ts)
-
 hasIP :: TableauxIP -> Bool
 hasIP End = False
 hasIP (Node _ (Just _) _ _ _ _) = True
@@ -61,12 +56,6 @@ ipOf (Node _ Nothing   _ _ _ _) = error "No interpolant here."
 leftsOf, rightsOf :: [WForm] -> [Form]
 leftsOf  wfs = [f | (Left  f,_) <- wfs]
 rightsOf wfs = [f | (Right f,_) <- wfs]
-
-interpolateNode :: [WForm] -> [Form]
-interpolateNode wfs = filter evil (leftsOf wfs) where
-  evil (Neg f) = f `elem` rightsOf wfs || Neg (Neg f) `elem` rightsOf wfs
-  evil f       = Neg f `elem` rightsOf wfs
-
 
 -- For any branching rule we combine the two previous interpolants
 -- with a connective depending on the side of the active formula (see page ??)
