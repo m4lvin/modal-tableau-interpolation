@@ -1,5 +1,6 @@
 module Logic.PDL.Interpolation.ProofTree where
 
+import Data.Either (isRight)
 import Data.GraphViz (shape, Shape(PlainText), toLabel)
 import Data.GraphViz.Types.Monadic (edge, node)
 import Data.Maybe (listToMaybe, catMaybes)
@@ -150,6 +151,9 @@ dOf tjNodes = multidis [ multicon [ f | (Left f, _) <- wfs ] | wfs <- tjNodes ]
 pathsInToNodeWith :: TableauxIP -> [Form] -> [Path]
 pathsInToNodeWith t y = filter (seteq y . rightsOf . wfsOf . at t) (allPathsIn t)
 
+dtyOf :: TableauxIP -> [Form] -> Form
+dtyOf t y = dOf $ map (wfsOf . at t) $ pathsInToNodeWith t y
+
 -- A path, given by the indices to go from start to end.
 type Path = [Int]
 
@@ -200,6 +204,7 @@ tOfTriangle :: TableauxIP -> [Form] -> [Path]
 tOfTriangle tabTJ y = tOfEpsilon tabTJ y \\ tOfI tabTJ y
 
 -- Definition 30: I(Y)
+-- NOTE: different from ipOf
 iOf :: TableauxIP -> [Form] -> Form
 iOf t y = case tOfI t y of
   [] -> Bot
@@ -214,18 +219,76 @@ data TypeTK = One | Two | Three
 data TK = NodeTK
           [WForm]
           TypeTK
-          -- History -- TODO: do we need it here?
+          -- History -- QUESTION: do we need it here?
           RuleName
           [WForm]     -- ^ *active* wformulas
           Interpolant -- ^ Maybe a formula that is an interpolant for this node.
           [TK]
-        | EndTK
   deriving (Eq,Ord,Show)
 
 -- Definition 31: T^K
 -- Idea: Nodes in T^K here correspond to Y-regions in T^J.
+-- Input should be the node Y1/Y2 obtained using M+ (page 35)
 tkOf :: TableauxIP -> TK
-tkOf = undefined -- TODO
+tkOf End = error "Cannot make T^K for End marker."
+tkOf (Node _ (Just _) _ _ _ _ ) = error "Already have an interpolant, why bother with T^K?"
+tkOf t@(Node t_wfs Nothing _ t_rule t_actives _) =
+  NodeTK
+    ((Left (dtyOf t y2), Nothing) : rightY2) -- D(T(Y2)) / Y2
+    One
+    t_rule
+    t_actives -- QUESTION: active formulas stay the same? needed in Def 32!
+    Nothing -- no interpolant yet
+    (tkSuccessors t One t)
+  where
+    y2 = rightsOf t_wfs
+    rightY2 = map (\f -> (Right f, Nothing)) y2
+-- three cases for the successors:
+tkSuccessors :: TableauxIP -> TypeTK -> TableauxIP -> [TK]
+tkSuccessors _ _ End = error "End marker has no successors!"
+-- 1 to 2 has one or no successors:
+tkSuccessors topT One (Node wfs _ history _ _ [childT])
+  -- PROBLEM: need history with k( ) function here to check the condition:
+  | any (\_ -> undefined) history = [] -- end node!
+  | otherwise = [ NodeTK
+                    ((Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT y)), Nothing) : rightY)
+                    Two
+                    undefined -- TODO rule?
+                    undefined -- TODO actives?
+                    Nothing -- not interpolant yet
+                    (tkSuccessors topT Two childT) -- unsafe!?
+                ]
+  where
+    y = rightsOf wfs
+    rightY = map (\f -> (Right f, Nothing)) y
+tkSuccessors _ One Node{} = error "Type One node must have exactly one child."
+-- 2 to 3 has one or no successors:
+tkSuccessors topT Two (Node wfs _ _ _ _ [childT])
+  | null (tOfTriangle topT y) = [] -- end node when T(Y)◁ is empty
+  | otherwise = [ NodeTK
+                    ((Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT y)), Nothing) : rightY)
+                    Three
+                    undefined -- TODO rule?
+                    undefined -- TODO actives?
+                    Nothing -- not interpolant yet
+                    (tkSuccessors topT Three childT)
+                ]
+  where
+    y = rightsOf wfs
+    rightY = map (\f -> (Right f, Nothing)) y
+tkSuccessors _ Two Node{} = error "Type Two node must have exactly one child."
+-- 3 to 1 has n many successors:
+tkSuccessors topT Three (Node _ _ _ _ _ ts) =
+  [ NodeTK
+      ( (Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT z)), Nothing)
+        : [ mf | mf <- wfsOf childT, isRight (fst mf) ] )
+      One
+      undefined -- TODO rule?
+      undefined -- TODO actives?
+      Nothing -- no interpolant yet
+      (tkSuccessors topT One childT)
+  | childT <- ts -- getting Z1 to Zn
+  , let z = rightsOf (wfsOf childT) ]
 
 -- All successors of a node in a TK tableau, with the paths to them.
 -- This is <, transitive closure of ◁.
@@ -235,7 +298,6 @@ allSuccsOf (NodeTK _ _ _ _ _ tks) = nexts ++ laters where
   laters = [ (i:path,suc)
            | ([i],tk) <- nexts
            , (path,suc) <- allSuccsOf tk ]
-allSuccsOf EndTK = []
 
 -- canonical program from s to t along a path
 -- IDEA: Instead of using index-paths here, add "Maybe Prog" to [TK] in data TK?
@@ -270,11 +332,18 @@ canonProgStep si@(NodeTK si_wfs itype si_rule si_actives _ tks) =
              in Ap x -- Get program from active formula.
         else Test top
     ij -> error $ "Impossible transition in TK: " ++ show ij
-  progTo EndTK = error "No canonical program to End markers."
-canonProgStep EndTK = []
 
--- Definition 33: Interpolants for nodes in TK
--- TODO
+-- Definition 33: Interpolants for T^K nodes
+ipFor :: TableauxIP -> TK -> Form
+-- end nodes of T^K:
+ipFor topT (NodeTK t_wfs _ _ _ _ [])
+  | not $ any (\_ -> undefined) history = iOf topT (rightsOf t_wfs)
+  | otherwise = top
+  where history = [ undefined ] :: [a] -- TODO: need history in NodeTK to check for pred-with-same-pair :-/
+ipFor topT (NodeTK _ _ _ _ _ s1_to_sn)
+  | length s1_to_sn == 1 && x /= Test top = Box x (ipFor topT (head s1_to_sn))
+  | otherwise = multicon $ map (ipFor topT) s1_to_sn
+  where x = fst (head (canonProgStep (head s1_to_sn)))
 
 -- General functions --
 
