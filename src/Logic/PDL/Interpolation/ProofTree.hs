@@ -118,7 +118,7 @@ fillIPs n@(Node wfs Nothing _ history rule actives ts)
         ("∪" ,_) -> Just $ ipOf t where [t] = ts
         (";" ,_) -> Just $ ipOf t where [t] = ts
         ("n" ,_) -> Just $ ipOf t where [t] = ts -- QUESTION: is this okay?
-        ("M+",_) -> Just $ ipOf t where [t] = ts -- QUESTION: is this okay?
+        ("M+",_) -> Just $ ipOf t where [t] = ts -- QUESTION: is this okay? NO, here is (always?) the start of a TK, do something with it!?
         ("M-",_) -> Just $ ipOf t where [t] = ts -- QUESTION: is this okay?
         -- for the branching rule we combine the two previous interpolants
         -- with a connective depending on the side of the active formula:
@@ -314,27 +314,25 @@ canonProg tk_s (i:rest) =
   in prog :- canonProg next rest
 
 -- Definition 32: canonical programs
--- One step programs, from given node to all immediate successors:
+-- One step programs, from given node si to all immediate successors sj.
+-- Assumption: we already have canonical programs for all nodes below sj.
 canonProgStep :: TableauxIP -> [(Prog, TableauxIP)]
 canonProgStep End = []
 canonProgStep (Node _ _ Nothing _ _ _ _) = error "Need type for canonProgStep."
-canonProgStep si@(Node si_wfs _ (Just itype) si_history si_rule si_actives tks) =
+canonProgStep (Node si_wfs _ (Just itype) _ si_rule si_actives tks) =
   [ (progTo t, t) | t <- tks ] where
   progTo End = error "No program to End marker."
   progTo (Node _ _ Nothing _ _ _ _) = error "Need type for progTo."
-  progTo (Node sj_wfs _ (Just jtype) _ _ _ _) = case (itype, jtype) of
+  progTo sj@(Node sj_wfs _ (Just jtype) _ _ _ _) = case (itype, jtype) of
     -- distinguish three cases:
     (Two, Three) -> Test $ Neg $ iOf undefined y where y = rightsOf sj_wfs
-                    -- PROBLEM: iOf (Def 30) needs original TableauxIP ??
-    (One, Two)   -> let
-      tls = [ (tl, si_to_tl) -- TODO: si_to_tl, but we want sj_to_tl.
-            -- QUESTION: What if si_to_tl does not include sj? Is that possible?
-            | (si_to_tl , tl@(Node tl_wfs _ (Just One) _ _ _ _)) <- allSuccsOf si
+                    -- PROBLEM: iOf (Def 30) needs original (top/root?) TableauxIP ??
+    (One, Two)   -> if null tls then Test top else Star $ multicup (map (uncurry canonProg) tls) where
+      -- NOTE: Borzechowski writes "all the successors of s^i", but here we use the successors of s^j,
+      -- because per Definition 31 (One->Two case) s^i only has one immediate successor, namely s^j.
+      tls = [ (tl, sj_to_tl)
+            | (sj_to_tl , tl@(Node tl_wfs _ (Just One) _ _ _ _)) <- allSuccsOf sj
             , tl_wfs == si_wfs ]
-      n = length tls
-      in if n == 0
-           then Test top
-           else Star $ multicup (map (uncurry canonProg) tls)
     (Three, One) ->
       if si_rule == "At"
         then let [(Neg (Box (Ap x) _), _)] = map collapse si_actives
