@@ -1,5 +1,6 @@
 module Logic.PDL.Interpolation.ProofTree where
 
+import Control.Monad (when)
 import Data.Either (isRight)
 import Data.GraphViz (shape, Shape(PlainText), toLabel)
 import Data.GraphViz.Types.Monadic (edge, node)
@@ -22,7 +23,6 @@ data TableauxIP = Node
                   , ruleOf :: RuleName
                   , activesOf :: [WForm]
                   , childrenOf :: [TableauxIP] }
-                | End
   deriving (Eq,Ord,Show)
 
 -- Type markers for T^K which is annotated with 1,2,3.
@@ -35,7 +35,7 @@ showTyp Two   = "2"
 showTyp Three = "3"
 
 isEndNode :: TableauxIP -> Bool
-isEndNode (Node _ _ _ _ _ _ [End]) = True
+isEndNode (Node _ _ _ _ _ _ []) = True
 isEndNode _ = False
 
 ppIP :: Interpolant -> String
@@ -54,21 +54,21 @@ ppWFormsTyp mtyp wfs actives = concat
 
 instance DispAble TableauxIP where
   toGraph = toGraph' "" where
-    toGraph' pref End =
-      node pref [shape PlainText, toLabel "."]
     toGraph' pref (Node wfs mip mtyp _ rule actives ts) = do
       node pref [shape PlainText, toLabel $ ppWFormsTyp mtyp wfs actives ++ "  ::  " ++ ppIP mip]
       mapM_ (\(t,y') -> do
         toGraph' (pref ++ show y' ++ ":") t
         edge pref (pref ++ show y' ++ ":") [toLabel rule]
         ) (zip ts [(0::Integer)..])
+      when (null ts) $ do
+        node (pref ++ "end") [shape PlainText, toLabel "."]
+        edge pref (pref ++ "end") [toLabel rule]
 
 ppTab :: TableauxIP -> IO ()
 ppTab = putStr . ppTabStr
 
 ppTabStr :: TableauxIP -> String
 ppTabStr = ppTab' "" where
-  ppTab' pref End = pref ++ "End" ++ "\n"
   ppTab' pref (Node wfs mip mtyp _ rule actives ts) =
     let mipstr = maybe "__" toString mip
     in pref ++ ppWFormsTyp mtyp wfs actives ++ "   " ++ mipstr ++ "\n"
@@ -78,17 +78,17 @@ ppTabStr = ppTab' "" where
        concatMap (ppTab' (pref ++ if length ts > 1 then ".  " else "")) ts
 
 toEmptyTabIP :: Tableaux -> TableauxIP
-toEmptyTabIP T.End = End
+toEmptyTabIP T.End = error "boom"
+toEmptyTabIP (T.Node wfs history rule actives [T.End]) =
+  Node wfs Nothing Nothing history rule actives []
 toEmptyTabIP (T.Node wfs history rule actives ts) =
   Node wfs Nothing Nothing history rule actives (map toEmptyTabIP ts)
 
 hasIP :: TableauxIP -> Bool
-hasIP End = False
 hasIP (Node _ (Just _) _ _ _ _ _) = True
 hasIP (Node _ Nothing  _ _ _ _ _) = False
 
 ipOf :: TableauxIP -> Form
-ipOf End = error "End nodes do not have interpolants."
 ipOf (Node _ (Just f ) _ _ _ _ _) = f
 ipOf (Node _ Nothing   _ _ _ _ _) = error "No interpolant here (yet)."
 
@@ -109,10 +109,9 @@ branchIP _ _ = error "branchIP only works for exactly two branches."
 
 fillIPs :: TableauxIP -> TableauxIP
 -- Ends and already interpolated nodes: nothing to do:
-fillIPs End = End
 fillIPs t@(Node _ (Just _) _ _ _ _ _) = t
 -- Closed end nodes: use the active formulas or a constant as interpolant:
-fillIPs (Node wfs Nothing mtyp history "✘" actives [End]) = Node wfs mip mtyp history "✘" actives [End] where
+fillIPs (Node wfs Nothing mtyp history "✘" actives []) = Node wfs mip mtyp history "✘" actives [] where
   candidates = map fst actives -- NOTE: ignore markings
   mip = listToMaybe $ lrIp candidates
   lrIp fs = [ Bot | Left  Bot `elem` fs ]
@@ -153,6 +152,10 @@ fillIPs n@(Node wfs Nothing _ history rule actives ts)
         ("At",[(Right (Neg (Box (Ap x) _)),_)]) ->
           let [t] = ts
           in Just $ if null $ catMaybes [ projection x g | (Left g, _) <- wfs ] then top else Box (Ap x) (ipOf t)
+        -- end nodes due to extra conditions:
+        ('4':_,_) -> Nothing
+        ('6':_,_) -> Nothing
+        -- There should not be any remaining cases:
         (rl  ,_) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms wfs actives ++ "\n  Unable to interpolate: " ++ show n
       in Node wfs newMIP Nothing history rule actives ts
 
@@ -164,7 +167,6 @@ fillAllIPs = fixpoint fillIPs -- FIXME: is this necessary?
 -- Definition 26: remove n-nodes to obtain T^I
 -- TODO: also delete them from all histories! and adjust condition 6 counters?!
 tiOf :: TableauxIP -> TableauxIP
-tiOf End = End
 tiOf (Node wfs ip _ history rule actives ts)
   | isNormalNode wfs = Node wfs ip Nothing history rule actives (map tiOf ts)
   | null ts = error "boom"
@@ -173,7 +175,6 @@ tiOf (Node wfs ip _ history rule actives ts)
 
 -- Find a node where M+ is applied, we have no interpolant yet, and there is no such node below.
 lowestMplusWithoutIP :: TableauxIP -> Maybe TableauxIP
-lowestMplusWithoutIP End = Nothing
 lowestMplusWithoutIP n@(Node _ Nothing _ _history "M+" _ _) =
   case mapMaybe lowestMplusWithoutIP (childrenOf n) of
     [] -> Just n
@@ -185,13 +186,11 @@ tjOf :: TableauxIP -> TableauxIP
 tjOf (Node wfs ip _ history rule actives ts) =
   Node wfs ip Nothing history rule actives (if stop then [] else map tjOf ts) where
   stop = or
-    [ ts == [End]
-    , rule == "M-" -- Stop when the rule (M-) is applied.
+    [ rule == "M-" -- Stop when the rule (M-) is applied.
     , (not . isLoadedNode) wfs -- Stop at free nodes.
     , length ts == 1 && null (leftsOf (wfsOf (head ts))) -- Stop when first component of (unique!?) successor is empty.
     , wfs `elem` map fst history -- Stop when there is a predecessor with same pair. -- FIXME? History might go too far up?
     ]
-tjOf End = End
 
 -- Definition 28
 -- D(T): disjunction of conjunctions of each of the given nodes (of T^J)
@@ -210,11 +209,9 @@ type Path = [Int]
 at :: TableauxIP -> Path -> TableauxIP
 at n [] = n
 at (Node _ _ _ _ _ _ ts) (i:rest) = ts !! i `at` rest
-at End _ = error "Reached End marker."
 
 allPathsIn :: TableauxIP -> [Path]
 allPathsIn (Node _ _ _ _ _ _ ts) = [] : [ i:rest | (i,t) <- zip [0..] ts, rest <- allPathsIn t ]
-allPathsIn End = error "Reached End marker."
 
 -- ≤
 isPrefixOf :: Path -> Path -> Bool
@@ -265,7 +262,6 @@ iOf topT y = case tOfI topT y of
 -- Idea: Nodes in T^K here correspond to Y-regions in T^J.
 -- Input should be the node Y1/Y2 obtained using M+ (page 35)
 tkOf :: TableauxIP -> TableauxIP
-tkOf End = error "Cannot make T^K for End marker."
 tkOf (Node _ (Just _) _ _ _ _ _ ) = error "Already have an interpolant, why bother with T^K?"
 tkOf t@(Node t_wfs Nothing _ t_history t_rule t_actives _) =
   Node
@@ -282,7 +278,6 @@ tkOf t@(Node t_wfs Nothing _ t_history t_rule t_actives _) =
 
 -- Helper function to define the successors in T^K, three cases as in Definition 31.
 tkSuccessors :: TableauxIP -> TypeTK -> TableauxIP -> [TableauxIP]
-tkSuccessors _ _ End = error "End marker has no successors!"
 -- 1 to 2 has one or no successors:
 tkSuccessors topT One (Node wfs _ _ history rule actives [childT])
   -- if there is a predecessor t with the same pair (DONE) and k(t)=1 (TODO!), then make it an end node:
@@ -334,7 +329,6 @@ tkSuccessors topT Three (Node _ _ _ history rule actives ts) =
 -- All successors of a node in a TK tableau, with the paths to them.
 -- This is <, transitive closure of ◁.
 allSuccsOf :: TableauxIP -> [(Path, TableauxIP)]
-allSuccsOf End = []
 allSuccsOf (Node _ _ _ _ _ _ tks) = nexts ++ laters where
   nexts = zip (map return [0..]) tks
   laters = [ (i:path,suc)
@@ -354,11 +348,9 @@ canonProg topT tk_s (i:rest) =
 -- One step programs, from given node si to all immediate successors sj.
 -- Assumption: we already have canonical programs for all nodes below sj.
 canonProgStep :: TableauxIP -> TableauxIP -> [(Prog, TableauxIP)]
-canonProgStep _ End = []
 canonProgStep _ (Node _ _ Nothing _ _ _ _) = error "Need type for canonProgStep."
 canonProgStep topT (Node si_wfs _ (Just itype) _ si_rule si_actives tks) =
   [ (progTo t, t) | t <- tks ] where
-  progTo End = error "No program to End marker."
   progTo (Node _ _ Nothing _ _ _ _) = error "Need type for progTo."
   progTo sj@(Node sj_wfs _ (Just jtype) _ _ _ _) = case (itype, jtype) of
     -- distinguish three cases:
@@ -379,7 +371,6 @@ canonProgStep topT (Node si_wfs _ (Just itype) _ si_rule si_actives tks) =
 -- Definition 33: Interpolants for T^K nodes
 ipFor :: TableauxIP -> TableauxIP -> Form
 -- end nodes of T^K:
-ipFor _ End = error "No interpolants for End markers!"
 ipFor topT (Node t_wfs _ _ history _ _ [])
   | not $ any (\(otherWfs,_) -> t_wfs == otherWfs) history = iOf topT (rightsOf t_wfs)
   | otherwise = top
