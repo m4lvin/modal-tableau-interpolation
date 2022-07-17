@@ -3,7 +3,7 @@ module Logic.PDL.Interpolation.ProofTree where
 import Data.Either (isRight)
 import Data.GraphViz (shape, Shape(PlainText), toLabel)
 import Data.GraphViz.Types.Monadic (edge, node)
-import Data.Maybe (listToMaybe, catMaybes)
+import Data.Maybe (listToMaybe, catMaybes, mapMaybe)
 import Data.List ((\\), intercalate)
 
 import Logic.PDL
@@ -15,19 +15,24 @@ type Interpolant = Maybe Form
 
 -- | A Tableau with interpolants.
 data TableauxIP = Node
-                  [WForm]
-                  Interpolant -- ^ Maybe a formula that is an interpolant for this node.
-                  (Maybe TypeTK)
-                  History
-                  RuleName
-                  [WForm]
-                  [TableauxIP]
+                  { wfsOf :: [WForm]
+                  , mipOf :: Interpolant -- ^ Maybe a formula that is an interpolant for this node.
+                  , mtypOf :: Maybe TypeTK
+                  , historyOf :: History
+                  , ruleOf :: RuleName
+                  , activesOf :: [WForm]
+                  , childrenOf :: [TableauxIP] }
                 | End
   deriving (Eq,Ord,Show)
 
 -- Type markers for T^K which is annotated with 1,2,3.
 data TypeTK = One | Two | Three
   deriving (Eq,Ord,Show)
+
+showTyp :: TypeTK -> String
+showTyp One   = "1"
+showTyp Two   = "2"
+showTyp Three = "3"
 
 isEndNode :: TableauxIP -> Bool
 isEndNode (Node _ _ _ _ _ _ [End]) = True
@@ -41,7 +46,7 @@ ppWFormsTyp :: Maybe TypeTK -> [WForm] -> [WForm] -> String
 ppWFormsTyp mtyp wfs actives = concat
   [ intercalate ", " (map ppFormA (filter isLeft wfs))
   , "   |"
-  , maybe "" show mtyp
+  , maybe "" showTyp mtyp
   , "   "
   , intercalate ", " (map ppFormA (filter (not . isLeft) wfs)) ]
   where
@@ -57,6 +62,20 @@ instance DispAble TableauxIP where
         toGraph' (pref ++ show y' ++ ":") t
         edge pref (pref ++ show y' ++ ":") [toLabel rule]
         ) (zip ts [(0::Integer)..])
+
+ppTab :: TableauxIP -> IO ()
+ppTab = putStr . ppTabStr
+
+ppTabStr :: TableauxIP -> String
+ppTabStr = ppTab' "" where
+  ppTab' pref End = pref ++ "End" ++ "\n"
+  ppTab' pref (Node wfs mip mtyp _ rule actives ts) =
+    let mipstr = maybe "__" toString mip
+    in pref ++ ppWFormsTyp mtyp wfs actives ++ "   " ++ mipstr ++ "\n"
+       ++
+       pref ++ "(" ++ rule ++ ")"  ++ "\n"
+       ++
+       concatMap (ppTab' (pref ++ if length ts > 1 then ".  " else "")) ts
 
 toEmptyTabIP :: Tableaux -> TableauxIP
 toEmptyTabIP T.End = End
@@ -142,16 +161,32 @@ fillAllIPs = fixpoint fillIPs -- FIXME: is this necessary?
 
 -- Definitions to deal with condition 6 end nodes
 
-wfsOf :: TableauxIP -> [WForm]
-wfsOf (Node wfs _ _ _ _ _ _) = wfs
-wfsOf End = []
+-- Definition 26: remove n-nodes to obtain T^I
+-- TODO: also delete them from all histories! and adjust condition 6 counters?!
+tiOf :: TableauxIP -> TableauxIP
+tiOf End = End
+tiOf (Node wfs ip _ history rule actives ts)
+  | isNormalNode wfs = Node wfs ip Nothing history rule actives (map tiOf ts)
+  | null ts = error "boom"
+  | otherwise = let oldnext = head (map tiOf ts) in oldnext { ruleOf = rule  ++ "," ++ ruleOf oldnext } -- FIXME: should actually add these steps before me.
+  -- QUESTION: What if there are multiple sucessors of an n-node? example [a*]p -> [a**]p
+
+-- Find a node where M+ is applied, we have no interpolant yet, and there is no such node below.
+lowestMplusWithoutIP :: TableauxIP -> Maybe TableauxIP
+lowestMplusWithoutIP End = Nothing
+lowestMplusWithoutIP n@(Node _ Nothing _ _history "M+" _ _) =
+  case mapMaybe lowestMplusWithoutIP (childrenOf n) of
+    [] -> Just n
+    _ -> listToMaybe $ mapMaybe lowestMplusWithoutIP (childrenOf n)
+lowestMplusWithoutIP n = listToMaybe $ mapMaybe lowestMplusWithoutIP (childrenOf n)
 
 -- Definition 27: sub-tableau T^J
 tjOf :: TableauxIP -> TableauxIP
 tjOf (Node wfs ip _ history rule actives ts) =
   Node wfs ip Nothing history rule actives (if stop then [] else map tjOf ts) where
   stop = or
-    [ rule == "M-" -- Stop when the rule (M-) is applied.
+    [ ts == [End]
+    , rule == "M-" -- Stop when the rule (M-) is applied.
     , (not . isLoadedNode) wfs -- Stop at free nodes.
     , length ts == 1 && null (leftsOf (wfsOf (head ts))) -- Stop when first component of (unique!?) successor is empty.
     , wfs `elem` map fst history -- Stop when there is a predecessor with same pair. -- FIXME? History might go too far up?
@@ -244,13 +279,15 @@ tkOf t@(Node t_wfs Nothing _ t_history t_rule t_actives _) =
   where
     y2 = rightsOf t_wfs
     rightY2 = map (\f -> (Right f, Nothing)) y2
--- three cases for the successors:
+
+-- Helper function to define the successors in T^K, three cases as in Definition 31.
 tkSuccessors :: TableauxIP -> TypeTK -> TableauxIP -> [TableauxIP]
 tkSuccessors _ _ End = error "End marker has no successors!"
 -- 1 to 2 has one or no successors:
 tkSuccessors topT One (Node wfs _ _ history rule actives [childT])
-  -- if there is a predecessor t with the same pair and k(t)=1, then make it an end node:
-  | or [ otherWfs == wfs | (Node otherWfs _ (Just One) _ _ _ _) <- predecessors ] = [] -- end node! -- FIXME End or []?
+  -- if there is a predecessor t with the same pair (DONE) and k(t)=1 (TODO!), then make it an end node:
+  | or [ otherWfs == wfs | (otherWfs,_)  <- history ] = [] -- end node! -- FIXME End or []?
+  -- PROBLEM: need correct k( ) function on history to check the condition, but topT has no k() yet?!
   | otherwise = [ Node
                     ((Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT y)), Nothing) : rightY)
                     Nothing -- no interpolant yet
@@ -263,9 +300,7 @@ tkSuccessors topT One (Node wfs _ _ history rule actives [childT])
   where
     y = rightsOf wfs
     rightY = map (\f -> (Right f, Nothing)) y
-    predecessors = undefined -- TODO
-      -- PROBLEM: need correct k( ) function on history to check the condition, but topT has no k() yet?!
-tkSuccessors _ One Node{} = error "Type One node must have exactly one child."
+tkSuccessors _ One n@Node{} = [] -- TODO error $ "Type One node must have exactly one child:\n" ++ ppTabStr n
 -- 2 to 3 has one or no successors:
 tkSuccessors topT Two (Node wfs _ _ history rule actives [childT])
   | null (tOfTriangle topT y) = [] -- end node when T(Y)◁ is empty
@@ -345,10 +380,10 @@ canonProgStep topT (Node si_wfs _ (Just itype) _ si_rule si_actives tks) =
 ipFor :: TableauxIP -> TableauxIP -> Form
 -- end nodes of T^K:
 ipFor _ End = error "No interpolants for End markers!"
-ipFor topT (Node t_wfs _ _ _ _ _ [])
-  | not $ any (\_ -> undefined) history = iOf topT (rightsOf t_wfs)
+ipFor topT (Node t_wfs _ _ history _ _ [])
+  | not $ any (\(otherWfs,_) -> t_wfs == otherWfs) history = iOf topT (rightsOf t_wfs)
   | otherwise = top
-  where history = [ undefined ] :: [a] -- TODO: need history in NodeTK to check for pred-with-same-pair :-/
+  -- TODO: need history in NodeTK to check for pred-with-same-pair :-/
 ipFor topT (Node _ _ _ _ _ _ s1_sn) -- n≤2
   | length s1_sn == 1 && x /= Test top = Box x (ipFor topT (head s1_sn))
   | otherwise                          = multicon $ map (ipFor topT) s1_sn
