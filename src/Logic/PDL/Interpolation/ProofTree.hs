@@ -70,12 +70,12 @@ ppTab = putStr . ppTabStr
 ppTabStr :: TableauxIP -> String
 ppTabStr = ppTab' "" where
   ppTab' pref (Node wfs mip mtyp _ rule actives ts) =
-    let mipstr = maybe "__" toString mip
-    in pref ++ ppWFormsTyp mtyp wfs actives ++ "   " ++ mipstr ++ "\n"
+    let mipstr = maybe "" (("I = " ++) . toString) mip
+    in pref ++ ppWFormsTyp mtyp wfs actives ++ "      " ++ mipstr ++ "\n"
        ++
        pref ++ "(" ++ rule ++ ")"  ++ "\n"
        ++
-       concatMap (ppTab' (pref ++ if length ts > 1 then ".  " else "")) ts
+       concatMap (\t -> (if length ts > 1 then pref ++ ".\n" else "") ++ ppTab' (pref ++ if length ts > 1 then "   " else "") t) ts
 
 toEmptyTabIP :: Tableaux -> TableauxIP
 toEmptyTabIP T.End = error "boom"
@@ -167,11 +167,26 @@ fillAllIPs = fixpoint fillIPs -- FIXME: is this necessary?
 -- Definition 26: remove n-nodes to obtain T^I
 -- TODO: also delete them from all histories! and adjust condition 6 counters?!
 tiOf :: TableauxIP -> TableauxIP
-tiOf (Node wfs ip _ history rule actives ts)
-  | isNormalNode wfs = Node wfs ip Nothing history rule actives (map tiOf ts)
-  | null ts = error "boom"
-  | otherwise = let oldnext = head (map tiOf ts) in oldnext { ruleOf = rule  ++ "," ++ ruleOf oldnext } -- FIXME: should actually add these steps before me.
-  -- QUESTION: What if there are multiple sucessors of an n-node? example [a*]p -> [a**]p
+tiOf n@(Node wfs mip mtyp history rule actives ts)
+  | not (isNormalNode wfs) = error "Too late, cannot delete this n-node."
+  -- if all children are normal, then just recurse: (this also deals with [], i.e. end nodes)
+  | all (isNormalNode . wfsOf) ts = Node wfs mip mtyp history rule actives (map tiOf ts)
+  -- if there is exactly one child and it is non-normal, then remove it and adopt its children:
+  | length ts == 1 && not (isNormalNode (wfsOf (head ts))) =
+      let
+        new_rule = rule ++ "," ++ ruleOf (head ts)
+        new_ts = childrenOf (head ts)
+      in tiOf $ Node wfs mip mtyp history new_rule actives new_ts
+  -- if there are two children and one is a non-normal end node, then just remove it. Example: [a*]p -> [a**]p
+  | length ts == 2
+    && length (filter (isNormalNode . wfsOf) ts) == 1
+    && null (childrenOf (head (filter (not . isNormalNode . wfsOf) ts))) =
+      let
+        new_ts = filter (isNormalNode . wfsOf) ts
+       in tiOf $ Node wfs mip mtyp history rule actives new_ts
+  -- Otherwise, give up!
+  | otherwise = error $ "Tricky situation, cannot define T^I:\n" ++ ppTabStr n
+  -- QUESTION: What if there are multiple sucessors of an n-node?
 
 -- Find a node where M+ is applied, we have no interpolant yet, and there is no such node below.
 lowestMplusWithoutIP :: TableauxIP -> Maybe TableauxIP

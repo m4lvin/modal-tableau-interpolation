@@ -12,10 +12,12 @@ main :: IO ()
 main = do
   let
     pdlF = fromString "[(a u b)*](p ^ q) -> [b*]q" :: Logic.PDL.Form
+    -- pdlF = fromString "[a*]p -> [a**]p" :: Logic.PDL.Form
     t = prove pdlF
     closed = isClosedTab t
     tWithInt = fillAllIPs $ toEmptyTabIP t
-  putStrLn $ "<pre>Parsed input: " ++ toString pdlF  ++ "</pre>"
+
+  putStrLn $ "Formula: " ++ toString pdlF
   putStrLn $ if closed then "PROVED." else "NOT proved."
 
   putStrLn "\nAfter filling in easy interpolants:"
