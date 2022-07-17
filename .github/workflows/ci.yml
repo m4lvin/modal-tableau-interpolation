@@ -25,6 +25,8 @@ jobs:
       run: stack --system-ghc test Logic:test:basicmodal
     - name: "Run tests: pdl"
       run: stack --system-ghc test Logic:test:pdl
+    - name: "Run example"
+      run: stack --system-ghc exec example
   build-web:
     name: Buld web interface
     runs-on: ubuntu-latest

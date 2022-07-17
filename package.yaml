@@ -53,6 +53,12 @@ executables:
       - warp
       - js-jquery >= 3
       - template-haskell
+  example:
+    source-dirs: exec
+    main: example.hs
+    dependencies:
+      - base >= 4.8 && < 5
+      - Logic
 
 tests:
   propositional:
