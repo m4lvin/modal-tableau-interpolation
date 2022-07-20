@@ -107,6 +107,7 @@ branchIP [t1,t2] actives  = Just $ connective (ipOf t1) (ipOf t2) where
     _              -> error $ "Could not find the active side: " ++ show actives
 branchIP _ _ = error "branchIP only works for exactly two branches."
 
+-- | Fill interpolants for the easy cases, not involving extra conditions.
 fillIPs :: TableauxIP -> TableauxIP
 -- Ends and already interpolated nodes: nothing to do:
 fillIPs t@(Node _ (Just _) _ _ _ _ _) = t
@@ -135,17 +136,17 @@ fillIPs n@(Node wfs Nothing _ history rule actives ts)
         ("¬;",_) -> Just $ ipOf t where [t] = ts
         ("∪" ,_) -> Just $ ipOf t where [t] = ts
         (";" ,_) -> Just $ ipOf t where [t] = ts
-        ("n" ,_) -> Just $ ipOf t where [t] = ts -- QUESTION: is this okay?
-        ("M+",_) -> Just $ ipOf t where [t] = ts -- QUESTION: is this okay? NO, here is (always?) the start of a TK, do something with it!?
-        ("M-",_) -> Just $ ipOf t where [t] = ts -- QUESTION: is this okay?
+        ("n" ,_) -> Just $ ipOf t where [t] = ts
+        ("M+",_) -> Just $ ipOf t where [t] = ts -- Start of a T^J, deal with it later!
+        ("M-",_) -> Just $ ipOf t where [t] = ts
         -- for the branching rule we combine the two previous interpolants
         -- with a connective depending on the side of the active formula:
         ("¬∧",_) -> branchIP ts actives
         ("?" ,_) -> branchIP ts actives
         ("¬∪",_) -> branchIP ts actives
         ("¬n",_) -> branchIP ts actives
-        -- for the critical rule we prefix the previous interpolant with diamond or Box, depending on the active side
-        -- if the other side is empty, then use Bot or Top as interpolant (note: <a>T and T have different voc) - see page 44
+        -- critical rule: prefix previous interpolant with diamond or Box, depending on active side
+        -- if the other side is empty, use ⊥ or T, because <a>T and T have different voc (page 44)
         ("At",[(Left  (Neg (Box (Ap x) _)),_)]) ->
           let [t] = ts
           in Just $ if null $ catMaybes [ projection x g | (Right g, _) <- wfs ] then Bot else dia (Ap x) (ipOf t)
@@ -223,7 +224,7 @@ type Path = [Int]
 
 at :: TableauxIP -> Path -> TableauxIP
 at n [] = n
-at (Node _ _ _ _ _ _ ts) (i:rest) = ts !! i `at` rest
+at (Node _ _ _ _ _ _ ts) (i:rest) = (ts !! i) `at` rest
 
 allPathsIn :: TableauxIP -> [Path]
 allPathsIn (Node _ _ _ _ _ _ ts) = [] : [ i:rest | (i,t) <- zip [0..] ts, rest <- allPathsIn t ]
@@ -233,7 +234,7 @@ allPathsIn (Node _ _ _ _ _ _ ts) = [] : [ i:rest | (i,t) <- zip [0..] ts, rest <
 
 -- <
 isProperPrefixOf :: Path -> Path -> Bool
-isProperPrefixOf p1 p2 = take (length p1) p2 == p1 && length p1 /= length p2
+isProperPrefixOf p1 p2 = p1 `isPrefixOf` p2 && length p1 /= length p2
 
 -- ◁
 isImmediatePredOf :: Path -> Path -> Bool
@@ -285,15 +286,17 @@ tkOf t@(Node t_wfs Nothing _ t_history t_rule t_actives _) =
     t_history
     t_rule
     t_actives -- QUESTION: active formulas stay the same? needed in Def 32!
-    (tkSuccessors t One t) -- FIXME: ugly but necessary?!
+    (tkSuccessors t (t {mtypOf = Just One}))
   where
     y2 = rightsOf t_wfs
     rightY2 = map (\f -> (Right f, Nothing)) y2
 
 -- Helper function to define the successors in T^K, three cases as in Definition 31.
-tkSuccessors :: TableauxIP -> TypeTK -> TableauxIP -> [TableauxIP]
+tkSuccessors :: TableauxIP -> TableauxIP -> [TableauxIP]
 -- 1 to 2 has one or no successors:
-tkSuccessors topT One (Node wfs _ _ history rule actives [childT])
+tkSuccessors _ (Node _ _ Nothing _ _ _ _) =
+  error "No type, cannot compute T^K successors."
+tkSuccessors topT (Node wfs _ (Just One) history rule actives [childT])
   -- if there is a predecessor t with the same pair (DONE) and k(t)=1 (TODO!), then make it an end node:
   | or [ otherWfs == wfs | (otherWfs,_)  <- history ] = [] -- end node! -- FIXME End or []?
   -- PROBLEM: need correct k( ) function on history to check the condition, but topT has no k() yet?!
@@ -304,14 +307,16 @@ tkSuccessors topT One (Node wfs _ _ history rule actives [childT])
                     history
                     rule
                     actives
-                    (tkSuccessors topT Two childT) -- unsafe!?
+                    (tkSuccessors topT (childT {mtypOf = Just Two})) -- unsafe!?
                 ]
   where
     y = rightsOf wfs
     rightY = map (\f -> (Right f, Nothing)) y
-tkSuccessors _ One n@Node{} = [] -- TODO error $ "Type One node must have exactly one child:\n" ++ ppTabStr n
+tkSuccessors _ (Node _ _ (Just One) _ _ _ []) = []
+tkSuccessors _ n@(Node _ _ (Just One) _ _ _ _) =
+  error $ "Type One node must have none or one child, but not two:\n" ++ ppTabStr n
 -- 2 to 3 has one or no successors:
-tkSuccessors topT Two (Node wfs _ _ history rule actives [childT])
+tkSuccessors topT (Node wfs _ (Just Two) history rule actives [childT])
   | null (tOfTriangle topT y) = [] -- end node when T(Y)◁ is empty
   | otherwise = [ Node
                     ((Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT y)), Nothing) : rightY)
@@ -320,14 +325,15 @@ tkSuccessors topT Two (Node wfs _ _ history rule actives [childT])
                     history
                     rule
                     actives
-                    (tkSuccessors topT Three childT)
+                    (tkSuccessors topT (childT {mtypOf = Just Three}))
                 ]
   where
     y = rightsOf wfs
     rightY = map (\f -> (Right f, Nothing)) y
-tkSuccessors _ Two Node{} = error "Type Two node must have exactly one child."
+tkSuccessors _ (Node _ _ (Just Two) _ _ _ _) =
+  error "Type Two node must have exactly one child."
 -- 3 to 1 has n many successors:
-tkSuccessors topT Three (Node _ _ _ history rule actives ts) =
+tkSuccessors topT (Node _ _ (Just Three) history rule actives ts) =
   [ Node
       ( (Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT z)), Nothing)
         : [ mf | mf <- wfsOf childT, isRight (fst mf) ] )
@@ -336,7 +342,7 @@ tkSuccessors topT Three (Node _ _ _ history rule actives ts) =
       history
       rule
       actives
-      (tkSuccessors topT One childT)
+      (tkSuccessors topT (childT {mtypOf = Just One}))
   | childT <- ts -- getting Z1 to Zn
   , let z = rightsOf (wfsOf childT) ]
 
