@@ -355,7 +355,7 @@ allSuccsOf (Node _ _ _ _ _ tks) = nexts ++ laters where
 -- canonical program from s to t along a path
 -- IDEA: Instead of using index-paths here, add "Maybe Prog" to the list of successors in TableauxIP?
 canonProg :: TableauxIP -> TableauxIP -> Path -> Prog
-canonProg _ _    []  = error "No canonical program for empty path."
+canonProg _    _    []  = error "No canonical program for empty path."
 canonProg topT tk_s [i] = fst $ canonProgStep topT tk_s !! i
 canonProg topT tk_s (i:rest) =
   let (prog, next) = canonProgStep topT tk_s !! i
@@ -365,7 +365,7 @@ canonProg topT tk_s (i:rest) =
 -- One step programs, from given node si to all immediate successors sj.
 -- Assumption: we already have canonical programs for all nodes below sj.
 canonProgStep :: TableauxIP -> TableauxIP -> [(Prog, TableauxIP)]
-canonProgStep _ (Node _ _ Nothing _ _ _) = error "Need type for canonProgStep."
+canonProgStep _    (Node _      _ Nothing      _ _ _) = error "Need type for canonProgStep."
 canonProgStep topT (Node si_wfs _ (Just itype) si_rule si_actives tks) =
   [ (progTo t, t) | t <- tks ] where
   progTo (Node _ _ Nothing _ _ _) = error "Need type for progTo."
@@ -390,14 +390,14 @@ ipFor :: TableauxIP -> Path -> Form
 -- end nodes of T^K:
 ipFor topT pth
   | null s1_sn && not (any (\(Node otherWfs _ _ _ _ _) -> t_wfs == otherWfs) (historyTo topT pth)) =
-      iOf topT (rightsOf t_wfs)
-  | null s1_sn = top
-  | length s1_sn == 1 && x /= Test top = Box x (ipFor topT (pth ++ [0]))
+      iOf topT (rightsOf t_wfs) -- end node with no same-pair predecessor, use I(t) := I(Y).
+  | null s1_sn = top -- all other end nodes get I(t):=1.
+  | length s1_sn == 1 && a_prog /= Test top = Box a_prog (ipFor topT (pth ++ [0]))
   | otherwise = multicon $ [ ipFor topT $ pth ++ [k]
                            | (k,_) <- zip [0,1] (childrenOf (topT `at` pth)) ]
   where
-    (Node t_wfs _ _ _ _ s1_sn) = topT `at` pth -- NOTE: n≤2
-    ((x,_):_) = canonProgStep topT (head s1_sn) -- FIXME: rewrite to avoid unsafe head
+    n@(Node t_wfs _ _ _ _ s1_sn) = topT `at` pth -- NOTE: n≤2
+    ((a_prog, _):_) = canonProgStep topT n
 
 -- General functions --
 
