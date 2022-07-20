@@ -8,6 +8,7 @@ import Control.Exception (evaluate, catch, SomeException)
 import Control.Monad.IO.Class (liftIO)
 
 import Data.FileEmbed
+import Data.List (nub)
 import Data.Maybe (fromMaybe)
 import Web.Scotty
 import qualified Data.Text as T
@@ -45,6 +46,7 @@ main = do
     post "/prove" $ do
       logic <- param "logic"
       textinput <- param "textinput"
+      extra <- param "extra"
       parseResult <- liftIO $ myCatch (if logic == ("K" :: String) then Left ( parseK (alexScanTokens textinput) :: BM.Form) else Right (fromString textinput :: Logic.PDL.Form))
       html $ mconcat $ map TL.pack $ case parseResult of
         Left err ->
@@ -71,6 +73,7 @@ main = do
               then "PROVED. <style type='text/css'> #output { border-color: green; } </style>"
               else "NOT proved. <style type='text/css'> #output { border-color: red; } </style>"
           , "<div align='center'>" ++ if closed then svg tWithInt else svg t ++ "<div>"
+          , if closed && extra == (1 :: Int) then "<div align=left>" ++ extraInfo tWithInt ++ "</div>" else ""
           ]
 
 myCatch :: NFData a => a -> IO (Either String a)
@@ -81,3 +84,56 @@ embeddedFile str = case str of
   "index.html" -> E.decodeUtf8 $(embedFile "exec/index.html")
   "jquery.js"  -> E.decodeUtf8 $(embedFile =<< runIO JQuery.file)
   _            -> error "File not found."
+
+-- | Given a closed tableau, show the whole TI, TJ, TK story to get interpolant.
+extraInfo :: TableauxIP -> String
+extraInfo tWithInt =
+  let
+    ti = tiOf tWithInt
+    Just mstart = lowestMplusWithoutIP ti
+    tj = tjOf $ head $ childrenOf mstart
+    rightComponents = nub $ map (\pth -> rightsOf (wfsOf (tj `at` pth)) ) (allPathsIn tj)
+    tk = tkOf tj
+  in
+    unlines
+    [ "<h3>T<sup>I</sup>, after removing all n-nodes (Def 26):</h3>"
+    , svg ti
+    , "<h3>Lowest M+ rule without interpolant:</h3>"
+    , svg mstart
+    , "<h3>T<sup>J</sup> (Def 27):</h3>"
+    , svg tj
+    , "<p>List of all nodes of T<sup>J</sup>:</p>"
+    , "<pre>"
+    , concatMap (\pth ->
+                   show pth ++ "\t\t"
+                   ++ ppWFormsTyp Nothing (wfsOf (tj `at` pth)) []
+                   ++ "\n"
+                ) $ allPathsIn tj
+    , "</pre>"
+    , "<h3>◁' relation (Def 15):</h3>"
+    , "<pre>"
+    , concatMap (\pth ->
+                   pad 16 (show pth)
+                   ++ show (filter (trianglePrime tj pth) (allPathsIn tj))
+                ) $ allPathsIn tj
+    , "</pre>"
+    , "<h3>T(Y) sets (Def 29):</h3>\n"
+    , "<pre>"
+    , "Y \t\tT(Y) \t\tT(Y)^ε \t\tT(Y)^I \t\tT(Y)^◁" ++ "\n"
+    ,concatMap (\y ->
+            pad 16 (toStrings y)
+            ++ pad 16 (show (pathsInToNodeWith tj y))
+            ++ pad 16 (show (tOfEpsilon tj y))
+            ++ pad 16 (show (tOfI tj y))
+            ++ show (tOfTriangle tj y) ++ "\n"
+           ) rightComponents
+    , "</pre>"
+    , "<h3>T<sup>K</sup> (Def 31):</h3>"
+    , svg tk
+    , "<p>Interpolant for the root of T<sup>K</sup>: "
+    , toString $ ipFor tk []
+    , "</p>"
+    , "<p>Simplified: "
+    , toString $ simplify $ ipFor tk []
+    , "</p>"
+    ]
