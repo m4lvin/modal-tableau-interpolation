@@ -27,6 +27,7 @@ instance Stringable Form where
   toString Bot        = "⊥"
   toString (At at)    = at
   toString (Neg Bot)  = "⊤"
+  -- toString (Neg (Con (Neg f) (Neg g)))  = "(" ++ toString f ++ " ∨ " ++ toString g ++ ")"
   toString (Neg f)    = "¬" ++ toString f
   toString (Con f g)  = "(" ++ toString f ++ " ∧ " ++ toString g ++ ")"
   toString (Box (Cup p1 p2) f) = "[" ++ toString p1 ++ " ∪ " ++ toString p2 ++ "]" ++ toString f ++ ""
@@ -189,6 +190,8 @@ simplify = fixpoint simstep where
   simstep (Neg f)       = Neg (simstep f)
   simstep (Con Bot _)   = Bot
   simstep (Con _ Bot)   = Bot
+  simstep (Con (Neg Bot) f) = simstep f
+  simstep (Con f (Neg Bot)) = simstep f
   simstep (Con f g)     = Con (simstep f) (simstep g)
   simstep (Box pr f)    = Box (simplifyProg pr) $ simstep f
 
