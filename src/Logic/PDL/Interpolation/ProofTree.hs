@@ -5,7 +5,7 @@ import Data.Either (isRight)
 import Data.GraphViz (shape, Shape(PlainText), toLabel)
 import Data.GraphViz.Types.Monadic (edge, node)
 import Data.Maybe (listToMaybe, catMaybes, mapMaybe)
-import Data.List ((\\), intercalate)
+import Data.List ((\\), intercalate, isPrefixOf)
 
 import Logic.PDL
 import Logic.PDL.Prove.Tree hiding (Node,End)
@@ -229,8 +229,7 @@ allPathsIn :: TableauxIP -> [Path]
 allPathsIn (Node _ _ _ _ _ _ ts) = [] : [ i:rest | (i,t) <- zip [0..] ts, rest <- allPathsIn t ]
 
 -- ≤
-isPrefixOf :: Path -> Path -> Bool
-isPrefixOf p1 p2 = take (length p1) p2 == p1
+-- Data.List.isPrefixOf
 
 -- <
 isProperPrefixOf :: Path -> Path -> Bool

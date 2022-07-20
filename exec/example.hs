@@ -44,22 +44,30 @@ main = do
             putStr $ show pth ++ "\t\t"
             putStrLn $ ppWFormsTyp Nothing (wfsOf (tj `at` pth)) []
             )  $ allPathsIn tj
-  putStrLn "Definition 29:"
+  putStrLn "◁' relation (Def 15):"
+  mapM_ (\pth -> do
+            putStr $ pad 16 $ show pth
+            print $ filter (trianglePrime tj pth) (allPathsIn tj)
+            )  $ allPathsIn tj
+  putStrLn "T(Y) sets (Def 29):"
   putStrLn "Y \t\tT(Y) \t\tT(Y)^ε \t\tT(Y)^I \t\tT(Y)^◁"
   let rightComponents = nub $ map (\pth -> rightsOf (wfsOf (tj `at` pth)) ) (allPathsIn tj)
   mapM_ (\y -> do
-            putStr $ toStrings y ++ if length (toStrings y) > 6 then "\t" else "\t\t"
-            putStr $ show (pathsInToNodeWith tj y) ++ "\t"
-            putStr $ show (tOfEpsilon tj y) ++ "\t\t"
-            putStr $ show (tOfI tj y) ++ "\t\t"
+            putStr $ pad 16 $ toStrings y
+            putStr $ pad 16 $ show (pathsInToNodeWith tj y)
+            putStr $ pad 16 $ show (tOfEpsilon tj y)
+            putStr $ pad 16 $ show (tOfI tj y)
             print (tOfTriangle tj y)
            ) rightComponents
 
   -- T^K
-  putStrLn "\nT^K (Def 27):"
+  putStrLn "\nT^K (Def 31):"
   let tk = tkOf tj
   ppTab tk
 
   -- interpolant
   -- TODO putStrLn "\nInterpolant for the root of T^K:"
   -- TODO print $ ipFor tk tk
+
+pad :: Int -> String -> String
+pad n str = str ++ take (n - length str) (repeat ' ')
