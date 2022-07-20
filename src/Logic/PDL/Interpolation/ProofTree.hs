@@ -244,7 +244,7 @@ isImmediatePredOf p1 p2 = p1 `isPrefixOf` p2 && length p1 + 1 == length p2
 -- NOTE: s and t are given by paths from tab root; tab and sp need not be the same.
 trianglePrime :: TableauxIP -> Path -> Path -> Bool
 trianglePrime tab sp tp =
-  tp `isImmediatePredOf` sp
+  sp `isImmediatePredOf` tp
   ||
   (    isEndNode (tab `at` sp)
     && any (\up -> up `isProperPrefixOf` sp
