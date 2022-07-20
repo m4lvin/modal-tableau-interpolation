@@ -19,6 +19,7 @@ import qualified Language.Javascript.JQuery as JQuery
 import Language.Haskell.TH.Syntax
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort)
 import System.Environment (lookupEnv)
+import System.IO.Unsafe
 import Text.Read (readMaybe)
 
 import qualified Logic.BasicModal as BM
@@ -85,7 +86,7 @@ embeddedFile str = case str of
   "jquery.js"  -> E.decodeUtf8 $(embedFile =<< runIO JQuery.file)
   _            -> error "File not found."
 
--- | Given a closed tableau, show the whole TI, TJ, TK story to get interpolant.
+-- | Given a closed tableau, show TI, TJ, TK etc. to get an interpolant.
 extraInfo :: TableauxIP -> String
 extraInfo tWithInt =
   let
@@ -95,7 +96,7 @@ extraInfo tWithInt =
     rightComponents = nub $ map (\pth -> rightsOf (wfsOf (tj `at` pth)) ) (allPathsIn tj)
     tk = tkOf tj
   in
-    unlines
+    unlines $ map strOrErr
     [ "<h3>T<sup>I</sup>, after removing all n-nodes (Def 26):</h3>"
     , svg ti
     , "<h3>Lowest M+ rule without interpolant:</h3>"
@@ -111,10 +112,10 @@ extraInfo tWithInt =
                 ) $ allPathsIn tj
     , "</pre>"
     , "<h3>◁' relation (Def 15):</h3>"
-    , "<pre>"
+    , "<pre>from\t\tto"
     , concatMap (\pth ->
                    pad 16 (show pth)
-                   ++ show (filter (trianglePrime tj pth) (allPathsIn tj))
+                   ++ show (filter (trianglePrime tj pth) (allPathsIn tj)) ++ "\n"
                 ) $ allPathsIn tj
     , "</pre>"
     , "<h3>T(Y) sets (Def 29):</h3>\n"
@@ -137,3 +138,9 @@ extraInfo tWithInt =
     , toString $ simplify $ ipFor tk []
     , "</p>"
     ]
+
+strOrErr :: String -> String
+strOrErr str =
+  unsafePerformIO $ catch
+      (evaluate (force str))
+      (\e-> return $ "<pre>ERROR\n" ++ show (e :: SomeException) ++ "</pre>")

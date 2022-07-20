@@ -176,13 +176,21 @@ tiOf n@(Node wfs mip mtyp rule actives ts)
         new_rule = rule ++ "," ++ ruleOf (head ts)
         new_ts = childrenOf (head ts)
       in tiOf $ Node wfs mip mtyp new_rule actives new_ts
-  -- if there are two children and one is a non-normal end node, then just remove it. Example: [a*]p -> [a**]p
+  -- Example: [a*]p -> [a**]p matters for the next two cases?!
+  -- if there are two children and one is a non-normal end node, then just remove it.
   | length ts == 2
     && length (filter (isNormalNode . wfsOf) ts) == 1
     && null (childrenOf (head (filter (not . isNormalNode . wfsOf) ts))) =
       let
         new_ts = filter (isNormalNode . wfsOf) ts
-       in tiOf $ Node wfs mip mtyp rule actives new_ts
+      in tiOf $ Node wfs mip mtyp rule actives new_ts
+  -- if there are two children and one is a non-normal node with at most one normal child, then replace it by that child.
+  | length ts == 2
+    && length (filter (not . isNormalNode . wfsOf) ts) == 1
+    && length (filter (isNormalNode . wfsOf) $ childrenOf (head (filter (not . isNormalNode . wfsOf) ts))) <=1  =
+      let
+        new_ts = filter (isNormalNode . wfsOf) ts ++ filter (isNormalNode . wfsOf) (childrenOf (head (filter (not . isNormalNode . wfsOf) ts)))
+      in tiOf $ Node wfs mip mtyp rule actives new_ts
   -- Otherwise, give up!
   | otherwise = error $ "Tricky situation, cannot define T^I:\n" ++ ppTabStr n
   -- QUESTION: What if there are multiple sucessors of an n-node?
@@ -379,7 +387,7 @@ canonProgStep topT (Node si_wfs _ (Just itype) si_rule si_actives tks) =
             | (sj_to_tl , tl@(Node tl_wfs _ (Just One) _ _ _)) <- allSuccsOf sj
             , tl_wfs == si_wfs ]
     (Three, One) ->
-      if si_rule == "At"
+      if si_rule == "At" -- QUESTION: what if there are multiple rules in one step?
         then let [(Neg (Box (Ap x) _), _)] = map collapse si_actives
              in Ap x -- Get program from active formula.
         else Test top
