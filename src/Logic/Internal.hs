@@ -67,3 +67,7 @@ pickOneOfEach (l:ls) = [ x:xs | x <- l, xs <- pickOneOfEach ls ]
 -- If there are none, keep the whole list.
 filterOneIfAny :: (a -> Bool) -> [a] -> [a]
 filterOneIfAny p ts = if any p ts then take 1 (filter p ts) else ts
+
+-- | Add spaces to `str` to make if of length n.
+pad :: Int -> String -> String
+pad n str = str ++ replicate (n - length str) ' '

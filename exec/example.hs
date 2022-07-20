@@ -66,8 +66,7 @@ main = do
   ppTab tk
 
   -- interpolant
-  -- TODO putStrLn "\nInterpolant for the root of T^K:"
-  -- TODO print $ ipFor tk tk
-
-pad :: Int -> String -> String
-pad n str = str ++ take (n - length str) (repeat ' ')
+  putStrLn "\nInterpolant for the root of T^K:"
+  print $ ipFor tk []
+  putStrLn "Simplified:"
+  print $ simplify $ ipFor tk []

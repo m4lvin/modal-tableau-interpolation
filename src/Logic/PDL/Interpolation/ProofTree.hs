@@ -4,7 +4,7 @@ import Control.Monad (when)
 import Data.Either (isRight)
 import Data.GraphViz (shape, Shape(PlainText), toLabel)
 import Data.GraphViz.Types.Monadic (edge, node)
-import Data.Maybe (listToMaybe, catMaybes, mapMaybe, isNothing)
+import Data.Maybe (listToMaybe, catMaybes, mapMaybe)
 import Data.List ((\\), intercalate, isPrefixOf)
 
 import Logic.PDL
@@ -89,7 +89,7 @@ hasIP (Node _ Nothing  _ _ _ _) = False
 
 ipOf :: TableauxIP -> Form
 ipOf (Node _ (Just f ) _ _ _ _) = f
-ipOf (Node _ Nothing   _ _ _ _) = error "No interpolant here (yet)."
+ipOf n@(Node _ Nothing   _ _ _ _) = error $ "No interpolant here (yet):" ++ ppTabStr n
 
 -- Get left or right formulas, and ignore markings!
 leftsOf, rightsOf :: [WForm] -> [Form]
@@ -276,8 +276,7 @@ tOfTriangle tabTJ y = tOfEpsilon tabTJ y \\ tOfI tabTJ y
 iOf :: TableauxIP -> [Form] -> Form
 iOf topT y = case tOfI topT y of
   [] -> Bot
-  ts -> multidis (map (ipOf . at topT) ts)
-
+  tsPths -> multidis (map (iOf topT . leftsOf . wfsOf . at topT) tsPths)
 
 -- Definition 31: T^K
 -- Idea: Nodes in T^K here correspond to Y-regions in T^J.
@@ -287,7 +286,7 @@ tkOf (Node _ (Just _) _ _ _ _) = error "Already have an interpolant, why bother 
 tkOf t@(Node t_wfs Nothing _ t_rule t_actives _) =
   Node
     ((Left (dtyOf t y2), Nothing) : rightY2) -- D(T(Y2)) / Y2
-    Nothing -- no interpolant yet
+    Nothing -- no interpolant yet at root
     (Just One)
     t_rule
     t_actives -- NOTE: active formulas stay the same, needed in Def 32.
@@ -304,46 +303,43 @@ setTypAt n (i:rest) typ = n { childrenOf = [ if k==i then setTypAt child rest ty
 -- Helper function to define the successors in T^K, three cases as in Definition 31.
 tkSuccessors :: TableauxIP -> Path -> [TableauxIP]
 tkSuccessors topT pth
-  | isNothing $ mtypOf n = error "No type, cannot compute T^K successors."
 -- 1 to 2 has none or one successors:
-  | mtypOf n == Just One && null children = []
-  | mtypOf n == Just One =
+  | mtyp == Just One && null children = []
+  | mtyp == Just One =
       [ Node
         ((Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT y)), Nothing) : rightY)
-        Nothing -- no interpolant yet
+        mip
         (Just Two)
         rule
         actives
         (tkSuccessors (setTypAt topT (pth ++ [0]) Two) (pth ++ [0]))
       | not $ or [ otherWfs == wfs -- end node if there is a predecessor t with same pair and k(t)=1
                  | (Node otherWfs _ (Just One) _ _ _)  <- historyTo topT pth ] ] -- FIXME pth+[0] ??
-  | mtypOf n == Just One = error $ "Type One node must have none or one child, but not two:\n" ++ ppTabStr n
 -- 2 to 3 has one or no successors:
-  | mtypOf n == Just Two && length children == 1 =
+  | mtyp == Just Two && length children == 1 =
       [ Node
         ((Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT y)), Nothing) : rightY)
-        Nothing -- no interpolant yet
+        mip
         (Just Three)
         rule
         actives
         (tkSuccessors (setTypAt topT (pth ++ [0]) Three) (pth ++ [0]))
       | not (null (tOfTriangle topT y)) ] -- end node when T(Y)◁ is empty
-  | mtypOf n == Just Two = error "Type Two node must have exactly one child."
 -- 3 to 1 has n many successors:
-  | mtypOf n == Just Three =
+  | mtyp == Just Three =
     [ Node
       ( (Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT z)), Nothing)
         : [ mf | mf <- wfsOf childT, isRight (fst mf) ] )
-      Nothing -- no interpolant yet
+      mip
       (Just One)
       rule
       actives
       (tkSuccessors (setTypAt topT (pth ++ [k]) One) (pth ++ [k]))
     | (k, childT) <- zip [0,1] children -- getting Z1 to Zn
     , let z = rightsOf (wfsOf childT) ]
-  | otherwise = error $ "Unknown situation, cannot compute T^K successors: " ++ ppTabStr n
+  | otherwise = error $ "Wrong combination of type and number of children: " ++ ppTabStr n
   where
-    n@(Node wfs _ _ rule actives children) = topT `at`pth
+    n@(Node wfs mip mtyp rule actives children) = topT `at`pth
     y = rightsOf wfs
     rightY = map (\f -> (Right f, Nothing)) y
 
@@ -397,7 +393,8 @@ ipFor topT pth
       iOf topT (rightsOf t_wfs)
   | null s1_sn = top
   | length s1_sn == 1 && x /= Test top = Box x (ipFor topT (pth ++ [0]))
-  | otherwise                          = multicon $ map (ipFor topT) [ pth ++ [0], pth ++ [1] ]
+  | otherwise = multicon $ [ ipFor topT $ pth ++ [k]
+                           | (k,_) <- zip [0,1] (childrenOf (topT `at` pth)) ]
   where
     (Node t_wfs _ _ _ _ s1_sn) = topT `at` pth -- NOTE: n≤2
     ((x,_):_) = canonProgStep topT (head s1_sn) -- FIXME: rewrite to avoid unsafe head
