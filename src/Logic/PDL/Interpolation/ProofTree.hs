@@ -4,7 +4,7 @@ import Control.Monad (when)
 import Data.Either (isRight)
 import Data.GraphViz (shape, Shape(PlainText), toLabel)
 import Data.GraphViz.Types.Monadic (edge, node)
-import Data.Maybe (listToMaybe, catMaybes, mapMaybe)
+import Data.Maybe (listToMaybe, catMaybes, mapMaybe, isNothing)
 import Data.List ((\\), intercalate, isPrefixOf)
 
 import Logic.PDL
@@ -19,7 +19,6 @@ data TableauxIP = Node
                   { wfsOf :: [WForm]
                   , mipOf :: Interpolant -- ^ Maybe a formula that is an interpolant for this node.
                   , mtypOf :: Maybe TypeTK
-                  , historyOf :: History
                   , ruleOf :: RuleName
                   , activesOf :: [WForm]
                   , childrenOf :: [TableauxIP] }
@@ -35,7 +34,7 @@ showTyp Two   = "2"
 showTyp Three = "3"
 
 isEndNode :: TableauxIP -> Bool
-isEndNode (Node _ _ _ _ _ _ []) = True
+isEndNode (Node _ _ _ _ _ []) = True
 isEndNode _ = False
 
 ppIP :: Interpolant -> String
@@ -54,7 +53,7 @@ ppWFormsTyp mtyp wfs actives = concat
 
 instance DispAble TableauxIP where
   toGraph = toGraph' "" where
-    toGraph' pref (Node wfs mip mtyp _ rule actives ts) = do
+    toGraph' pref (Node wfs mip mtyp rule actives ts) = do
       node pref [shape PlainText, toLabel $ ppWFormsTyp mtyp wfs actives ++ "  ::  " ++ ppIP mip]
       mapM_ (\(t,y') -> do
         toGraph' (pref ++ show y' ++ ":") t
@@ -69,7 +68,7 @@ ppTab = putStr . ppTabStr
 
 ppTabStr :: TableauxIP -> String
 ppTabStr = ppTab' "" where
-  ppTab' pref (Node wfs mip mtyp _ rule actives ts) =
+  ppTab' pref (Node wfs mip mtyp rule actives ts) =
     let mipstr = maybe "" (("I = " ++) . toString) mip
     in pref ++ ppWFormsTyp mtyp wfs actives ++ "      " ++ mipstr ++ "\n"
        ++
@@ -79,18 +78,18 @@ ppTabStr = ppTab' "" where
 
 toEmptyTabIP :: Tableaux -> TableauxIP
 toEmptyTabIP T.End = error "boom"
-toEmptyTabIP (T.Node wfs history rule actives [T.End]) =
-  Node wfs Nothing Nothing history rule actives []
-toEmptyTabIP (T.Node wfs history rule actives ts) =
-  Node wfs Nothing Nothing history rule actives (map toEmptyTabIP ts)
+toEmptyTabIP (T.Node wfs _ rule actives [T.End]) =
+  Node wfs Nothing Nothing rule actives []
+toEmptyTabIP (T.Node wfs _ rule actives ts) =
+  Node wfs Nothing Nothing rule actives (map toEmptyTabIP ts)
 
 hasIP :: TableauxIP -> Bool
-hasIP (Node _ (Just _) _ _ _ _ _) = True
-hasIP (Node _ Nothing  _ _ _ _ _) = False
+hasIP (Node _ (Just _) _ _ _ _) = True
+hasIP (Node _ Nothing  _ _ _ _) = False
 
 ipOf :: TableauxIP -> Form
-ipOf (Node _ (Just f ) _ _ _ _ _) = f
-ipOf (Node _ Nothing   _ _ _ _ _) = error "No interpolant here (yet)."
+ipOf (Node _ (Just f ) _ _ _ _) = f
+ipOf (Node _ Nothing   _ _ _ _) = error "No interpolant here (yet)."
 
 -- Get left or right formulas, and ignore markings!
 leftsOf, rightsOf :: [WForm] -> [Form]
@@ -110,9 +109,9 @@ branchIP _ _ = error "branchIP only works for exactly two branches."
 -- | Fill interpolants for the easy cases, not involving extra conditions.
 fillIPs :: TableauxIP -> TableauxIP
 -- Ends and already interpolated nodes: nothing to do:
-fillIPs t@(Node _ (Just _) _ _ _ _ _) = t
+fillIPs t@(Node _ (Just _) _ _ _ _) = t
 -- Closed end nodes: use the active formulas or a constant as interpolant:
-fillIPs (Node wfs Nothing mtyp history "✘" actives []) = Node wfs mip mtyp history "✘" actives [] where
+fillIPs (Node wfs Nothing mtyp "✘" actives []) = Node wfs mip mtyp "✘" actives [] where
   candidates = map fst actives -- NOTE: ignore markings
   mip = listToMaybe $ lrIp candidates
   lrIp fs = [ Bot | Left  Bot `elem` fs ]
@@ -121,11 +120,11 @@ fillIPs (Node wfs Nothing mtyp history "✘" actives []) = Node wfs mip mtyp his
          ++ [ Neg f | Right f <- fs, Left  (Neg f) `elem` fs ]
          ++ [ Bot   | Left  f <- fs, Left  (Neg f) `elem` fs ] -- inconsistency implies bot
          ++ [ top   | Right f <- fs, Right (Neg f) `elem` fs ] -- top implies Neg inconsistency
-fillIPs n@(Node wfs Nothing _ history rule actives ts)
+fillIPs n@(Node wfs Nothing _ rule actives ts)
 -- Non-end nodes where children are missing IPs: recurse
-  | not (all hasIP ts) = Node wfs Nothing Nothing history rule actives (map fillIPs ts)
+  | not (all hasIP ts) = Node wfs Nothing Nothing rule actives (map fillIPs ts)
 -- If left side is empty, then T is an interpolant:
-  | null (leftsOf wfs) = Node wfs (Just top) Nothing history rule actives ts
+  | null (leftsOf wfs) = Node wfs (Just top) Nothing rule actives ts
 -- Non-end nodes where children already have IPs: distinguish rules
   | otherwise = let
       newMIP = case (rule,actives) of
@@ -158,7 +157,7 @@ fillIPs n@(Node wfs Nothing _ history rule actives ts)
         ('6':_,_) -> Nothing
         -- There should not be any remaining cases:
         (rl  ,_) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms wfs actives ++ "\n  Unable to interpolate: " ++ show n
-      in Node wfs newMIP Nothing history rule actives ts
+      in Node wfs newMIP Nothing rule actives ts
 
 fillAllIPs :: TableauxIP -> TableauxIP
 fillAllIPs = fixpoint fillIPs -- FIXME: is this necessary?
@@ -166,32 +165,31 @@ fillAllIPs = fixpoint fillIPs -- FIXME: is this necessary?
 -- Definitions to deal with condition 6 end nodes
 
 -- Definition 26: remove n-nodes to obtain T^I
--- TODO: also delete them from all histories! and adjust condition 6 counters?!
 tiOf :: TableauxIP -> TableauxIP
-tiOf n@(Node wfs mip mtyp history rule actives ts)
+tiOf n@(Node wfs mip mtyp rule actives ts)
   | not (isNormalNode wfs) = error "Too late, cannot delete this n-node."
   -- if all children are normal, then just recurse: (this also deals with [], i.e. end nodes)
-  | all (isNormalNode . wfsOf) ts = Node wfs mip mtyp history rule actives (map tiOf ts)
+  | all (isNormalNode . wfsOf) ts = Node wfs mip mtyp rule actives (map tiOf ts)
   -- if there is exactly one child and it is non-normal, then remove it and adopt its children:
   | length ts == 1 && not (isNormalNode (wfsOf (head ts))) =
       let
         new_rule = rule ++ "," ++ ruleOf (head ts)
         new_ts = childrenOf (head ts)
-      in tiOf $ Node wfs mip mtyp history new_rule actives new_ts
+      in tiOf $ Node wfs mip mtyp new_rule actives new_ts
   -- if there are two children and one is a non-normal end node, then just remove it. Example: [a*]p -> [a**]p
   | length ts == 2
     && length (filter (isNormalNode . wfsOf) ts) == 1
     && null (childrenOf (head (filter (not . isNormalNode . wfsOf) ts))) =
       let
         new_ts = filter (isNormalNode . wfsOf) ts
-       in tiOf $ Node wfs mip mtyp history rule actives new_ts
+       in tiOf $ Node wfs mip mtyp rule actives new_ts
   -- Otherwise, give up!
   | otherwise = error $ "Tricky situation, cannot define T^I:\n" ++ ppTabStr n
   -- QUESTION: What if there are multiple sucessors of an n-node?
 
 -- Find a node where M+ is applied, we have no interpolant yet, and there is no such node below.
 lowestMplusWithoutIP :: TableauxIP -> Maybe TableauxIP
-lowestMplusWithoutIP n@(Node _ Nothing _ _history "M+" _ _) =
+lowestMplusWithoutIP n@(Node _ Nothing _ "M+" _ _) =
   case mapMaybe lowestMplusWithoutIP (childrenOf n) of
     [] -> Just n
     _ -> listToMaybe $ mapMaybe lowestMplusWithoutIP (childrenOf n)
@@ -199,14 +197,15 @@ lowestMplusWithoutIP n = listToMaybe $ mapMaybe lowestMplusWithoutIP (childrenOf
 
 -- Definition 27: sub-tableau T^J
 tjOf :: TableauxIP -> TableauxIP
-tjOf (Node wfs ip _ history rule actives ts) =
-  Node wfs ip Nothing history rule actives (if stop then [] else map tjOf ts) where
-  stop = or
-    [ rule == "M-" -- Stop when the rule (M-) is applied.
-    , (not . isLoadedNode) wfs -- Stop at free nodes.
-    , length ts == 1 && null (leftsOf (wfsOf (head ts))) -- Stop when first component of (unique!?) successor is empty.
-    , wfs `elem` map fst history -- Stop when there is a predecessor with same pair. -- FIXME? History might go too far up?
-    ]
+tjOf = tjOf' [] where
+  tjOf' history (Node wfs ip _ rule actives ts) =
+    Node wfs ip Nothing rule actives (if stop then [] else map (tjOf' (wfs:history)) ts) where
+    stop = or
+      [ rule == "M-" -- Stop when the rule (M-) is applied.
+      , (not . isLoadedNode) wfs -- Stop at free nodes.
+      , length ts == 1 && null (leftsOf (wfsOf (head ts))) -- Stop when first component of (unique!?) successor is empty.
+      , wfs `elem` history -- Stop when there is a predecessor with same pair.
+      ]
 
 -- Definition 28
 -- D(T): disjunction of conjunctions of each of the given nodes (of T^J)
@@ -224,10 +223,17 @@ type Path = [Int]
 
 at :: TableauxIP -> Path -> TableauxIP
 at n [] = n
-at (Node _ _ _ _ _ _ ts) (i:rest) = (ts !! i) `at` rest
+at n@(Node _ _ _ _ _ ts) (i:rest)
+  | i > (length ts - 1) = error $ "This node has no child " ++ show i ++ ":\n" ++ ppTabStr n
+  | otherwise = (ts !! i) `at` rest
 
 allPathsIn :: TableauxIP -> [Path]
-allPathsIn (Node _ _ _ _ _ _ ts) = [] : [ i:rest | (i,t) <- zip [0..] ts, rest <- allPathsIn t ]
+allPathsIn (Node _ _ _ _ _ ts) = [] : [ i:rest | (i,t) <- zip [0..] ts, rest <- allPathsIn t ]
+
+-- | History from root up to the node given by a path.
+historyTo :: TableauxIP -> Path -> [TableauxIP]
+historyTo _ [] = []
+historyTo n@(Node _ _ _ _ _ ts) (i:rest) = n : historyTo (ts !! i) rest
 
 -- ≤
 -- Data.List.isPrefixOf
@@ -277,79 +283,74 @@ iOf topT y = case tOfI topT y of
 -- Idea: Nodes in T^K here correspond to Y-regions in T^J.
 -- Input should be the node Y1/Y2 obtained using M+ (page 35)
 tkOf :: TableauxIP -> TableauxIP
-tkOf (Node _ (Just _) _ _ _ _ _ ) = error "Already have an interpolant, why bother with T^K?"
-tkOf t@(Node t_wfs Nothing _ t_history t_rule t_actives _) =
+tkOf (Node _ (Just _) _ _ _ _) = error "Already have an interpolant, why bother with T^K?"
+tkOf t@(Node t_wfs Nothing _ t_rule t_actives _) =
   Node
     ((Left (dtyOf t y2), Nothing) : rightY2) -- D(T(Y2)) / Y2
     Nothing -- no interpolant yet
     (Just One)
-    t_history
     t_rule
-    t_actives -- QUESTION: active formulas stay the same? needed in Def 32!
-    (tkSuccessors t (t {mtypOf = Just One}))
+    t_actives -- NOTE: active formulas stay the same, needed in Def 32.
+    (tkSuccessors (t {mtypOf = Just One}) [])
   where
     y2 = rightsOf t_wfs
     rightY2 = map (\f -> (Right f, Nothing)) y2
 
+setTypAt :: TableauxIP -> Path -> TypeTK -> TableauxIP
+setTypAt n [] typ = n { mtypOf = Just typ }
+setTypAt n (i:rest) typ = n { childrenOf = [ if k==i then setTypAt child rest typ else child
+                                           | (k, child) <- zip [0,1] (childrenOf n) ] }
+
 -- Helper function to define the successors in T^K, three cases as in Definition 31.
-tkSuccessors :: TableauxIP -> TableauxIP -> [TableauxIP]
--- 1 to 2 has one or no successors:
-tkSuccessors _ (Node _ _ Nothing _ _ _ _) =
-  error "No type, cannot compute T^K successors."
-tkSuccessors topT (Node wfs _ (Just One) history rule actives [childT])
-  -- if there is a predecessor t with the same pair (DONE) and k(t)=1 (TODO!), then make it an end node:
-  | or [ otherWfs == wfs | (otherWfs,_)  <- history ] = [] -- end node! -- FIXME End or []?
-  -- PROBLEM: need correct k( ) function on history to check the condition, but topT has no k() yet?!
-  | otherwise = [ Node
-                    ((Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT y)), Nothing) : rightY)
-                    Nothing -- no interpolant yet
-                    (Just Two)
-                    history
-                    rule
-                    actives
-                    (tkSuccessors topT (childT {mtypOf = Just Two})) -- unsafe!?
-                ]
-  where
-    y = rightsOf wfs
-    rightY = map (\f -> (Right f, Nothing)) y
-tkSuccessors _ (Node _ _ (Just One) _ _ _ []) = []
-tkSuccessors _ n@(Node _ _ (Just One) _ _ _ _) =
-  error $ "Type One node must have none or one child, but not two:\n" ++ ppTabStr n
+tkSuccessors :: TableauxIP -> Path -> [TableauxIP]
+tkSuccessors topT pth
+  | isNothing $ mtypOf n = error "No type, cannot compute T^K successors."
+-- 1 to 2 has none or one successors:
+  | mtypOf n == Just One && null children = []
+  | mtypOf n == Just One =
+      [ Node
+        ((Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT y)), Nothing) : rightY)
+        Nothing -- no interpolant yet
+        (Just Two)
+        rule
+        actives
+        (tkSuccessors (setTypAt topT (pth ++ [0]) Two) (pth ++ [0]))
+      | not $ or [ otherWfs == wfs -- end node if there is a predecessor t with same pair and k(t)=1
+                 | (Node otherWfs _ (Just One) _ _ _)  <- historyTo topT pth ] ] -- FIXME pth+[0] ??
+  | mtypOf n == Just One = error $ "Type One node must have none or one child, but not two:\n" ++ ppTabStr n
 -- 2 to 3 has one or no successors:
-tkSuccessors topT (Node wfs _ (Just Two) history rule actives [childT])
-  | null (tOfTriangle topT y) = [] -- end node when T(Y)◁ is empty
-  | otherwise = [ Node
-                    ((Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT y)), Nothing) : rightY)
-                    Nothing -- no interpolant yet
-                    (Just Three)
-                    history
-                    rule
-                    actives
-                    (tkSuccessors topT (childT {mtypOf = Just Three}))
-                ]
-  where
-    y = rightsOf wfs
-    rightY = map (\f -> (Right f, Nothing)) y
-tkSuccessors _ (Node _ _ (Just Two) _ _ _ _) =
-  error "Type Two node must have exactly one child."
+  | mtypOf n == Just Two && length children == 1 =
+      [ Node
+        ((Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT y)), Nothing) : rightY)
+        Nothing -- no interpolant yet
+        (Just Three)
+        rule
+        actives
+        (tkSuccessors (setTypAt topT (pth ++ [0]) Three) (pth ++ [0]))
+      | not (null (tOfTriangle topT y)) ] -- end node when T(Y)◁ is empty
+  | mtypOf n == Just Two = error "Type Two node must have exactly one child."
 -- 3 to 1 has n many successors:
-tkSuccessors topT (Node _ _ (Just Three) history rule actives ts) =
-  [ Node
+  | mtypOf n == Just Three =
+    [ Node
       ( (Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT z)), Nothing)
         : [ mf | mf <- wfsOf childT, isRight (fst mf) ] )
       Nothing -- no interpolant yet
       (Just One)
-      history
       rule
       actives
-      (tkSuccessors topT (childT {mtypOf = Just One}))
-  | childT <- ts -- getting Z1 to Zn
-  , let z = rightsOf (wfsOf childT) ]
+      (tkSuccessors (setTypAt topT (pth ++ [k]) One) (pth ++ [k]))
+    | (k, childT) <- zip [0,1] children -- getting Z1 to Zn
+    , let z = rightsOf (wfsOf childT) ]
+  | otherwise = error $ "Unknown situation, cannot compute T^K successors: " ++ ppTabStr n
+  where
+    n@(Node wfs _ _ rule actives children) = topT `at`pth
+    y = rightsOf wfs
+    rightY = map (\f -> (Right f, Nothing)) y
 
 -- All successors of a node in a TK tableau, with the paths to them.
 -- This is <, transitive closure of ◁.
 allSuccsOf :: TableauxIP -> [(Path, TableauxIP)]
-allSuccsOf (Node _ _ _ _ _ _ tks) = nexts ++ laters where
+allSuccsOf (Node _ _ _ _ _ tks) = nexts ++ laters where
   nexts = zip (map return [0..]) tks
   laters = [ (i:path,suc)
            | ([i],tk) <- nexts
@@ -368,18 +369,18 @@ canonProg topT tk_s (i:rest) =
 -- One step programs, from given node si to all immediate successors sj.
 -- Assumption: we already have canonical programs for all nodes below sj.
 canonProgStep :: TableauxIP -> TableauxIP -> [(Prog, TableauxIP)]
-canonProgStep _ (Node _ _ Nothing _ _ _ _) = error "Need type for canonProgStep."
-canonProgStep topT (Node si_wfs _ (Just itype) _ si_rule si_actives tks) =
+canonProgStep _ (Node _ _ Nothing _ _ _) = error "Need type for canonProgStep."
+canonProgStep topT (Node si_wfs _ (Just itype) si_rule si_actives tks) =
   [ (progTo t, t) | t <- tks ] where
-  progTo (Node _ _ Nothing _ _ _ _) = error "Need type for progTo."
-  progTo sj@(Node sj_wfs _ (Just jtype) _ _ _ _) = case (itype, jtype) of
+  progTo (Node _ _ Nothing _ _ _) = error "Need type for progTo."
+  progTo sj@(Node sj_wfs _ (Just jtype) _ _ _) = case (itype, jtype) of
     -- distinguish three cases:
-    (Two, Three) -> Test $ Neg $ iOf topT y where y = rightsOf sj_wfs -- NOTE: iOf (Def 30) needs top/root TableauxIP
+    (Two, Three) -> Test $ Neg $ iOf topT y where y = rightsOf sj_wfs -- NOTE: iOf (Def 30) needs topT
     (One, Two)   -> if null tls then Test top else Star $ multicup (map (uncurry (canonProg topT)) tls) where
       -- NOTE: Borzechowski writes "all the successors of s^i", but here we use the successors of s^j,
       -- because per Definition 31 (One->Two case) s^i only has one immediate successor, namely s^j.
       tls = [ (tl, sj_to_tl)
-            | (sj_to_tl , tl@(Node tl_wfs _ (Just One) _ _ _ _)) <- allSuccsOf sj
+            | (sj_to_tl , tl@(Node tl_wfs _ (Just One) _ _ _)) <- allSuccsOf sj
             , tl_wfs == si_wfs ]
     (Three, One) ->
       if si_rule == "At"
@@ -389,16 +390,17 @@ canonProgStep topT (Node si_wfs _ (Just itype) _ si_rule si_actives tks) =
     ij -> error $ "Impossible transition in TK: " ++ show ij
 
 -- Definition 33: Interpolants for T^K nodes
-ipFor :: TableauxIP -> TableauxIP -> Form
+ipFor :: TableauxIP -> Path -> Form
 -- end nodes of T^K:
-ipFor topT (Node t_wfs _ _ history _ _ [])
-  | not $ any (\(otherWfs,_) -> t_wfs == otherWfs) history = iOf topT (rightsOf t_wfs)
-  | otherwise = top
-  -- TODO: need history in NodeTK to check for pred-with-same-pair :-/
-ipFor topT (Node _ _ _ _ _ _ s1_sn) -- n≤2
-  | length s1_sn == 1 && x /= Test top = Box x (ipFor topT (head s1_sn))
-  | otherwise                          = multicon $ map (ipFor topT) s1_sn
-  where ((x,_):_) = canonProgStep topT (head s1_sn) -- FIXME: rewrite to avoid unsafe head
+ipFor topT pth
+  | null s1_sn && not (any (\(Node otherWfs _ _ _ _ _) -> t_wfs == otherWfs) (historyTo topT pth)) =
+      iOf topT (rightsOf t_wfs)
+  | null s1_sn = top
+  | length s1_sn == 1 && x /= Test top = Box x (ipFor topT (pth ++ [0]))
+  | otherwise                          = multicon $ map (ipFor topT) [ pth ++ [0], pth ++ [1] ]
+  where
+    (Node t_wfs _ _ _ _ s1_sn) = topT `at` pth -- NOTE: n≤2
+    ((x,_):_) = canonProgStep topT (head s1_sn) -- FIXME: rewrite to avoid unsafe head
 
 -- General functions --
 
@@ -414,7 +416,7 @@ proveAndInterpolate (ante,cons)
   | otherwise = (ipt1,mip) where
       t1 = prove (ante --> cons)
       ipt0 = toEmptyTabIP t1 :: TableauxIP
-      ipt1@(Node _ mip _ _ _ _ _) = fillAllIPs ipt0
+      ipt1@(Node _ mip _ _ _ _) = fillAllIPs ipt0
 
 interpolate :: (Form,Form) -> Maybe Form
 interpolate = snd . proveAndInterpolate
