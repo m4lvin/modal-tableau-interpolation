@@ -67,6 +67,6 @@ main = do
 
   -- interpolant
   putStrLn "\nInterpolant for the root of T^K:"
-  print $ ipFor tk []
+  print $ ipFor tj tk []
   putStrLn "Simplified:"
-  print $ simplify $ ipFor tk []
+  print $ simplify $ ipFor tj tk []

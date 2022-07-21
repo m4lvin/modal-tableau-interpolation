@@ -245,7 +245,9 @@ allPathsIn (Node _ _ _ _ _ ts) = [] : [ i:rest | (i,t) <- zip [0..] ts, rest <- 
 -- | History from root up to the node given by a path.
 historyTo :: TableauxIP -> Path -> [TableauxIP]
 historyTo _ [] = []
-historyTo n@(Node _ _ _ _ _ ts) (i:rest) = n : historyTo (ts !! i) rest
+historyTo n@(Node _ _ _ _ _ ts) (i:rest)
+  | i > (length ts - 1) = error $ "This node has no child " ++ show i ++ ":\n" ++ ppTabStr n
+  | otherwise =  n : historyTo (ts !! i) rest
 
 -- ≤
 -- Data.List.isPrefixOf
@@ -327,10 +329,11 @@ tkSuccessorsAt topT tk pth
         ((Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT y)), Nothing) : rightY)
         Nothing -- no interpolants in TK??
         (Just Three)
-        (ruleOf $ at topT $ head $ tOfTriangle topT y) -- CHOICE!?
-        [] -- no actives??
+        (ruleOf witness)
+        (activesOf witness) -- needed for Def 32 below
         (tkSuccessorsAt topT tk (pth ++ [0]))
-      | not (null (tOfTriangle topT y)) ] -- end node when T(Y)◁ is empty
+      | not (null (tOfTriangle topT y))  -- end node when T(Y)◁ is empty
+      , let witness = at topT $ head $ tOfTriangle topT y ] -- CHOICE!
 -- 3 to 1 has n many successors:
   | mtyp == Just Three =
       [ Node
@@ -354,36 +357,39 @@ tkSuccessorsAt topT tk pth
 -- This is <, transitive closure of ◁.
 allSuccsOf :: TableauxIP -> [(Path, TableauxIP)]
 allSuccsOf (Node _ _ _ _ _ tks) = nexts ++ laters where
-  nexts = zip (map return [0..]) tks
+  nexts = zip [[0],[1]] tks
   laters = [ (i:path,suc)
            | ([i],tk) <- nexts
            , (path,suc) <- allSuccsOf tk ]
 
--- canonical program from s to t along a path
--- IDEA: Instead of using index-paths here, add "Maybe Prog" to the list of successors in TableauxIP?
-canonProg :: TableauxIP -> TableauxIP -> Path -> Prog
-canonProg _    _    []  = error "No canonical program for empty path."
-canonProg topT tk_s [i] = fst $ canonProgStep topT tk_s !! i
-canonProg topT tk_s (i:rest) =
-  let (prog, next) = canonProgStep topT tk_s !! i
-  in prog :- canonProg topT next rest
+-- | Canonical program from s to t along a path in TK
+canonProg :: TableauxIP -> TableauxIP -> TableauxIP -> Path -> Prog
+canonProg _  _  _    []  = error "No canonical program for empty path."
+canonProg tj tk tk_s [t_index]
+  | t_index > length (canonProgStep tj tk tk_s) - 1 = error $ "canonProg: This node has no child " ++ show t_index ++ ":\n\n" ++ ppTabStr tk_s
+  | otherwise = fst $ canonProgStep tj tk tk_s !! t_index
+canonProg tj tk tk_s (i:rest)
+  | i > length (canonProgStep tj tk tk_s) - 1 = error $ "canonProg: This node has no child " ++ show i ++ ":\n" ++ ppTabStr tk_s
+  | otherwise =
+    let (prog, next) = canonProgStep tj tk tk_s !! i
+    in prog :- canonProg tj tk next rest
 
 -- Definition 32: canonical programs
--- One step programs, from given node si to all immediate successors sj.
+-- One step programs, from given node si in TK to all immediate successors sj in TK.
 -- Assumption: we already have canonical programs for all nodes below sj.
-canonProgStep :: TableauxIP -> TableauxIP -> [(Prog, TableauxIP)]
-canonProgStep _    (Node _      _ Nothing      _ _ _) = error "Need type for canonProgStep."
-canonProgStep topT (Node si_wfs _ (Just itype) si_rule si_actives tks) =
+canonProgStep :: TableauxIP -> TableauxIP -> TableauxIP -> [(Prog, TableauxIP)]
+canonProgStep _  _  (Node _      _ Nothing      _ _ _) = error "Need type for canonProgStep."
+canonProgStep tj tk (Node si_wfs _ (Just itype) si_rule si_actives tks) =
   [ (progTo t, t) | t <- tks ] where
   progTo (Node _ _ Nothing _ _ _) = error "Need type for progTo."
   progTo sj@(Node sj_wfs _ (Just jtype) _ _ _) = case (itype, jtype) of
     -- distinguish three cases:
-    (Two, Three) -> Test $ Neg $ iOf topT y where y = rightsOf sj_wfs -- NOTE: iOf (Def 30) needs topT
-    (One, Two)   -> if null tls then Test top else Star $ multicup (map (uncurry (canonProg topT)) tls) where
+    (Two, Three) -> Test $ Neg $ iOf tj y where y = rightsOf sj_wfs -- NOTE: iOf (Def 30) needs tj
+    (One, Two)   -> if null prs then Test top else Star $ multicup prs where
       -- NOTE: Borzechowski writes "all the successors of s^i", but here we use the successors of s^j,
       -- because per Definition 31 (One->Two case) s^i only has one immediate successor, namely s^j.
-      tls = [ (tl, sj_to_tl)
-            | (sj_to_tl , tl@(Node tl_wfs _ (Just One) _ _ _)) <- allSuccsOf sj
+      prs = [ canonProg tj tk sj sj_to_tl -- FIXME ???
+            | (sj_to_tl , Node tl_wfs _ (Just One) _ _ _) <- allSuccsOf sj
             , tl_wfs == si_wfs ]
     (Three, One) ->
       if si_rule == "At" -- QUESTION: what if there are multiple rules in one step?
@@ -393,18 +399,18 @@ canonProgStep topT (Node si_wfs _ (Just itype) si_rule si_actives tks) =
     ij -> error $ "Impossible transition in TK: " ++ show ij
 
 -- Definition 33: Interpolants for T^K nodes
-ipFor :: TableauxIP -> Path -> Form
+ipFor :: TableauxIP -> TableauxIP -> Path -> Form
 -- end nodes of T^K:
-ipFor topT pth
-  | null s1_sn && not (any (\(Node otherWfs _ _ _ _ _) -> t_wfs == otherWfs) (historyTo topT pth)) =
-      iOf topT (rightsOf t_wfs) -- end node with no same-pair predecessor, use I(t) := I(Y).
+ipFor tj tk pth
+  | null s1_sn && not (any (\(Node otherWfs _ _ _ _ _) -> t_wfs == otherWfs) (historyTo tk pth)) =
+      iOf tk (rightsOf t_wfs) -- end node with no same-pair predecessor, use I(t) := I(Y).
   | null s1_sn = top -- all other end nodes get I(t):=1.
-  | length s1_sn == 1 && a_prog /= Test top = Box a_prog (ipFor topT (pth ++ [0]))
-  | otherwise = multicon $ [ ipFor topT $ pth ++ [k]
-                           | (k,_) <- zip [0,1] (childrenOf (topT `at` pth)) ]
+  | length s1_sn == 1 && a_prog /= Test top = Box a_prog (ipFor tj tk (pth ++ [0]))
+  | otherwise = multicon $ [ ipFor tj tk $ pth ++ [k]
+                           | (k,_) <- zip [0,1] (childrenOf (tk `at` pth)) ]
   where
-    n@(Node t_wfs _ _ _ _ s1_sn) = topT `at` pth -- NOTE: n≤2
-    ((a_prog, _):_) = canonProgStep topT n
+    n@(Node t_wfs _ _ _ _ s1_sn) = tk `at` pth -- NOTE: n≤2
+    ((a_prog, _):_) = canonProgStep tj tk n
 
 -- General functions --
 

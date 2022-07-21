@@ -96,7 +96,7 @@ extraInfo tWithInt =
     rightComponents = nub $ map (\pth -> rightsOf (wfsOf (tj `at` pth)) ) (allPathsIn tj)
     tk = tkOf tj
   in
-    unlines $ map strOrErr
+    unlines $ map strOrErr $
     [ "<h3>T<sup>I</sup>, after removing all n-nodes (Def 26):</h3>"
     , svg ti
     , "<h3>Lowest M+ rule without interpolant:</h3>"
@@ -131,11 +131,23 @@ extraInfo tWithInt =
     , "</pre>"
     , "<h3>T<sup>K</sup> (Def 31):</h3>"
     , svg tk
-    , "<p>Interpolant for the root of T<sup>K</sup>: "
-    , toString $ ipFor tk []
+    -- , "<p>All paths in TK:</p>"
+    -- , "<pre>"
+    -- , intercalate "\n" (map show $ allPathsIn tk)
+    , "<h3>Canonical programs (single steps in T<sup>K</sup> (Def 32):</h3>"
+    , "<pre>"
+    ]
+    ++
+    [ pad 42 (show (init pth) ++ " to " ++ show pth ++ ": ") ++ toString (canonProg tj tk (tk `at` init pth) [last pth])
+    | pth <- filter (not . null) (allPathsIn tk) ]
+    ++
+    [ "</pre>"
+    , "<h3>Interpolant for the root of T<sup>K</sup>:</h3>"
+    , "<p>"
+    , toString $ ipFor tj tk []
     , "</p>"
     , "<p>Simplified: "
-    , toString $ simplify $ ipFor tk []
+    , toString $ simplify $ ipFor tj tk []
     , "</p>"
     ]
 
