@@ -203,6 +203,8 @@ simplifyProg = fixpoint simstep where
   simstep (Ap ap)       = Ap ap
   simstep (Cup pr1 pr2) | pr1 == pr2 = pr1
                         | otherwise  = Cup (simstep pr1) (simstep pr2) -- TODO: merge sub-Cups
+  simstep (Test (Neg Bot) :- pr2)  = simstep pr2
+  simstep (pr1 :- Test (Neg Bot))  = simstep pr1
   simstep (pr1 :- pr2)  = simstep pr1 :- simstep pr2
   simstep (Star  pr)    = Star (simstep pr)
   simstep (NStar pr)    = NStar (simstep pr)

@@ -54,7 +54,7 @@
       </select>
     </p>
     <div>
-      <input id="textinput" name="textinput" value="[(a u b)*]p -> [a*]p" />
+      <input id="textinput" name="textinput" value="[(a u b)*](p ^ q) -> [b*]q" />
       <input type="radio" id="PDL" name="logic" value="PDL" checked="checked" onclick="prove()" /><label for="PDL">PDL</label>
       <input type="checkbox" id="extra" name="extra" value="extra" onclick="prove()" /><label for="extra" title="Enable additional information about interpolants, but might crash! &#13;Disable this if you get an error.">(+info)</label>
       <input type="radio" id="K" name="logic" value="K" onclick="prove()" /><label for="K">K</label>
@@ -74,7 +74,7 @@
                   $('#output').html(data);
                   // MathJax.typesetPromise();
               },
-              timeout: 1000,
+              timeout: 3000,
               error:
               function(jqXHR,textStatus,errorThrown) {
                   $('#output').html("<pre>" + textStatus + " " + errorThrown + "</pre>" );
