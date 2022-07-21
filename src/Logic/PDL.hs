@@ -27,7 +27,7 @@ instance Stringable Form where
   toString Bot        = "⊥"
   toString (At at)    = at
   toString (Neg Bot)  = "⊤"
-  -- toString (Neg (Con (Neg f) (Neg g)))  = "(" ++ toString f ++ " ∨ " ++ toString g ++ ")"
+  toString (Neg (Con (Neg f) (Neg g)))  = "(" ++ toString f ++ " ∨ " ++ toString g ++ ")"
   toString (Neg f)    = "¬" ++ toString f
   toString (Con f g)  = "(" ++ toString f ++ " ∧ " ++ toString g ++ ")"
   toString (Box (Cup p1 p2) f) = "[" ++ toString p1 ++ " ∪ " ++ toString p2 ++ "]" ++ toString f ++ ""
@@ -121,7 +121,10 @@ dia pr f = Neg (Box pr (Neg f))
 
 -- | n-ary conjunction and disjunction.
 multicon, multidis :: [Form] -> Form
-[multicon,multidis] = map (uncurry foldl) [(Con, top), (dis, Bot)]
+multicon [] = top
+multicon fs = foldl1 Con fs
+multidis [] = Bot
+multidis fs = foldl1 dis fs
 
 -- | n-ary union of programs - unsafe, will error on [].
 multicup :: [Prog] -> Prog

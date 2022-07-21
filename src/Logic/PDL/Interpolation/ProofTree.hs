@@ -49,7 +49,11 @@ ppWFormsTyp mtyp wfs actives = concat
   , "   "
   , intercalate ", " (map ppFormA (filter (not . isLeft) wfs)) ]
   where
-    ppFormA wf = [ '»' |  wf `elem` actives ] ++ toString (collapse wf) ++ [ '«' |  wf `elem` actives ]
+    ppFormA wf = [ '»' |  wf `elem` actives ]
+              ++ removePars (toString (collapse wf))
+              ++ [ '«' |  wf `elem` actives ]
+    removePars ('(':rest) | last rest == ')' = init rest
+    removePars str = str
 
 instance DispAble TableauxIP where
   toGraph = toGraph' "" where
@@ -218,7 +222,7 @@ tjOf = tjOf' [] where
 -- Definition 28
 -- D(T): disjunction of conjunctions of each of the given nodes (of T^J)
 dOf :: [[WForm]] -> Form
-dOf tjNodes = multidis [ multicon [ f | (Left f, _) <- wfs ] | wfs <- tjNodes ]
+dOf tjNodes = multidis [ multicon (leftsOf wfs) | wfs <- tjNodes ]
 -- T(Y): all nodes where the right side is Y
 pathsInToNodeWith :: TableauxIP -> [Form] -> [Path]
 pathsInToNodeWith t y = filter (seteq y . rightsOf . wfsOf . at t) (allPathsIn t)
@@ -291,63 +295,58 @@ iOf topT y = case tOfI topT y of
 -- Input should be the node Y1/Y2 obtained using M+ (page 35)
 tkOf :: TableauxIP -> TableauxIP
 tkOf (Node _ (Just _) _ _ _ _) = error "Already have an interpolant, why bother with T^K?"
-tkOf t@(Node t_wfs Nothing _ t_rule t_actives _) =
-  Node
-    ((Left (dtyOf t y2), Nothing) : rightY2) -- D(T(Y2)) / Y2
-    Nothing -- no interpolant yet at root
-    (Just One)
-    t_rule
-    t_actives -- NOTE: active formulas stay the same, needed in Def 32.
-    (tkSuccessors (t {mtypOf = Just One}) [])
-  where
-    y2 = rightsOf t_wfs
-    rightY2 = map (\f -> (Right f, Nothing)) y2
-
-setTypAt :: TableauxIP -> Path -> TypeTK -> TableauxIP
-setTypAt n [] typ = n { mtypOf = Just typ }
-setTypAt n (i:rest) typ = n { childrenOf = [ if k==i then setTypAt child rest typ else child
-                                           | (k, child) <- zip [0,1] (childrenOf n) ] }
+tkOf n@(Node t_wfs Nothing _ _ _ _) = tk where
+  tk =
+    Node
+      ((Left (dtyOf n y2), Nothing) : rightY2) -- D(T(Y2)) / Y2
+      Nothing -- no interpolant yet at root
+      (Just One)
+      "" -- anarchy, no rule!?
+      [] -- PROBLEM: no actives but needed in Def 32 later?!
+      (tkSuccessorsAt n tk []) -- empty path to point to root
+  y2 = rightsOf t_wfs
+  rightY2 = map (\f -> (Right f, Nothing)) y2
 
 -- Helper function to define the successors in T^K, three cases as in Definition 31.
-tkSuccessors :: TableauxIP -> Path -> [TableauxIP]
-tkSuccessors topT pth
+tkSuccessorsAt :: TableauxIP -> TableauxIP -> Path -> [TableauxIP]
+tkSuccessorsAt topT tk pth
 -- 1 to 2 has none or one successors:
-  | mtyp == Just One && null children = []
   | mtyp == Just One =
       [ Node
         ((Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT y)), Nothing) : rightY)
-        mip
+        Nothing -- no interpolants in TK??
         (Just Two)
-        rule
-        actives
-        (tkSuccessors (setTypAt topT (pth ++ [0]) Two) (pth ++ [0]))
+        "" -- anarchy, no rule!?
+        [] -- no actives??
+        (tkSuccessorsAt topT tk (pth ++ [0]))
       | not $ or [ otherWfs == wfs -- end node if there is a predecessor t with same pair and k(t)=1
-                 | (Node otherWfs _ (Just One) _ _ _)  <- historyTo topT pth ] ] -- FIXME pth+[0] ??
+                 | (Node otherWfs _ (Just One) _ _ _)  <- historyTo tk pth ] ]
 -- 2 to 3 has one or no successors:
-  | mtyp == Just Two && length children == 1 =
+  | mtyp == Just Two =
       [ Node
         ((Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT y)), Nothing) : rightY)
-        mip
+        Nothing -- no interpolants in TK??
         (Just Three)
-        rule
-        actives
-        (tkSuccessors (setTypAt topT (pth ++ [0]) Three) (pth ++ [0]))
+        (ruleOf $ at topT $ head $ tOfTriangle topT y) -- CHOICE!?
+        [] -- no actives??
+        (tkSuccessorsAt topT tk (pth ++ [0]))
       | not (null (tOfTriangle topT y)) ] -- end node when T(Y)◁ is empty
 -- 3 to 1 has n many successors:
   | mtyp == Just Three =
-    [ Node
+      [ Node
       ( (Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT z)), Nothing)
         : [ mf | mf <- wfsOf childT, isRight (fst mf) ] )
-      mip
-      (Just One)
-      rule
-      actives
-      (tkSuccessors (setTypAt topT (pth ++ [k]) One) (pth ++ [k]))
-    | (k, childT) <- zip [0,1] children -- getting Z1 to Zn
-    , let z = rightsOf (wfsOf childT) ]
+        Nothing -- no interpolants in TK??
+        (Just One)
+        "" -- anarchy, no rule!?
+        [] -- no actives??
+        (tkSuccessorsAt topT tk (pth ++ [k]))
+      | let (Node _ _ _ _ _ z1_zn) = at topT $ head $ tOfTriangle topT y -- CHOICE!
+      , (k, childT) <- zip [0,1] z1_zn
+      , let z = rightsOf (wfsOf childT) ]
   | otherwise = error $ "Wrong combination of type and number of children: " ++ ppTabStr n
   where
-    n@(Node wfs mip mtyp rule actives children) = topT `at`pth
+    n@(Node wfs _ mtyp _ _ _) = tk `at`pth
     y = rightsOf wfs
     rightY = map (\f -> (Right f, Nothing)) y
 
