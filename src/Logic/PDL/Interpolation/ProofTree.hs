@@ -412,6 +412,15 @@ ipFor tj tk pth
     n@(Node t_wfs _ _ _ _ s1_sn) = tk `at` pth -- NOTE: n≤2
     ((a_prog, _):_) = canonProgStep tj tk n
 
+-- | Annotate TK with canonical programs (instead of rules) and interpolants.
+annotateTk :: TableauxIP -> TableauxIP -> TableauxIP
+annotateTk tj tk = annotateInside [] where
+  annotateInside pth =
+    let n = tk `at` pth
+    in n { mipOf = Just (ipFor tj tk pth)
+         , ruleOf = intercalate " // " $ map (toString . fst) (canonProgStep tj tk n)
+         , childrenOf = [ annotateInside (pth ++ [k]) | (k,_) <- zip [0,1] (childrenOf n) ]  }
+
 -- General functions --
 
 proveWithInt :: Form -> TableauxIP

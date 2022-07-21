@@ -131,17 +131,18 @@ extraInfo tWithInt =
     , "</pre>"
     , "<h3>T<sup>K</sup> (Def 31):</h3>"
     , svg tk
-    -- , "<p>All paths in TK:</p>"
-    -- , "<pre>"
-    -- , intercalate "\n" (map show $ allPathsIn tk)
-    , "<h3>Canonical programs (single steps in T<sup>K</sup> (Def 32):</h3>"
-    , "<pre>"
     ]
+    -- ++
+    -- [ "<h3>Canonical programs (single steps in T<sup>K</sup> (Def 32):</h3>"
+    -- , "<pre>"
+    -- ]
+    -- ++
+    -- [ pad 42 (show (init pth) ++ " to " ++ show pth ++ ": ") ++ toString (canonProg tj tk (tk `at` init pth) [last pth]) | pth <- filter (not . null) (allPathsIn tk) ]
+    -- ++
+    -- ++ "</pre>"
     ++
-    [ pad 42 (show (init pth) ++ " to " ++ show pth ++ ": ") ++ toString (canonProg tj tk (tk `at` init pth) [last pth])
-    | pth <- filter (not . null) (allPathsIn tk) ]
-    ++
-    [ "</pre>"
+    [ "<h3>T<sup>K</sup> with canonical programs and interpolants (Def 32 and 33):</h3>"
+    , svg (annotateTk tj tk)
     , "<h3>Interpolant for the root of T<sup>K</sup>:</h3>"
     , "<p>"
     , toString $ ipFor tj tk []
