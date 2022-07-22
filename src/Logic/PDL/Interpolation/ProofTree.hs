@@ -224,11 +224,11 @@ tjOf = tjOf' [] where
 dOf :: [[WForm]] -> Form
 dOf tjNodes = multidis [ multicon (leftsOf wfs) | wfs <- tjNodes ]
 -- T(Y): all nodes where the right side is Y
-pathsInToNodeWith :: TableauxIP -> [Form] -> [Path]
-pathsInToNodeWith t y = filter (seteq y . rightsOf . wfsOf . at t) (allPathsIn t)
+tOf :: TableauxIP -> [Form] -> [Path]
+tOf tj y = filter (seteq y . rightsOf . wfsOf . at tj) (allPathsIn tj)
 
 dtyOf :: TableauxIP -> [Form] -> Form
-dtyOf t y = dOf $ map (wfsOf . at t) $ pathsInToNodeWith t y
+dtyOf t y = dOf $ map (wfsOf . at t) $ tOf t y
 
 -- A path, given by the indices to go from start to end.
 type Path = [Int]
@@ -275,8 +275,8 @@ trianglePrime tab sp tp =
 -- Definition 29:
 -- T(Y)^ε
 tOfEpsilon :: TableauxIP -> [Form] -> [Path]
-tOfEpsilon tabTJ y = [ root_to_s | root_to_s <- pathsInToNodeWith tabTJ y
-                                 , not $ any (trianglePrime tabTJ root_to_s) (pathsInToNodeWith tabTJ y) ]
+tOfEpsilon tabTJ y = [ root_to_s | root_to_s <- tOf tabTJ y
+                                 , not $ any (trianglePrime tabTJ root_to_s) (tOf tabTJ y) ]
 -- T(Y)^I  -- nodes where we (should) already have interpolants!
 tOfI :: TableauxIP -> [Form] -> [Path]
 tOfI tabTJ y = filter (\root_to_s -> not $ any (trianglePrime tabTJ root_to_s) (allPathsIn tabTJ))
@@ -300,58 +300,58 @@ tkOf (Node _ (Just _) _ _ _ _) = error "Already have an interpolant, why bother 
 tkOf n@(Node t_wfs Nothing _ _ _ _) = tk where
   tk =
     Node
-      ((Left (dtyOf n y2), Nothing) : rightY2) -- D(T(Y2)) / Y2
+      ((Left (dtyOf n y2), Nothing) : yWithMarkings) -- D(T(Y2)) / Y2
       Nothing -- no interpolant yet at root
       (Just One)
       "" -- anarchy, no rule!?
       [] -- PROBLEM: no actives but needed in Def 32 later?!
       (tkSuccessorsAt n tk []) -- empty path to point to root
   y2 = rightsOf t_wfs
-  rightY2 = map (\f -> (Right f, Nothing)) y2 -- BUG TO BE FIXED: Do not throw away the marking! Here it is too late. Idea: change y :: [Form] to y :: [Marked Form]. Easier solution?
+  yWithMarkings = filter (isRight . fst) t_wfs
 
--- Helper function to define the successors in T^K, three cases as in Definition 31.
+-- Define the successors in T^K, three cases as in Definition 31.
 tkSuccessorsAt :: TableauxIP -> TableauxIP -> Path -> [TableauxIP]
-tkSuccessorsAt topT tk pth
+tkSuccessorsAt tj tk pth
 -- 1 to 2 has one or no successors:
   | mtyp == Just One =
       [ Node
-        ((Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT y)), Nothing) : rightY)
+        ((Left (dOf (map (wfsOf . at tj) $ tOf tj y)), Nothing) : yWithMarkings)
         Nothing -- no interpolants in TK??
         (Just Two)
         "" -- anarchy, no rule!?
         [] -- no actives??
-        (tkSuccessorsAt topT tk (pth ++ [0]))
+        (tkSuccessorsAt tj tk (pth ++ [0]))
       | not $ or [ otherWfs == wfs -- end node if there is a predecessor t with same pair and k(t)=1
                  | (Node otherWfs _ (Just One) _ _ _)  <- historyTo tk pth ] ]
 -- 2 to 3 has one or no successors:
   | mtyp == Just Two =
       [ Node
-        ((Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT y)), Nothing) : rightY)
+        ((Left (dOf (map (wfsOf . at tj) $ tOfTriangle tj y)), Nothing) : yWithMarkings)
         Nothing -- no interpolants in TK??
         (Just Three)
         (ruleOf witness)
         (activesOf witness) -- needed for Def 32 below
-        (tkSuccessorsAt topT tk (pth ++ [0]))
-      | not (null (tOfTriangle topT y))  -- end node when T(Y)◁ is empty
-      , let witness = at topT $ head $ tOfTriangle topT y ] -- CHOICE! -- should only matter for Three-to-One, why is this here?
+        (tkSuccessorsAt tj tk (pth ++ [0]))
+      | not (null (tOfTriangle tj y))  -- end node when T(Y)◁ is empty
+      , let witness = at tj $ head $ tOfTriangle tj y ] -- CHOICE! -- should only matter for Three-to-One, why is this here?
 -- 3 to 1 has n many successors:
   | mtyp == Just Three =
       [ Node
-      ( (Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT z)), Nothing)
+      ( (Left (dOf (map (wfsOf . at tj) $ tOf tj z)), Nothing)
         : [ mf | mf <- wfsOf childT, isRight (fst mf) ] )
         Nothing -- no interpolants in TK??
         (Just One)
         "" -- anarchy, no rule!?
         [] -- no actives??
-        (tkSuccessorsAt topT tk (pth ++ [k]))
-      | let (Node _ _ _ _ _ z1_zn) = at topT $ head $ tOfTriangle topT y -- CHOICE! -- BUG TO BE FIXED: use T(Y) here, not tOfTriangle! check Definition!
+        (tkSuccessorsAt tj tk (pth ++ [k]))
+      | let (Node _ _ _ _ _ z1_zn) = at tj $ head $ tOfTriangle tj y -- CHOICE!
       , (k, childT) <- zip [0,1] z1_zn
       , let z = rightsOf (wfsOf childT) ]
   | otherwise = error $ "Wrong combination of type and number of children: " ++ ppTabStr n
   where
     n@(Node wfs _ mtyp _ _ _) = tk `at`pth
     y = rightsOf wfs
-    rightY = map (\f -> (Right f, Nothing)) y
+    yWithMarkings = filter (isRight . fst) wfs
 
 -- All successors of a node in a TK tableau, with the paths to them.
 -- This is <, transitive closure of ◁.

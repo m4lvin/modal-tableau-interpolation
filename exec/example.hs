@@ -54,7 +54,7 @@ main = do
   let rightComponents = nub $ map (\pth -> rightsOf (wfsOf (tj `at` pth)) ) (allPathsIn tj)
   mapM_ (\y -> do
             putStr $ pad 16 $ toStrings y
-            putStr $ pad 16 $ show (pathsInToNodeWith tj y)
+            putStr $ pad 16 $ show (tOf tj y)
             putStr $ pad 16 $ show (tOfEpsilon tj y)
             putStr $ pad 16 $ show (tOfI tj y)
             print (tOfTriangle tj y)

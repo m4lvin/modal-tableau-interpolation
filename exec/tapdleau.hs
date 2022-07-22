@@ -123,7 +123,7 @@ extraInfo tWithInt =
     , "Y \t\tT(Y) \t\tT(Y)^ε \t\tT(Y)^I \t\tT(Y)^◁" ++ "\n"
     ,concatMap (\y ->
             pad 16 (toStrings y)
-            ++ pad 16 (show (pathsInToNodeWith tj y))
+            ++ pad 16 (show (tOf tj y))
             ++ pad 16 (show (tOfEpsilon tj y))
             ++ pad 16 (show (tOfI tj y))
             ++ show (tOfTriangle tj y) ++ "\n"
