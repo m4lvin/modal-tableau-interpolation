@@ -307,12 +307,12 @@ tkOf n@(Node t_wfs Nothing _ _ _ _) = tk where
       [] -- PROBLEM: no actives but needed in Def 32 later?!
       (tkSuccessorsAt n tk []) -- empty path to point to root
   y2 = rightsOf t_wfs
-  rightY2 = map (\f -> (Right f, Nothing)) y2
+  rightY2 = map (\f -> (Right f, Nothing)) y2 -- BUG TO BE FIXED: Do not throw away the marking! Here it is too late. Idea: change y :: [Form] to y :: [Marked Form]. Easier solution?
 
 -- Helper function to define the successors in T^K, three cases as in Definition 31.
 tkSuccessorsAt :: TableauxIP -> TableauxIP -> Path -> [TableauxIP]
 tkSuccessorsAt topT tk pth
--- 1 to 2 has none or one successors:
+-- 1 to 2 has one or no successors:
   | mtyp == Just One =
       [ Node
         ((Left (dOf (map (wfsOf . at topT) $ tOfTriangle topT y)), Nothing) : rightY)
@@ -333,7 +333,7 @@ tkSuccessorsAt topT tk pth
         (activesOf witness) -- needed for Def 32 below
         (tkSuccessorsAt topT tk (pth ++ [0]))
       | not (null (tOfTriangle topT y))  -- end node when T(Y)◁ is empty
-      , let witness = at topT $ head $ tOfTriangle topT y ] -- CHOICE!
+      , let witness = at topT $ head $ tOfTriangle topT y ] -- CHOICE! -- should only matter for Three-to-One, why is this here?
 -- 3 to 1 has n many successors:
   | mtyp == Just Three =
       [ Node
@@ -344,7 +344,7 @@ tkSuccessorsAt topT tk pth
         "" -- anarchy, no rule!?
         [] -- no actives??
         (tkSuccessorsAt topT tk (pth ++ [k]))
-      | let (Node _ _ _ _ _ z1_zn) = at topT $ head $ tOfTriangle topT y -- CHOICE!
+      | let (Node _ _ _ _ _ z1_zn) = at topT $ head $ tOfTriangle topT y -- CHOICE! -- BUG TO BE FIXED: use T(Y) here, not tOfTriangle! check Definition!
       , (k, childT) <- zip [0,1] z1_zn
       , let z = rightsOf (wfsOf childT) ]
   | otherwise = error $ "Wrong combination of type and number of children: " ++ ppTabStr n
@@ -392,7 +392,9 @@ canonProgStep tj tk (Node si_wfs _ (Just itype) si_rule si_actives tks) =
             | (sj_to_tl , Node tl_wfs _ (Just One) _ _ _) <- allSuccsOf sj
             , tl_wfs == si_wfs ]
     (Three, One) ->
-      if si_rule == "At" -- QUESTION: what if there are multiple rules in one step?
+      if si_rule == "At"
+      -- NOTE: But what if there are multiple rules in one step?
+      -- No worries, (At) will not be merged, see condition 3.
         then let [(Neg (Box (Ap x) _), _)] = map collapse si_actives
              in Ap x -- Get program from active formula.
         else Test top
