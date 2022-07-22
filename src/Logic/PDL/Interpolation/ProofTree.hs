@@ -242,7 +242,7 @@ at n@(Node _ _ _ _ _ ts) (i:rest)
 allPathsIn :: TableauxIP -> [Path]
 allPathsIn (Node _ _ _ _ _ ts) = [] : [ i:rest | (i,t) <- zip [0..] ts, rest <- allPathsIn t ]
 
--- | History from root up to the node given by a path.
+-- | History from root until just before the node given by a path.
 historyTo :: TableauxIP -> Path -> [TableauxIP]
 historyTo _ [] = []
 historyTo n@(Node _ _ _ _ _ ts) (i:rest)
@@ -288,9 +288,9 @@ tOfTriangle tabTJ y = tOfEpsilon tabTJ y \\ tOfI tabTJ y
 -- Definition 30: I(Y)
 -- NOTE: different from ipOf
 iOf :: TableauxIP -> [Form] -> Form
-iOf topT y = case tOfI topT y of
+iOf tj y = case tOfI tj y of
   [] -> Bot
-  tsPths -> multidis (map (iOf topT . leftsOf . wfsOf . at topT) tsPths)
+  t1_tn -> multidis [ t_i | (Just t_i) <- map (mipOf . at tj) t1_tn ]
 
 -- Definition 31: T^K
 -- Idea: Nodes in T^K here correspond to Y-regions in T^J.
@@ -404,14 +404,15 @@ canonProgStep tj tk (Node si_wfs _ (Just itype) si_rule si_actives tks) =
 ipFor :: TableauxIP -> TableauxIP -> Path -> Form
 -- end nodes of T^K:
 ipFor tj tk pth
-  | null s1_sn && not (any (\(Node otherWfs _ _ _ _ _) -> t_wfs == otherWfs) (historyTo tk pth)) =
-      iOf tk (rightsOf t_wfs) -- end node with no same-pair predecessor, use I(t) := I(Y).
+  | null s1_sn && not (or [ t_wfs == otherWfs && t_mtyp == otherMtyp -- QUESTION: "same pair" here seems to imply same type!?
+                          | (Node otherWfs _ otherMtyp _ _ _) <- historyTo tk pth ]) =
+      iOf tj (rightsOf t_wfs) -- end node with no same-pair predecessor, use I(t) := I(Y).
   | null s1_sn = top -- all other end nodes get I(t):=1.
   | length s1_sn == 1 && a_prog /= Test top = Box a_prog (ipFor tj tk (pth ++ [0]))
   | otherwise = multicon $ [ ipFor tj tk $ pth ++ [k]
                            | (k,_) <- zip [0,1] (childrenOf (tk `at` pth)) ]
   where
-    n@(Node t_wfs _ _ _ _ s1_sn) = tk `at` pth -- NOTE: n≤2
+    n@(Node t_wfs _ t_mtyp _ _ s1_sn) = tk `at` pth -- NOTE: n≤2
     ((a_prog, _):_) = canonProgStep tj tk n
 
 -- | Annotate TK with canonical programs (instead of rules) and interpolants.
