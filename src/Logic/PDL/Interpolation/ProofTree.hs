@@ -296,7 +296,7 @@ iOf tj y = case tOfI tj y of
 -- Idea: Nodes in T^K here correspond to Y-regions in T^J.
 -- Input should be the node Y1/Y2 obtained using M+ (page 35)
 tkOf :: TableauxIP -> TableauxIP
-tkOf (Node _ (Just _) _ _ _ _) = error "Already have an interpolant, why bother with T^K?"
+tkOf n@(Node _ (Just _) _ _ _ _) = error $ "Already have an interpolant, why bother with T^K?\n" ++ ppTabStr n
 tkOf n@(Node t_wfs Nothing _ _ _ _) = tk where
   tk =
     Node
@@ -424,6 +424,20 @@ annotateTk tj tk = annotateInside [] where
          , ruleOf = intercalate " // " $ map (toString . fst) (canonProgStep tj tk n)
          , childrenOf = [ annotateInside (pth ++ [k]) | (k,_) <- zip [0,1] (childrenOf n) ]  }
 
+fillLowestMplus :: TableauxIP -> TableauxIP
+fillLowestMplus n@(Node _ Nothing _ "M+" _ _)
+  | null (mapMaybe lowestMplusWithoutIP (childrenOf n)) =
+      let
+        ti = tiOf n
+        tj = tjOf $ head $ childrenOf ti
+        tk = tkOf tj
+      in
+        n { mipOf = Just $ simplify $ ipFor tj tk [] }
+fillLowestMplus n = n { childrenOf = map fillLowestMplus (childrenOf n) }
+
+keepInterpolating :: TableauxIP -> TableauxIP
+keepInterpolating = fixpoint (fillLowestMplus . fillAllIPs)
+
 -- General functions --
 
 proveWithInt :: Form -> TableauxIP
@@ -438,7 +452,7 @@ proveAndInterpolate (ante,cons)
   | otherwise = (ipt1,mip) where
       t1 = prove (ante --> cons)
       ipt0 = toEmptyTabIP t1 :: TableauxIP
-      ipt1@(Node _ mip _ _ _ _) = fillAllIPs ipt0
+      ipt1@(Node _ mip _ _ _ _) = fillAllIPs ipt0 -- TODO: use keepInterpolating here?
 
 interpolate :: (Form,Form) -> Maybe Form
 interpolate = snd . proveAndInterpolate
