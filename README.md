@@ -62,7 +62,7 @@ Note: The files have been modified to use star as a postfix operator.
 ## Basic Modal Logic
 
 - [X] mark active formula in tableaux
-- [X] remove Top as primitive, use top
+- [X] remove Top as primitive, use `top`
 
 ## PDL
 
@@ -96,9 +96,13 @@ Interpolation:
 - [X] add interpolate tests for star-free formulas
 - [X] Find test cases that fail due to the empty-side edge cases for (At)-interpolants?
 - [X] Correct definition of (At)-interpolants in the empty-side edge cases.
+- [X] TI, TJ, TK, canonical programs, interpolants for TK
+- [ ] use TI etc. to find interpolants for loaded sub-tableaux, iterate!
 - [ ] add warning in web interface if root interpolant is not actually an interpolant!
 - [ ] fillIPs: end notes due to extra condition 4 ??
-- [ ] fillIPs: end notes due to extra condition 6 !!
+- Problematic examples found using QuickCheck:
+    - `s -> [?(¬q)*]⊤` (not using M+ but just condition 4)
+    - `¬[c][(c ; d)**]⊤ -> p`
 
 Semantics:
 
@@ -106,6 +110,10 @@ Semantics:
 - [x] satisfaction
 - [ ] arbitrary models
 - [ ] generate Kripke model from open tableau?
+
+Performance/Clarity:
+
+- [ ] Use better data structures, zipper instead of `(TableauIP, Path)` pairs?
 
 Nice to have:
 
