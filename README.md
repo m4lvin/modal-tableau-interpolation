@@ -73,12 +73,12 @@ Prover:
 - [X] restricted language with Con, not Imp as primitive, as Borzechowski does
 - [X] proper search: extend -> extensions (as in BasicModal)
 - [X] add M+ rule
-- [X] Only allow (At) on marked formulas (page 24 suggest that!) (otherwise, why not do (At)_C directly on page 56, without (M+) first?)
+- [X] Only allow (At) on marked formulas (page 24)
 - [ ] Check priorities / preferences of all rules.
 - [X] mark active formula (as in BasicModal), needed for interpolation
 - [x] also mark active formula for extra condition 4, and history-path for 6
 - [ ] more uniform encoding of rules and closing conditions
-- [ ] Implement all extra conditions from Borzechowski:
+- [ ] Implement extra conditions:
     1. [x] when reaching an atomic Box or NegBox, go back from n to *
     2. [ ] instead of X;[a^n]P reach X
     3. [ ] apply rules to n-formula whenever possible / prioritise them!
@@ -104,6 +104,13 @@ Interpolation:
     - `s -> [?(¬q)*]⊤` (not using M+ but just condition 4)
     - `¬[c][(c ; d)**]⊤ -> p`
 
+Testing:
+
+- [ ] self-testing: generate random implication, check if provable, compute interpolant, check if it is indeed an interpolant
+- [ ] check for agreement with other PDL provers
+    - [ ] http://rsise.anu.edu.au/~rpg/PDLProvers/
+    - [ ] https://www.irit.fr/Lotrec/
+
 Semantics:
 
 - [x] Kripke models
@@ -113,7 +120,7 @@ Semantics:
 
 Performance/Clarity:
 
-- [ ] Use better data structures, zipper instead of `(TableauIP, Path)` pairs?
+- [ ] Use better data structures, [zipper](https://en.wikipedia.org/wiki/Zipper_(data_structure)) instead of `(TableauIP, Path)` pairs?
 
 Nice to have:
 
@@ -131,6 +138,10 @@ Nice to have:
 - What *are* the nodes in the tableau? Concretely: lists, multisets or sets? Finite?
   This matters for the claim that "complexity goes down" / termination.
 
+## See also
+
+- <https://github.com/m4lvin/tablean> A formalization of the same method in Lean. Only covering Basic Modal Logic at this time.
+
 ## Related work
 
 - Rajeev Goré and Florian Widmann (2009): An Optimal On-the-Fly Tableau-Based Decision Procedure for PDL-Satisfiability.
@@ -143,4 +154,4 @@ Nice to have:
   <https://fse.studenttheses.ub.rug.nl/20770/>
   <https://github.com/FrancescaPerin/BScProject>
 
-- TODO: compare to other PDL and tableaux provers mentioned at <http://www.cs.man.ac.uk/~schmidt/tools/>.
+- Other PDL provers are mentioned at <http://www.cs.man.ac.uk/~schmidt/tools/>.
