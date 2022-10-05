@@ -41,6 +41,7 @@ ppIP :: Interpolant -> String
 ppIP (Just f) = toString f
 ppIP Nothing  = "∅"
 
+-- | Pretty-print a list of WForms, optionally with a 1/2/3-type.
 ppWFormsTyp :: Maybe TypeTK -> [WForm] -> [WForm] -> String
 ppWFormsTyp mtyp wfs actives = concat
   [ intercalate ", " (map ppFormA (filter isLeft wfs))
@@ -80,8 +81,9 @@ ppTabStr = ppTab' "" where
        ++
        concatMap (\t -> (if length ts > 1 then pref ++ ".\n" else "") ++ ppTab' (pref ++ if length ts > 1 then "   " else "") t) ts
 
+-- | Convert a Tableaux to a TableauxIP without interpolants.
 toEmptyTabIP :: Tableaux -> TableauxIP
-toEmptyTabIP T.End = error "boom"
+toEmptyTabIP T.End = error "Cannot convert End nodes to TableauxIP."
 toEmptyTabIP (T.Node wfs _ rule actives [T.End]) =
   Node wfs Nothing Nothing rule actives []
 toEmptyTabIP (T.Node wfs _ rule actives ts) =
@@ -429,7 +431,7 @@ fillLowestMplus n@(Node _ Nothing _ "M+" _ _)
   | null (mapMaybe lowestMplusWithoutIP (childrenOf n)) =
       let
         ti = tiOf n
-        tj = tjOf $ head $ childrenOf ti
+        tj = let (x:_) = childrenOf ti in tjOf x
         tk = tkOf tj
       in
         n { mipOf = Just $ simplify $ ipFor tj tk [] }
