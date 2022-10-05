@@ -149,6 +149,9 @@ instance ContainsAtoms Prog where
   atomsIn (Star pr)   = atomsIn pr
   atomsIn (NStar pr)  = atomsIn pr
 
+instance ContainsAtoms a => ContainsAtoms [a] where
+  atomsIn xs = sort $ nub $ concatMap atomsIn xs
+
 conSet,disSet :: [Form] -> Form
 conSet []     = Bot
 conSet [f]    = f

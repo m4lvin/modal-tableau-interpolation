@@ -8,7 +8,7 @@ import Control.Exception (evaluate, catch, SomeException)
 import Control.Monad.IO.Class (liftIO)
 
 import Data.FileEmbed
-import Data.List (nub)
+import Data.List (nub,intercalate)
 import Data.Maybe (fromMaybe)
 import Web.Scotty
 import qualified Data.Text as T
@@ -93,6 +93,7 @@ extraInfo tWithInt =
     ti = tiOf tWithInt
     Just mstart = lowestMplusWithoutIP ti
     tj = tjOf $ head $ childrenOf mstart
+    (y1, y2) = (leftsOf $ wfsOf tj, rightsOf $ wfsOf mstart)
     rightComponents = nub $ map (\pth -> rightsOf (wfsOf (tj `at` pth)) ) (allPathsIn tj)
     tk = tkOf tj
   in
@@ -101,6 +102,9 @@ extraInfo tWithInt =
     , svg ti
     , "<h3>Lowest M+ rule without interpolant:</h3>"
     , svg mstart
+    , "<h3>Y1 and Y2 sets</h3>"
+    , "<p>Y1 = " ++ intercalate ", " (map toString y1) ++"</p>"
+    , "<p>Y2 = " ++ intercalate "," (map toString y2) ++"</p>"
     , "<h3>T<sup>J</sup> (Def 27):</h3>"
     , svg tj
     , "<p>List of all nodes of T<sup>J</sup>:</p>"
@@ -150,6 +154,10 @@ extraInfo tWithInt =
     , "<p>Simplified: "
     , toString $ simplify $ ipFor tj tk []
     , "</p>"
+    , "<p>Is it actually an interpolant for the root of T<sup>K</sup>?</h3>"
+    , show $ isCorrectIPfor (ipFor tj tk []) tk
+    , "<h3>Result after we keep on interpolating</h3>"
+    , svg $ keepInterpolating tWithInt
     ]
 
 strOrErr :: String -> String

@@ -11,6 +11,7 @@ import Logic.PDL
 import Logic.PDL.Prove.Tree hiding (Node,End)
 import qualified Logic.PDL.Prove.Tree as T (Tableaux(Node,End))
 import Logic.Internal
+import Logic.PDL.Interpolation
 
 type Interpolant = Maybe Form
 
@@ -92,6 +93,14 @@ toEmptyTabIP (T.Node wfs _ rule actives ts) =
 hasIP :: TableauxIP -> Bool
 hasIP (Node _ (Just _) _ _ _ _) = True
 hasIP (Node _ Nothing  _ _ _ _) = False
+
+isCorrectIPfor :: Form -> TableauxIP -> Bool
+isCorrectIPfor f (Node wfs _ _ _ _ _ ) =
+  inconsistent (Neg f : leftsOf wfs)
+  &&
+  inconsistent (f : rightsOf wfs)
+  &&
+  atomsIn f ⊆ (atomsIn (leftsOf wfs) ∩ atomsIn (rightsOf wfs))
 
 ipOf :: TableauxIP -> Form
 ipOf (Node _ (Just f ) _ _ _ _) = f
