@@ -1,0 +1,9 @@
+[[check]]
+type = "Exclude"
+id = "STAN-0302"
+scope = "all"
+
+[[check]]
+type = "Exclude"
+id = "STAN-0001"
+scope = "all"
