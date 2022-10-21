@@ -16,6 +16,7 @@ import Logic.PDL.Interpolation.ProofTree
 
 main :: IO ()
 main = hspec $ do
+  -- TODO: describe "simplify" $ ...
   describe "somValidities" $
     mapM_ proveTest someValidities
   describe "someNonValidities" $

@@ -5,13 +5,13 @@ import Data.Either (isRight)
 import Data.GraphViz (shape, Shape(PlainText), toLabel)
 import Data.GraphViz.Types.Monadic (edge, node)
 import Data.Maybe (listToMaybe, catMaybes, mapMaybe)
-import Data.List ((\\), intercalate, isPrefixOf)
+import Data.List ((\\), intercalate, isInfixOf, isPrefixOf)
 
 import Logic.PDL
 import Logic.PDL.Prove.Tree hiding (Node,End)
 import qualified Logic.PDL.Prove.Tree as T (Tableaux(Node,End))
 import Logic.Internal
-import Logic.PDL.Interpolation
+import Logic.PDL.Interpolation ()
 
 type Interpolant = Maybe Form
 
@@ -168,7 +168,7 @@ fillIPs n@(Node wfs Nothing _ rule actives ts)
           let [t] = ts
           in Just $ if null $ catMaybes [ projection x g | (Left g, _) <- wfs ] then top else Box (Ap x) (ipOf t)
         -- end nodes due to extra conditions:
-        ('4':_,_) -> Nothing
+        ('4':_,_) -> Just top -- NOTE: DANGEROUS provisorium, n-nodes should be deleted instead!? FIXME?
         ('6':_,_) -> Nothing
         -- There should not be any remaining cases:
         (rl  ,_) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms wfs actives ++ "\n  Unable to interpolate: " ++ show n
@@ -206,12 +206,21 @@ tiOf n@(Node wfs mip mtyp rule actives ts)
       let
         new_ts = filter (isNormalNode . wfsOf) ts ++ filter (isNormalNode . wfsOf) (childrenOf (head (filter (not . isNormalNode . wfsOf) ts)))
       in tiOf $ Node wfs mip mtyp rule actives new_ts
+  -- if there are two non-normal children, and one is an end node, then delete that one.
+  | length ts == 2
+    && length (filter (not . isNormalNode . wfsOf) ts) == 2
+    && length (filter (null . childrenOf) ts) == 1 =
+      let
+        new_ts = filter (not . null . childrenOf) ts
+      in tiOf $ Node wfs mip mtyp rule actives new_ts
   -- Otherwise, give up!
   | otherwise = error $ "Tricky situation, cannot define T^I:\n" ++ ppTabStr n
   -- QUESTION: What if there are multiple sucessors of an n-node?
 
 -- Find a node where M+ is applied, we have no interpolant yet, and there is no such node below.
 lowestMplusWithoutIP :: TableauxIP -> Maybe TableauxIP
+-- PROBLEM: What if the rule is a combo like "n,n,¬n,M+,At"?
+-- IDEA: use "M+" `isInfixOf` rule instead here?
 lowestMplusWithoutIP n@(Node _ Nothing _ "M+" _ _) =
   case mapMaybe lowestMplusWithoutIP (childrenOf n) of
     [] -> Just n
@@ -436,6 +445,7 @@ annotateTk tj tk = annotateInside [] where
          , childrenOf = [ annotateInside (pth ++ [k]) | (k,_) <- zip [0,1] (childrenOf n) ]  }
 
 fillLowestMplus :: TableauxIP -> TableauxIP
+-- If there is no lower M+ application without IP, then we fill the one here:
 fillLowestMplus n@(Node _ Nothing _ "M+" _ _)
   | null (mapMaybe lowestMplusWithoutIP (childrenOf n)) =
       let
