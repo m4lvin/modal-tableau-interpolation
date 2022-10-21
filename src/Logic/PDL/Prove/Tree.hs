@@ -3,9 +3,10 @@
 module Logic.PDL.Prove.Tree where
 
 import Control.Arrow
+import Data.Containers.ListUtils (nubOrd)
 import Data.GraphViz hiding (Shape(Star))
 import Data.GraphViz.Types.Monadic hiding ((-->))
-import Data.List
+import Data.List (delete, intercalate, sort)
 import Data.Maybe
 import System.IO.Unsafe (unsafePerformIO)
 import System.Console.ANSI
@@ -199,7 +200,7 @@ extensions (Node wfs oldHistory "" [] [])
              let
                rest = delete wf wfs
                newHistory = ((wfs, ruleName) :  oldHistory)
-               ts = [ Node (nub . sort $ mapMaybe (applyW change) rest ++ newwfs) newHistory "" [] [] -- NOTE: nub and sort!
+               ts = [ Node (nubOrd . sort $ mapMaybe (applyW change) rest ++ newwfs) newHistory "" [] [] -- NOTE: nub and sort!
                     | newwfs <- map (map $ weightOf wf) results ]
              in
                Node wfs oldHistory ruleName [wf] ts)
@@ -277,7 +278,7 @@ proveSlideshow f = do
 tableauFor :: [Form] -> Tableaux
 tableauFor fs = head $ filterOneIfAny isClosedTab $ extensionsUpTo globalSearchLimit $ case fs of
   [ Neg (Neg (Con f (Neg g))) ] -> Node [(Left f, Nothing), (Right (Neg g), Nothing)] [] "" [] []
-  _                             -> Node (map (\f -> (Left f, Nothing)) fs)            [] "" [] []
+  _anyOtherFormula              -> Node (map (\f -> (Left f, Nothing)) fs)            [] "" [] []
 
 inconsistent :: [Form] -> Bool
 inconsistent = isClosedTab . tableauFor

@@ -3,9 +3,10 @@
 module Logic.Internal where
 
 import qualified Data.ByteString as SB
+import Data.Containers.ListUtils (nubOrd)
 import Data.GraphViz
 import Data.GraphViz.Types.Monadic hiding ((-->))
-import Data.List
+import Data.List (intercalate, sort)
 import GHC.IO.Handle
 import System.IO
 import System.IO.Temp
@@ -25,7 +26,7 @@ powerset [] = [[]]
 powerset (x:xs) = concat [ [x:rest, rest] | rest <- powerset xs ]
 
 seteq :: Ord a => [a] -> [a] -> Bool
-seteq xs ys = sort (nub xs) == sort (nub ys)
+seteq xs ys = sort (nubOrd xs) == sort (nubOrd ys)
 
 fixpoint :: Eq a => (a -> a) -> a -> a
 fixpoint f x | f x == x  = x

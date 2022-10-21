@@ -6,9 +6,9 @@ import Prelude
 import Control.DeepSeq (force, NFData)
 import Control.Exception (evaluate, catch, SomeException)
 import Control.Monad.IO.Class (liftIO)
-
+import Data.Containers.ListUtils
 import Data.FileEmbed
-import Data.List (nub,intercalate)
+import Data.List (intercalate)
 import Data.Maybe (fromMaybe)
 import Web.Scotty
 import qualified Data.Text as T
@@ -94,7 +94,7 @@ extraInfo tWithInt =
     Just mstart = lowestMplusWithoutIP ti
     tj = tjOf $ head $ childrenOf mstart
     (y1, y2) = (leftsOf $ wfsOf tj, rightsOf $ wfsOf mstart)
-    rightComponents = nub $ map (\pth -> rightsOf (wfsOf (tj `at` pth)) ) (allPathsIn tj)
+    rightComponents = nubOrd $ map (\pth -> rightsOf (wfsOf (tj `at` pth)) ) (allPathsIn tj)
     tk = tkOf tj
   in
     unlines $ map strOrErr $
