@@ -106,7 +106,7 @@ ipOf :: TableauxIP -> Form
 ipOf (Node _ (Just f ) _ _ _ _) = f
 ipOf n@(Node _ Nothing   _ _ _ _) = error $ "No interpolant here (yet):" ++ ppTabStr n
 
--- Get left or right formulas, and ignore markings!
+-- | Get left or right formulas, and ignore markings!
 leftsOf, rightsOf :: [WForm] -> [Form]
 leftsOf  wfs = [f | (Left  f,_) <- wfs]
 rightsOf wfs = [f | (Right f,_) <- wfs]
@@ -118,7 +118,7 @@ branchIP [t1,t2] actives  = Just $ connective (ipOf t1) (ipOf t2) where
   connective = case actives of
     [(Left  _, _)] -> dis -- left side is active, use disjunction
     [(Right _, _)] -> Con -- right side is active, use conjunction
-    _              -> error $ "Could not find the active side: " ++ show actives
+    otherActives   -> error $ "Could not find the active side: " ++ show otherActives
 branchIP _ _ = error "branchIP only works for exactly two branches."
 
 -- | Fill interpolants for the easy cases, not involving extra conditions.
@@ -177,9 +177,9 @@ fillIPs n@(Node wfs Nothing _ rule actives ts)
 fillAllIPs :: TableauxIP -> TableauxIP
 fillAllIPs = fixpoint fillIPs -- FIXME: is this necessary?
 
--- Definitions to deal with condition 6 end nodes
+-- * Definitions to deal with condition 6 end nodes
 
--- Definition 26: remove n-nodes to obtain T^I
+-- | Definition 26: remove n-nodes to obtain T^I
 tiOf :: TableauxIP -> TableauxIP
 tiOf n@(Node wfs mip mtyp rule actives ts)
   | not (isNormalNode wfs) = error "Too late, cannot delete this n-node."
