@@ -181,50 +181,29 @@ fillAllIPs = fixpoint fillIPs -- FIXME: is this necessary?
 
 -- | Definition 26: remove n-nodes to obtain T^I
 tiOf :: TableauxIP -> TableauxIP
-tiOf n@(Node wfs mip mtyp rule actives ts)
-  | not (isNormalNode wfs) = error "Too late, cannot delete this n-node."
-  -- if all children are normal, then just recurse: (this also deals with [], i.e. end nodes)
-  | all (isNormalNode . wfsOf) ts = Node wfs mip mtyp rule actives (map tiOf ts)
-  -- if there is exactly one child and it is non-normal, then remove it and adopt its children:
-  | length ts == 1 && not (isNormalNode (wfsOf (head ts))) =
-      let
-        new_rule = rule ++ "," ++ ruleOf (head ts)
-        new_ts = childrenOf (head ts)
-      in tiOf $ Node wfs mip mtyp new_rule actives new_ts
-  -- Example: [a*]p -> [a**]p matters for the next two cases?!
-  -- if there are two children and one is a non-normal end node, then just remove it.
-  | length ts == 2
-    && length (filter (isNormalNode . wfsOf) ts) == 1
-    && null (childrenOf (head (filter (not . isNormalNode . wfsOf) ts))) =
-      let
-        new_ts = filter (isNormalNode . wfsOf) ts
-      in tiOf $ Node wfs mip mtyp rule actives new_ts
-  -- if there are two children and one is a non-normal node with at most one normal child, then replace it by that child.
-  | length ts == 2
-    && length (filter (not . isNormalNode . wfsOf) ts) == 1
-    && length (filter (isNormalNode . wfsOf) $ childrenOf (head (filter (not . isNormalNode . wfsOf) ts))) <=1  =
-      let
-        new_ts = filter (isNormalNode . wfsOf) ts ++ filter (isNormalNode . wfsOf) (childrenOf (head (filter (not . isNormalNode . wfsOf) ts)))
-      in tiOf $ Node wfs mip mtyp rule actives new_ts
-  -- if there are two non-normal children, and one is an end node, then delete that one.
-  | length ts == 2
-    && length (filter (not . isNormalNode . wfsOf) ts) == 2
-    && length (filter (null . childrenOf) ts) == 1 =
-      let
-        new_ts = filter (not . null . childrenOf) ts
-      in tiOf $ Node wfs mip mtyp rule actives new_ts
-  -- Otherwise, give up!
-  | otherwise = error $ "Tricky situation, cannot define T^I:\n" ++ ppTabStr n
-  -- QUESTION: What if there are multiple sucessors of an n-node?
+tiOf = snd . head . tiOfRec where
+  -- When node n is deleted the parent of n must append rule of n to its own rule.
+  -- Given my child n, what should I add to my rule and what replaces n?
+  tiOfRec  :: TableauxIP -> [(RuleName,TableauxIP)]
+  tiOfRec n
+    | isNormalNode (wfsOf n) = let childs = concatMap tiOfRec (childrenOf n)
+                               in [ ("", n { ruleOf = combine (ruleOf n : map fst childs)
+                                           , childrenOf = map snd childs } ) ]
+    | otherwise = -- delete n itself!
+        map (\(childRule, t) -> (combine [ruleOf n, childRule], t)) $ concatMap tiOfRec (childrenOf n)
+  -- Combine rules without inserting too many commas.
+  combine :: [RuleName] -> RuleName
+  combine [] = ""
+  combine ("":rs) = combine rs
+  combine [rule] = rule
+  combine (rule:rest) = rule ++ [',' | not . null $ combine rest] ++ combine rest
 
 -- Find a node where M+ is applied, we have no interpolant yet, and there is no such node below.
 lowestMplusWithoutIP :: TableauxIP -> Maybe TableauxIP
--- PROBLEM: What if the rule is a combo like "n,n,¬n,M+,At"?
--- IDEA: use "M+" `isInfixOf` rule instead here?
-lowestMplusWithoutIP n@(Node _ Nothing _ "M+" _ _) =
+lowestMplusWithoutIP n@(Node _ Nothing _ rule _ _) | "M+" `isInfixOf` rule =
   case mapMaybe lowestMplusWithoutIP (childrenOf n) of
     [] -> Just n
-    _ -> listToMaybe $ mapMaybe lowestMplusWithoutIP (childrenOf n)
+    _  -> listToMaybe $ mapMaybe lowestMplusWithoutIP (childrenOf n)
 lowestMplusWithoutIP n = listToMaybe $ mapMaybe lowestMplusWithoutIP (childrenOf n)
 
 -- Definition 27: sub-tableau T^J
@@ -412,9 +391,9 @@ canonProgStep tj tk (Node si_wfs _ (Just itype) si_rule si_actives tks) =
             | (sj_to_tl , Node tl_wfs _ (Just One) _ _ _) <- allSuccsOf sj
             , tl_wfs == si_wfs ]
     (Three, One) ->
-      if si_rule == "At"
+      if "At" `isInfixOf` si_rule
       -- NOTE: But what if there are multiple rules in one step?
-      -- No worries, (At) will not be merged, see condition 3.
+      -- No worries, multiple (At) steps will never be merged, see condition 3. -- CHECKME
         then let [(Neg (Box (Ap x) _), _)] = map collapse si_actives
              in Ap x -- Get program from active formula.
         else Test top
@@ -446,8 +425,8 @@ annotateTk tj tk = annotateInside [] where
 
 fillLowestMplus :: TableauxIP -> TableauxIP
 -- If there is no lower M+ application without IP, then we fill the one here:
-fillLowestMplus n@(Node _ Nothing _ "M+" _ _)
-  | null (mapMaybe lowestMplusWithoutIP (childrenOf n)) =
+fillLowestMplus n@(Node _ Nothing _ rule _ _)
+  | "M+" `isInfixOf` rule && null (mapMaybe lowestMplusWithoutIP (childrenOf n)) =
       let
         ti = tiOf n
         tj = let (x:_) = childrenOf ti in tjOf x
