@@ -4,8 +4,11 @@ import Control.Monad (when)
 import Data.Either (isRight)
 import Data.GraphViz (shape, Shape(PlainText), toLabel)
 import Data.GraphViz.Types.Monadic (edge, node)
+import Data.GraphViz.Attributes.Complete hiding (Box, Star)
+import qualified Data.GraphViz.Attributes.HTML as GVHTML
 import Data.Maybe (listToMaybe, catMaybes, mapMaybe)
 import Data.List ((\\), intercalate, isInfixOf, isPrefixOf)
+import Data.Text.Lazy (pack)
 
 import Logic.PDL
 import Logic.PDL.Prove.Tree hiding (Node,End)
@@ -57,10 +60,14 @@ ppWFormsTyp mtyp wfs actives = concat
     removePars ('(':rest) | last rest == ')' = init rest
     removePars str = str
 
+-- TODO: use colors to highlight loaded formulas in HTML output?
 instance DispAble TableauxIP where
   toGraph = toGraph' "" where
     toGraph' pref (Node wfs mip mtyp rule actives ts) = do
-      node pref [shape PlainText, toLabel $ ppWFormsTyp mtyp wfs actives ++ "  ::  " ++ ppIP mip]
+      node pref [shape PlainText, Label $ HtmlLabel $ GVHTML.Text
+                  [ GVHTML.Str $ pack $ ppWFormsTyp mtyp wfs actives
+                  , GVHTML.Format GVHTML.Bold [GVHTML.Str $ pack "  ::  "]
+                  , GVHTML.Str $ pack $ ppIP mip] ]
       mapM_ (\(t,y') -> do
         toGraph' (pref ++ show y' ++ ":") t
         edge pref (pref ++ show y' ++ ":") [toLabel rule]

@@ -37,6 +37,7 @@ library:
     - QuickCheck
     - random
     - temporary
+    - text
 
 executables:
   tapdleau:
