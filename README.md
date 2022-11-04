@@ -97,12 +97,21 @@ Interpolation:
 - [X] Find test cases that fail due to the empty-side edge cases for (At)-interpolants?
 - [X] Correct definition of (At)-interpolants in the empty-side edge cases.
 - [X] TI, TJ, TK, canonical programs, interpolants for TK
-- [ ] use TI etc. to find interpolants for loaded sub-tableaux, iterate!
-- [ ] add warning in web interface if root interpolant is not actually an interpolant!
+- [x] use TI etc. to find interpolants for loaded sub-tableaux, iterate!
+- [ ] make warning more visible when defined interpolant is not actually an interpolant!
 - [ ] fillIPs: end notes due to extra condition 4 ??
-- Problematic examples found using QuickCheck:
-    - `s -> [?(¬q)*]⊤` (not using M+ but just condition 4)
+- Problematic examples:
+    - `s -> [?(¬q)*]⊤` (found using QuickCheck, not using M+ but just condition 4)
     - `¬[c][(c ; d)**]⊤ -> p`
+    - `[a**]p -> [a*]p`
+    - anything with empty allowed vocabulary?
+
+Bonus Information:
+
+These are not needed to define interpolants, but part of the proof the definition is correct.
+
+- [ ] J and K sets from Definition 34
+- [ ] extended tableau from Lemma 25 and 26.
 
 Testing:
 
@@ -110,6 +119,8 @@ Testing:
 - [ ] check for agreement with other PDL provers
     - [ ] http://rsise.anu.edu.au/~rpg/PDLProvers/
     - [ ] https://www.irit.fr/Lotrec/
+          see also https://github.com/bilals/lotrec
+    - [ ] http://www.cs.man.ac.uk/~schmidt/pdl-tableau/
 
 Semantics:
 
@@ -130,13 +141,6 @@ Nice to have:
 - [ ] use Graphviz HTML labels for better readability, e.g. highlight the active formula.
 - [ ] color the loading part of formulas/nodes
 - [ ] store current/submitted formula in (base64?) URL hash, provide perma-link for sharing
-
-## Open Questions
-
-- May other rules like (¬), (^) etc. be applied to marked formulas? (only some, see page 24)
-
-- What *are* the nodes in the tableau? Concretely: lists, multisets or sets? Finite?
-  This matters for the claim that "complexity goes down" / termination.
 
 ## See also
 
