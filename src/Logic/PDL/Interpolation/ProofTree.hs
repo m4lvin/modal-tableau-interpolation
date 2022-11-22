@@ -101,13 +101,19 @@ hasIP :: TableauxIP -> Bool
 hasIP (Node _ (Just _) _ _ _ _) = True
 hasIP (Node _ Nothing  _ _ _ _) = False
 
+checkCorrectIPfor :: Form -> TableauxIP -> (Bool, Bool, Bool)
+checkCorrectIPfor f (Node wfs _ _ _ _ _ ) =
+  (
+    atomsIn f ⊆ (atomsIn (leftsOf wfs) ∩ atomsIn (rightsOf wfs))
+  ,
+    inconsistent (Neg f : leftsOf wfs)
+  ,
+    inconsistent (f : rightsOf wfs)
+  )
+
 isCorrectIPfor :: Form -> TableauxIP -> Bool
-isCorrectIPfor f (Node wfs _ _ _ _ _ ) =
-  inconsistent (Neg f : leftsOf wfs)
-  &&
-  inconsistent (f : rightsOf wfs)
-  &&
-  atomsIn f ⊆ (atomsIn (leftsOf wfs) ∩ atomsIn (rightsOf wfs))
+isCorrectIPfor f n =
+  vocCon && left && right where (vocCon,left,right) = checkCorrectIPfor f n
 
 ipOf :: TableauxIP -> Form
 ipOf (Node _ (Just f ) _ _ _ _) = f

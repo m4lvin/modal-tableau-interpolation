@@ -125,7 +125,7 @@ extraInfo tWithInt =
     , "<h3>T(Y) sets (Def 29):</h3>\n"
     , "<pre>"
     , "Y \t\tT(Y) \t\tT(Y)^ε \t\tT(Y)^I \t\tT(Y)^◁" ++ "\n"
-    ,concatMap (\y ->
+    , concatMap (\y ->
             pad 16 (toStrings y)
             ++ pad 16 (show (tOf tj y))
             ++ pad 16 (show (tOfEpsilon tj y))
@@ -133,8 +133,8 @@ extraInfo tWithInt =
             ++ show (tOfTriangle tj y) ++ "\n"
            ) rightComponents
     , "</pre>"
-    , "<h3>T<sup>K</sup> (Def 31):</h3>"
-    , svg tk
+    -- , "<h3>T<sup>K</sup> (Def 31):</h3>"
+    -- , svg tk
     ]
     -- ++
     -- [ "<h3>Canonical programs (single steps in T<sup>K</sup> (Def 32):</h3>"
@@ -145,17 +145,23 @@ extraInfo tWithInt =
     -- ++
     -- ++ "</pre>"
     ++
-    [ "<h3>T<sup>K</sup> with canonical programs and interpolants (Def 32 and 33):</h3>"
+    [ "<h3>T<sup>K</sup> with canonical programs and interpolants (Defs 31, 32 and 33):</h3>"
     , svg (annotateTk tj tk)
     , "<h3>Interpolant for the root of T<sup>K</sup>:</h3>"
-    , "<p>"
-    , toString $ ipFor tj tk []
-    , "</p>"
-    , "<p>Simplified: "
-    , toString $ simplify $ ipFor tj tk []
-    , "</p>"
-    , "<p>Is it actually an interpolant for the root of T<sup>K</sup>?</h3>"
-    , show $ isCorrectIPfor (ipFor tj tk []) tk
+    , "<p>Original: " ++ toString (ipFor tj tk []) ++ "<br />"
+    , "Simplified: " ++ toString (simplify $ ipFor tj tk []) ++ "</p>"
+    , "<p>Is it actually an interpolant for the root of T<sup>K</sup>?</p>"
+    , let
+        (vocCon,left,right) = checkCorrectIPfor (ipFor tj tk []) tk
+        lineFor str bit =
+          "<p class='" ++ (if bit then "success" else "error") ++ "'>" ++ str ++ ": " ++ show bit ++ "</p>\n"
+      in
+        -- TODO: show what the conditions say here...
+        lineFor "Vocabulary condition: " vocCon
+        ++
+        lineFor "Left condition: " left
+        ++
+        lineFor "Right condition: " right
     , "<h3>Result after we keep on interpolating</h3>"
     , svg $ keepInterpolating tWithInt
     ]

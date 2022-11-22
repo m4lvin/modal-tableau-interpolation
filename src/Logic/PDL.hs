@@ -199,6 +199,7 @@ simplify = fixpoint simstep where
   simstep (Con (Neg Bot) f) = simstep f
   simstep (Con f (Neg Bot)) = simstep f
   simstep (Con f g)     = Con (simstep f) (simstep g)
+  simstep (Box (Test (Neg Bot)) f) = simstep f
   simstep (Box pr f)    = Box (simplifyProg pr) $ simstep f
 
 simplifyProg :: Prog -> Prog
