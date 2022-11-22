@@ -6,9 +6,9 @@ import Prelude
 import Control.DeepSeq (force, NFData)
 import Control.Exception (evaluate, catch, SomeException)
 import Control.Monad.IO.Class (liftIO)
-import Data.Containers.ListUtils
+import Data.Containers.ListUtils (nubOrd)
 import Data.FileEmbed
-import Data.List (intercalate)
+import Data.List (intercalate, sort)
 import Data.Maybe (fromMaybe)
 import Web.Scotty
 import qualified Data.Text as T
@@ -96,6 +96,7 @@ extraInfo tWithInt =
     (y1, y2) = (leftsOf $ wfsOf tj, rightsOf $ wfsOf mstart)
     rightComponents = nubOrd $ map (\pth -> rightsOf (wfsOf (tj `at` pth)) ) (allPathsIn tj)
     tk = tkOf tj
+    filledTK = annotateTk tj tk
   in
     unlines $ map strOrErr $
     [ "<h3>T<sup>I</sup>, after removing all n-nodes (Def 26):</h3>"
@@ -162,8 +163,37 @@ extraInfo tWithInt =
         lineFor "Left condition: " left
         ++
         lineFor "Right condition: " right
+    , "<h3>Helper functions for the proof that it is an interpolant</h3>"
+    , "<p>Sets J(s) for each s in T<sup>K</sup> (Def 34):</p>"
+    , "<pre>"
+    , concatMap (\pth ->
+                   show pth ++ "\t\t"
+                   ++ toStrings (jSetOf tj filledTK pth)
+                   ++ "\n"
+                ) $ allPathsIn filledTK
+    , "</pre>"
+    , "<p>Sets K(s) for each s in T<sup>K</sup> (Def 34):</p>"
+    , "<pre>"
+    , concatMap (\pth ->
+                   show pth ++ "\t\t"
+                   ++ toStrings (kSetOf tj filledTK pth)
+                   ++ "\n"
+                ) $ allPathsIn filledTK
+    , "</pre>"
+    , "<p>Simplified K(s) for each s in T<sup>K</sup> (Def 34):</p>"
+    , "<pre>"
+    , concatMap (\pth ->
+                   show pth ++ "\t\t"
+                   ++ toStrings (sort $ nubOrd $ map simplify $ kSetOf tj filledTK pth)
+                   ++ "\n"
+                ) $ allPathsIn filledTK
+    , "</pre>"
+    --
+    -- TODO: Lema 25: extended tableau for K(s^i)
+    --
     , "<h3>Result after we keep on interpolating</h3>"
     , svg $ keepInterpolating tWithInt
+    -- TODO: check if root interpolant is correct?
     ]
 
 strOrErr :: String -> String

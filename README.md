@@ -110,7 +110,7 @@ Bonus Information:
 
 These are not needed to define interpolants, but part of the proof the definition is correct.
 
-- [ ] J and K sets from Definition 34
+- [x] J and K sets from Definition 34
 - [ ] extended tableau from Lemma 25 and 26.
 
 Testing:

@@ -1,13 +1,14 @@
 module Logic.PDL.Interpolation.ProofTree where
 
 import Control.Monad (when)
+import Data.Containers.ListUtils (nubOrd)
 import Data.Either (isRight)
-import Data.GraphViz (shape, Shape(PlainText), toLabel)
+import Data.GraphViz (shape, toLabel) -- TODO: Shape(PlainText)
 import Data.GraphViz.Types.Monadic (edge, node)
 import Data.GraphViz.Attributes.Complete hiding (Box, Star)
 import qualified Data.GraphViz.Attributes.HTML as GVHTML
 import Data.Maybe (listToMaybe, catMaybes, mapMaybe)
-import Data.List ((\\), intercalate, isInfixOf, isPrefixOf)
+import Data.List ((\\), intercalate, isInfixOf, isPrefixOf, sort)
 import Data.Text.Lazy (pack)
 
 import Logic.PDL
@@ -451,7 +452,27 @@ fillLowestMplus n = n { childrenOf = map fillLowestMplus (childrenOf n) }
 keepInterpolating :: TableauxIP -> TableauxIP
 keepInterpolating = fixpoint (fillLowestMplus . fillAllIPs)
 
--- General functions --
+-- * Tools for the interpolant-is-an-interpolant proof
+
+-- | Definition 34: Set J(s)
+jSetOf :: TableauxIP -> TableauxIP -> Path -> [Form]
+jSetOf _  _ [] = [] -- J(t_o) := {}
+jSetOf tj tk pth_s = sort $ nubOrd $
+  [ if pth_s == pth_t' then formulaP else Box prog formulaP
+  | pth_t <- allPathsIn tk, let t = tk `at` pth_t
+  , pth_t' <- allPathsIn tk, let t' = tk `at` pth_t'
+  , wfsOf t == wfsOf t' -- same pair -- FIXME: strict enough? do we have 1/2/3 types here?
+  , pth_t `isProperPrefixOf` pth_s && pth_s `isPrefixOf` pth_t'
+  , let pth_s_to_t' = drop (length pth_s) pth_t'
+  , let prog = canonProg tj tk (tk `at` pth_s) pth_s_to_t'
+  , formulaP <- jSetOf tj tk pth_t ++ [ ipOf (tk `at` pth_t) ]
+  ]
+
+kSetOf :: TableauxIP -> TableauxIP -> Path -> [Form]
+kSetOf tj tk pth = sort $ nubOrd $
+  ipOf (tk `at` pth) : jSetOf tj tk pth ++ rightsOf (wfsOf $ tk `at` pth)
+
+-- * General functions
 
 proveWithInt :: Form -> TableauxIP
 proveWithInt f = ipt1 where
