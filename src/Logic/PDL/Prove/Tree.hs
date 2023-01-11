@@ -179,7 +179,7 @@ isEndNodeBy wfsNow history =
   -- and the path since then is critical, i.e. (At) has been used: -- TODO: but ignore whether At is used for first node of path (= last list element) (Def 13)
   , "At" `elem` map snd (take k history)
   -- and if X is loaded, then the path from s to t is loaded:
-  , isLoadedNode wfsNow  `implies` all (isLoadedNode . fst) (take k history) --- now <a*>[a]p yields an infinite tableau :-/
+  , isLoadedNode wfsNow  `implies` all (isLoadedNode . fst) (take k history) --- now <a*>[a]p yields an infinite tableau :-/ -- FIXED? not any more?
   ]
 
 -- | End nodes due to extra condition 4 (page 25).

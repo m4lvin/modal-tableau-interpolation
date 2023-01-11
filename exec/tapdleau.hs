@@ -103,10 +103,10 @@ extraInfo tWithInt =
     , svg ti
     , "<h3>Lowest M+ rule without interpolant:</h3>"
     , svg mstart
-    , "<h3>Y1 and Y2 sets</h3>"
+    , "<h3 title='Y1 and Y2 are the left and right sets of the node obtained using M+.'>Y1 and Y2 sets</h3>"
     , "<p>Y1 = " ++ intercalate ", " (map toString y1) ++"</p>"
     , "<p>Y2 = " ++ intercalate "," (map toString y2) ++"</p>"
-    , "<h3>T<sup>J</sup> (Def 27):</h3>"
+    , "<h3 title='TJ is a sub-tableau of TI from Y1/Y2 up to M-, free, left-empty or repeat nodes.'>T<sup>J</sup> (Def 27):</h3>"
     , svg tj
     , "<p>List of all nodes of T<sup>J</sup>:</p>"
     , "<pre>"
@@ -123,7 +123,7 @@ extraInfo tWithInt =
                    ++ show (filter (trianglePrime tj pth) (allPathsIn tj)) ++ "\n"
                 ) $ allPathsIn tj
     , "</pre>"
-    , "<h3>T(Y) sets (Def 29):</h3>\n"
+    , "<h3 title='T(Y) are all nodes with Y as their right side.'>T(Y) sets (Defs 28 and 29):</h3>\n"
     , "<pre>"
     , "Y \t\tT(Y) \t\tT(Y)^ε \t\tT(Y)^I \t\tT(Y)^◁" ++ "\n"
     , concatMap (\y ->
@@ -146,23 +146,24 @@ extraInfo tWithInt =
     -- ++
     -- ++ "</pre>"
     ++
-    [ "<h3>T<sup>K</sup> with canonical programs and interpolants (Defs 31, 32 and 33):</h3>"
+    [ "<h3>T<sup>K</sup> with canonical programs and interpolants (Defs 30, 31, 32 and 33):</h3>"
     , svg (annotateTk tj tk)
     , "<h3>Interpolant for the root of T<sup>K</sup>:</h3>"
     , "<p>Original: " ++ toString (ipFor tj tk []) ++ "<br />"
     , "Simplified: " ++ toString (simplify $ ipFor tj tk []) ++ "</p>"
     , "<p>Is it actually an interpolant for the root of T<sup>K</sup>?</p>"
     , let
-        (vocCon,left,right) = checkCorrectIPfor (ipFor tj tk []) tk
-        lineFor str bit =
-          "<p class='" ++ (if bit then "success" else "error") ++ "'>" ++ str ++ ": " ++ show bit ++ "</p>\n"
+        theta = ipFor tj tk []
+        (vocCon,left,right) = checkCorrectIPfor theta tk
+        lineFor str statement bit =
+          "<p class='" ++ (if bit then "success" else "error") ++ "'>" ++ str ++ " (" ++ statement ++ " ): " ++ show bit ++ "</p>\n"
       in
         -- TODO: show what the conditions say here...
-        lineFor "Vocabulary condition: " vocCon
+        lineFor "Vocabulary condition" ("voc(" ++ toString theta ++ ") ⊆ voc(" ++ toStrings (leftsOf (wfsOf tk)) ++ ") ∩ voc(" ++ toStrings (leftsOf (wfsOf tk)) ++ ")") vocCon
         ++
-        lineFor "Left condition: " left
+        lineFor "Left condition" ("inconsistent: " ++ toString (Neg theta) ++ [',' | not (null (leftsOf (wfsOf tk))) ] ++ toStrings (leftsOf (wfsOf tk))) left
         ++
-        lineFor "Right condition: " right
+        lineFor "Right condition" ("inconsistent: " ++ toString theta ++ [',' | not (null (rightsOf (wfsOf tk))) ] ++ toStrings (rightsOf (wfsOf tk))) right
     , "<h3>Helper functions for the proof that it is an interpolant</h3>"
     , "<p>Sets J(s) for each s in T<sup>K</sup> (Def 34):</p>"
     , "<pre>"

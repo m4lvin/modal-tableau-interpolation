@@ -324,9 +324,10 @@ tkOf n@(Node t_wfs Nothing _ _ _ _) = tk where
 
 -- Define the successors in T^K, three cases as in Definition 31.
 tkSuccessorsAt :: TableauxIP -> TableauxIP -> Path -> [TableauxIP]
-tkSuccessorsAt tj tk pth
+tkSuccessorsAt tj tk pth =
+  case mtyp of
 -- 1 to 2 has one or no successors:
-  | mtyp == Just One =
+  Just One ->
       [ Node
         ((Left (dOf (map (wfsOf . at tj) $ tOf tj y)), Nothing) : yWithMarkings)
         Nothing -- no interpolants in TK??
@@ -337,7 +338,7 @@ tkSuccessorsAt tj tk pth
       | not $ or [ otherWfs == wfs -- end node if there is a predecessor t with same pair and k(t)=1
                  | (Node otherWfs _ (Just One) _ _ _)  <- historyTo tk pth ] ]
 -- 2 to 3 has one or no successors:
-  | mtyp == Just Two =
+  Just Two ->
       [ Node
         ((Left (dOf (map (wfsOf . at tj) $ tOfTriangle tj y)), Nothing) : yWithMarkings)
         Nothing -- no interpolants in TK??
@@ -348,7 +349,7 @@ tkSuccessorsAt tj tk pth
       | not (null (tOfTriangle tj y))  -- end node when T(Y)◁ is empty
       , let witness = at tj $ head $ tOfTriangle tj y ] -- CHOICE! -- should only matter for Three-to-One, why is this here?
 -- 3 to 1 has n many successors:
-  | mtyp == Just Three =
+  Just Three ->
       [ Node
       ( (Left (dOf (map (wfsOf . at tj) $ tOf tj z)), Nothing)
         : [ mf | mf <- wfsOf childT, isRight (fst mf) ] )
@@ -360,9 +361,9 @@ tkSuccessorsAt tj tk pth
       | let (Node _ _ _ _ _ z1_zn) = at tj $ head $ tOfTriangle tj y -- CHOICE!
       , (k, childT) <- zip [0,1] z1_zn
       , let z = rightsOf (wfsOf childT) ]
-  | otherwise = error $ "Wrong combination of type and number of children: " ++ ppTabStr n
+  Nothing -> error $ "No type given in TK" ++ ppTabStr n
   where
-    n@(Node wfs _ mtyp _ _ _) = tk `at`pth
+    n@(Node wfs _ mtyp _ _ _) = tk `at` pth
     y = rightsOf wfs
     yWithMarkings = filter (isRight . fst) wfs
 
