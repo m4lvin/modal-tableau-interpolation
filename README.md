@@ -42,11 +42,7 @@ See [the test file](test/basicmodal.hs) for more examples, including interpolati
 
 ### PDL
 
-Public web interface (might be outdated): <https://w4eg.de/malvin/illc/tapdleau/>
-
-Work in progress, the star-free fragment should be fine, but the star rules are not sound at this time.
-
-There is no interpolation implemented for PDL yet, though we do have partitioning already.
+Public web interface: <https://w4eg.de/malvin/illc/tapdleau/>
 
 ## Automated Tests
 
@@ -59,14 +55,7 @@ Note: The files have been modified to use star as a postfix operator.
 
 # TODO list
 
-## Basic Modal Logic
-
-- [X] mark active formula in tableaux
-- [X] remove Top as primitive, use `top`
-
 ## PDL
-
-- [X] random generation of formulas for QuickCheck (copy/adapt from BasicModal)
 
 Prover:
 
@@ -129,18 +118,16 @@ Semantics:
 - [ ] arbitrary models
 - [ ] generate Kripke model from open tableau?
 
-Performance/Clarity:
-
-- [ ] Use better data structures, [zipper](https://en.wikipedia.org/wiki/Zipper_(data_structure)) instead of `(TableauIP, Path)` pairs?
-
 Nice to have:
 
+- [ ] option to start with a given set/partition instead of a single (to be proven and thus negated) formula 
 - [ ] use exact same syntax as Borzechowski (A for atomic programs etc.)
 - [ ] add applicable extra conditions to rule annotation
 - [x] web interface
 - [ ] use Graphviz HTML labels for better readability, e.g. highlight the active formula.
 - [ ] color the loading part of formulas/nodes
 - [ ] store current/submitted formula in (base64?) URL hash, provide perma-link for sharing
+- [ ] Use better data structures, [zipper](https://en.wikipedia.org/wiki/Zipper_(data_structure)) instead of `(TableauIP, Path)` pairs?
 
 ## See also
 
