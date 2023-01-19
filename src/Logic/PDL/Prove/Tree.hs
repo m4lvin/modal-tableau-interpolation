@@ -120,14 +120,17 @@ ruleFor (Box (Cup _ _) _ ,Just _ ) = Nothing
 ruleFor (Box (x :- y) f  ,Nothing) = Just (";",  1, [ [(Box x (Box y f),Nothing)]              ], noChange)
 ruleFor (Box (_ :- _) _  ,Just _ ) = Nothing
 -- The (n) rule (note extra condition 1 below)
-ruleFor (Box (Star x) f  ,Nothing) = Just ("n",  2, [ [(f,Nothing), (Box x (Box (NStar x) f),Nothing)] ], noChange)
+ruleFor (Box (Star x) (Box (NStar y) f)  ,Nothing) = Just ("n",  2, [ [(             Box x (Box (NStar x) (Box (NStar y) f)), Nothing)] ], noChange) -- extra condition 2
+ruleFor (Box (Star x) f                  ,Nothing) = Just ("n",  2, [ [(f,Nothing), (Box x (Box (NStar x)  f               ), Nothing)] ], noChange)
 ruleFor (Box (Star _) _  ,Just _ ) = Nothing -- (n) maye not be applied to marked formulas.
 -- Splitting rules:
 ruleFor (Neg (Con f g)   ,Nothing) = Just ("¬∧", 3, [ [(Neg f,Nothing)]
                                                     , [(Neg g,Nothing)]                    ], noChange)
 ruleFor (Neg (Con _ _)   ,Just _ ) = Nothing
-ruleFor (Box (Test f) g  ,Nothing) = Just ("?",  3, [ [(Neg f,Nothing)]
-                                                    , [(g,Nothing)]                        ], noChange)
+ruleFor (Box (Test f) (Box (NStar _) _)  ,Nothing) = Just ("?",  3, [ [(Neg f,Nothing)]
+                                                                    , []                   ], noChange) -- extra condition 2
+ruleFor (Box (Test f) g                  ,Nothing) = Just ("?",  3, [ [(Neg f,Nothing)]
+                                                                    , [(g,Nothing)]        ], noChange)
 ruleFor (Box (Test _) _  ,Just _ ) = Nothing
 ruleFor (Neg (Box (Cup x y) f),m ) = Just ("¬∪", 3, [ [(Neg $ Box x f,m)]
                                                     , [(Neg $ Box y f,m)]                  ], noChange)

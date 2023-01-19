@@ -65,11 +65,11 @@ Prover:
 - [X] Only allow (At) on marked formulas (page 24)
 - [ ] Check priorities / preferences of all rules.
 - [X] mark active formula (as in BasicModal), needed for interpolation
-- [x] also mark active formula for extra condition 4, and history-path for 6
+- [X] also mark active formula for extra condition 4, and history-path for 6
 - [ ] more uniform encoding of rules and closing conditions
 - [ ] Implement extra conditions:
-    1. [x] when reaching an atomic Box or NegBox, go back from n to *
-    2. [ ] instead of X;[a^n]P reach X
+    1. [X] when reaching an atomic Box or NegBox, go back from n to *
+    2. [X] instead of X;[a^n]P reach X
     3. [ ] apply rules to n-formula whenever possible / prioritise them!
     4. [X] Never apply a rule to a ¬[a^n] node (and mark those as end nodes!)
     5. [ ] directly after M+ do not apply M-
@@ -86,7 +86,7 @@ Interpolation:
 - [X] Find test cases that fail due to the empty-side edge cases for (At)-interpolants?
 - [X] Correct definition of (At)-interpolants in the empty-side edge cases.
 - [X] TI, TJ, TK, canonical programs, interpolants for TK
-- [x] use TI etc. to find interpolants for loaded sub-tableaux, iterate!
+- [X] use TI etc. to find interpolants for loaded sub-tableaux, iterate!
 - [ ] make warning more visible when defined interpolant is not actually an interpolant!
 - [ ] fillIPs: end notes due to extra condition 4 ??
 - Problematic examples:
@@ -99,7 +99,7 @@ Bonus Information:
 
 These are not needed to define interpolants, but part of the proof the definition is correct.
 
-- [x] J and K sets from Definition 34
+- [X] J and K sets from Definition 34
 - [ ] extended tableau from Lemma 25 and 26.
 
 Testing:
@@ -113,8 +113,8 @@ Testing:
 
 Semantics:
 
-- [x] Kripke models
-- [x] satisfaction
+- [X] Kripke models
+- [X] satisfaction
 - [ ] arbitrary models
 - [ ] generate Kripke model from open tableau?
 
@@ -123,7 +123,7 @@ Nice to have:
 - [ ] option to start with a given set/partition instead of a single (to be proven and thus negated) formula 
 - [ ] use exact same syntax as Borzechowski (A for atomic programs etc.)
 - [ ] add applicable extra conditions to rule annotation
-- [x] web interface
+- [X] web interface
 - [ ] use Graphviz HTML labels for better readability, e.g. highlight the active formula.
 - [ ] color the loading part of formulas/nodes
 - [ ] store current/submitted formula in (base64?) URL hash, provide perma-link for sharing
