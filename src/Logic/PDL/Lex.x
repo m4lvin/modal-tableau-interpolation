@@ -47,6 +47,7 @@ tokens :-
   "<-->"            { \ p _ -> TokenEqui              p }
   "AND"             { \ p _ -> TokenCon               p }
   "OR"              { \ p _ -> TokenDis               p }
+  "o"               { \ p _ -> TokenO                 p }
   "p"               { \ p _ -> TokenP                 p }
   "q"               { \ p _ -> TokenQ                 p }
   "r"               { \ p _ -> TokenR                 p }

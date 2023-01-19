@@ -19,6 +19,7 @@ import qualified Logic.BasicModal
 %token
   TOP    { TokenTop    _ }
   BOT    { TokenBot    _ }
+  'o'    { TokenO      _ }
   'p'    { TokenP      _ }
   'q'    { TokenQ      _ }
   'r'    { TokenR      _ }
@@ -71,6 +72,7 @@ KForm : TOP { Logic.BasicModal.top }
      | KForm '|'  KForm { Logic.BasicModal.dis $1 $3 }
      | KForm '<-->' KForm { $1 Logic.BasicModal.<--> $3 }
      | 'p' INT { Logic.BasicModal.At ('p' : show $2) }
+     | 'o' { Logic.BasicModal.At ("o") }
      | 'p' { Logic.BasicModal.At ("p") }
      | 'q' { Logic.BasicModal.At ("q") }
      | 'r' { Logic.BasicModal.At ("r") }
@@ -88,6 +90,7 @@ PDLForm : TOP { top }
      | PDLForm '|'  PDLForm { dis $1 $3 }
      | PDLForm '<-->' PDLForm { $1 <--> $3 }
      | 'p' INT { At ('p' : show $2) }
+     | 'o' { At ("o") }
      | 'p' { At ("p") }
      | 'q' { At ("q") }
      | 'r' { At ("r") }

@@ -4,6 +4,7 @@ data Token a -- == AlexPn
   | TokenTop               {apn :: a}
   | TokenBot               {apn :: a}
   | TokenPrp               {apn :: a}
+  | TokenO                 {apn :: a}
   | TokenP                 {apn :: a}
   | TokenQ                 {apn :: a}
   | TokenR                 {apn :: a}
