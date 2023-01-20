@@ -9,7 +9,14 @@ someValidities :: [Form]
 someValidities =
   [ top
   , Neg Bot
-  , Box (Cup a b) p --> Box a p
+  , "p | ~p"
+  , "[a]~p | <a>p"
+  , "[a*]p <-> [a**]p"
+  ]
+
+someValidImplications :: [Form]
+someValidImplications =
+  [ Box (Cup a b) p --> Box a p
   , dia a p -->  dia (Cup a b) p
   , Box (Cup a b) p --> Box a p
   , dia (Cup a b) p --> dis (dia a p) (dia b p)
@@ -25,7 +32,16 @@ someValidities =
   , dia (Star a) p --> dia (Star (Star a)) p
   , dia (Star (Star a)) p --> dia (Star a) p
   , "[a* u ?p]q -> [a u ?r]q"
+  , "q -> [a]T"
+  , "[?p u ?~p](r & ~r) -> q"
+  , "[?p u ?~p]F -> q"
+  , "T -> [c]T"
+  , "[a*]p -> [a**]p"
+  , "[a**]p -> [a*]p"
+  , "[a* u ?p]q -> [a u ?r]q"
   , "q -> [c]~F"
+  , "(q ∧ ¬[?([?⊤*]s)*]⊤) -> q"
+  , "(q ∧ ¬[?([?⊤*]s)*]⊤) -> (q ^ q)"
   ]
 
 -- | Formulas that should *not* be provable.

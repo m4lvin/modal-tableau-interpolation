@@ -16,16 +16,22 @@ import Logic.PDL.Interpolation.ProofTree
 
 main :: IO ()
 main = hspec $ do
-  -- TODO: describe "simplify" $ ...
-  describe "somValidities" $
+  describe "simplify" $
+    prop "preserves provability"
+      (\f -> provable f === provable (simplify f))
+  describe "someValidities" $
     mapM_ proveTest someValidities
+  describe "someValidImplications" $
+    mapM_ proveTest someValidImplications
   describe "someNonValidities" $
     mapM_ disproveTest someNonValidities
   describe "segerbergFor p q a b" $
     mapM_ proveTest $ segerbergFor p q a b
-  describe "parsing" $
+  describe "parsing" $ do
     it "parse 'p1'" $
       fromString "p1" `shouldBe` At "p1"
+    it "parse '[a]p <-> [b]q'" $
+      fromString "[a]p <-> [b]q" `shouldBe` ( Box (Ap "a") (At "p") <--> Box (Ap "b") (At "q") )
   describe "prove negation of the first three formulas in data/formulae_exp_unsat.txt" $ do
     fileLines <- runIO $ readFile "data/formulae_exp_unsat.txt"
     mapM_
@@ -53,22 +59,14 @@ main = hspec $ do
     --            prop (show k)
     --              (\ f1 f2 p1 p2 -> provable (segerbergFor f1 f2 p1 p2 !! k) )
     --         ) [0..(length (segerbergFor p q a b) - 1)]
-  describe "interpolate" $ do
-    describe "some valid implications, including empty edge cases" $
-      mapM_ (\st -> let (Neg (Con f (Neg g))) = fromString st
-                    in it st $ testIPgen interpolate (f,g))
-      [ "[a* u ?p]q -> [a u ?r]q"
-      , "q -> [a]T"
-      , "[?p u ?~p](r & ~r) -> q"
-      , "[?p u ?~p]F -> q"
-      , "T -> [c]T"
-      ]
-    prop "interpolate randomly generated examples"
+  describe "interpolate" $ modifyMaxDiscardRatio (const 1000) $ do
+    describe "someValidImplications" $
+      mapM_ (\(Neg (Con f (Neg g))) ->
+        it (toString f ++ " -> " ++ toString g) $ testIPgen interpolate (f,g)) someValidImplications
+    prop "random examples"
       (\(f,g) -> provable (f `imp` g) ==> testIPgen interpolate (f,g))
-    -- modifyMaxDiscardRatio (const 1000) $
-    --   prop "interpolate randomly generated nice examples"
-    --     (\(f,g) -> isNice (f,g) ==> testIPgen interpolate (f,g))
-
+    prop "random nice examples"
+      (\(f,g) -> isNice (f,g) ==> testIPgen interpolate (f,g))
 
 proveTest :: Form -> SpecWith ()
 proveTest f = it (toString f) $ provable f `shouldBe` True
