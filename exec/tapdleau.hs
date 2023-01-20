@@ -73,8 +73,8 @@ main = do
           , if closed
               then "PROVED. <style type='text/css'> #output { border-color: green; } </style>"
               else "NOT proved. <style type='text/css'> #output { border-color: red; } </style>"
-          , "<div align='center'>" ++ if closed then svg tWithInt else svg t ++ "<div>"
-          , if closed && extra == (1 :: Int) then "<div align=left>" ++ extraInfo tWithInt ++ "</div>" else ""
+          , "<div align='center'>" ++ (if closed then svg tWithInt else svg t) ++ "</div>"
+          , if closed && extra == (1 :: Int) then extraInfo tWithInt else ""
           ]
 
 myCatch :: NFData a => a -> IO (Either String a)
