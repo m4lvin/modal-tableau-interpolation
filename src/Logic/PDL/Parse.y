@@ -47,6 +47,7 @@ import qualified Logic.BasicModal
   '*'    { TokenStar   _ }
   INT    { TokenInt $$ _ }
 
+%left '<-->'
 %left '=>'
 %left '|'
 %left '&'

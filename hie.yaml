@@ -3,6 +3,12 @@ cradle:
     - path: "./src"
       component: "Logic:lib"
 
+    - path: "./exec/example.hs"
+      component: "Logic:exe:example"
+
+    - path: "./exec/Paths_Logic.hs"
+      component: "Logic:exe:example"
+
     - path: "./exec/tapdleau.hs"
       component: "Logic:exe:tapdleau"
 
