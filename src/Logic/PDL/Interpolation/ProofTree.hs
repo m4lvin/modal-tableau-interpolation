@@ -154,6 +154,8 @@ fillIPs n@(Node wfs Nothing _ rule actives ts)
   | not (all hasIP ts) = Node wfs Nothing Nothing rule actives (map fillIPs ts)
 -- If left side is empty, then T is an interpolant:
   | null (leftsOf wfs) = Node wfs (Just top) Nothing rule actives ts
+-- If right side is empty, then ⊥ is an interpolant:
+  | null (rightsOf wfs) = Node wfs (Just Bot) Nothing rule actives ts
 -- Lemma 15: Non-end nodes where children already have IPs: distinguish rules
   | otherwise = let
       newMIP = case (rule,actives,ts) of
