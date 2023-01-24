@@ -47,11 +47,12 @@ main = do
     post "/prove" $ do
       logic <- param "logic"
       textinput <- param "textinput"
-      extra <- param "extra"
+      extra <- param "extra" -- TODO: remove this and enable by default!
       parseResult <- liftIO $ myCatch (if logic == ("K" :: String) then Left ( parseK (alexScanTokens textinput) :: BM.Form) else Right (fromString textinput :: Logic.PDL.Form))
       html $ mconcat $ map TL.pack $ case parseResult of
         Left err ->
-          [ "<pre> INPUT: " ++ show (textinput :: String) ++ "</pre>"
+          [ "<pre> INPUT: " ++ textinput ++ "</pre>"
+          -- TODO mark column of parse or lex error
           , "<pre> PARSE ERRROR: " ++ err ++ "</pre>" ]
         Right (Left bmlF) ->
           let t = Logic.BasicModal.Prove.Tree.prove bmlF
@@ -60,20 +61,20 @@ main = do
           in
           [ "<pre>Parsed input: " ++ toString bmlF  ++ "</pre>"
           , if closed
-              then "PROVED. <style type='text/css'> #output { border-color: green; } </style>"
-              else "NOT proved. <style type='text/css'> #output { border-color: red; } </style>"
-          , "<div align='center'>" ++ if closed then svg tWithInt else svg t ++ "<div>"
+              then "PROVED. <style type='text/css'> #output { border-color: green; } </style>\n"
+              else "NOT proved. <style type='text/css'> #output { border-color: red; } </style>\n"
+          , "<div align='center'>" ++ if closed then svg tWithInt else svg t ++ "</div>"
           ]
         Right (Right pdlF) ->
           let t = prove pdlF
               closed = isClosedTab t
-              tWithInt = fillAllIPs $ toEmptyTabIP t
+              tWithInt = fillAllIPs $ tiOf $ toEmptyTabIP t
           in
           [ "<pre>Parsed input: " ++ toString pdlF  ++ "</pre>"
           , if closed
-              then "PROVED. <style type='text/css'> #output { border-color: green; } </style>"
-              else "NOT proved. <style type='text/css'> #output { border-color: red; } </style>"
-          , "<div align='center'>" ++ (if closed then svg tWithInt else svg t) ++ "</div>"
+              then "PROVED. <style type='text/css'> #output { border-color: green; } </style>\n"
+              else "NOT proved. <style type='text/css'> #output { border-color: red; } </style>\n"
+          , "<div align='center'>" ++ svg t ++ "</div>"
           , if closed && extra == (1 :: Int) then extraInfo tWithInt else ""
           ]
 
@@ -86,22 +87,60 @@ embeddedFile str = case str of
   "jquery.js"  -> E.decodeUtf8 $(embedFile =<< runIO JQuery.file)
   _            -> error "File not found."
 
--- | Given a closed tableau, show TI, TJ, TK etc. to get an interpolant.
+-- | Given the TI of a closed tableau, show TI, TJ, TK etc. to get an interpolant.
 extraInfo :: TableauxIP -> String
-extraInfo tWithInt =
+extraInfo ti =
+  unlines $ map strOrErr $
+    [ "<h3>T<sup>I</sup></h3>"
+    , "<p>This is T after removing all n-nodes (Def 26) and using Lemma 14 and 15 for the \"easy\" interpolants.</p>"
+    , svg ti
+    ]
+    ++
+    snd (mPlusLoop ti)
+    ++
+    [ "<hr /><h3>Result after we keep on interpolating</h3>"
+    , svg $ keepInterpolating ti
+    , case mipOf (keepInterpolating ti) of
+        Nothing -> "No interpolant found."
+        Just theta -> theta `isActuallyInterpolantFor` keepInterpolating ti
+    ]
+
+isActuallyInterpolantFor :: Form -> TableauxIP -> String
+isActuallyInterpolantFor theta tk =
+      "<p>Is " ++ toString theta ++ " actually an interpolant?</p>"
+    ++
+      let
+        (vocCon,left,right) = checkCorrectIPfor theta tk
+        lineFor str statement bit =
+          "<p class='" ++ (if bit then "success" else "error") ++ "'>" ++ str ++ " (" ++ statement ++ " ): " ++ show bit ++ "</p>\n"
+      in
+        lineFor "Vocabulary condition" ("voc(" ++ toString theta ++ ") ⊆ voc(" ++ toStrings (leftsOf (wfsOf tk)) ++ ") ∩ voc(" ++ toStrings (rightsOf (wfsOf tk)) ++ ")") vocCon
+        ++
+        lineFor "Left condition" ("inconsistent: " ++ toStrings (Neg theta : leftsOf (wfsOf tk))) left
+        ++
+        lineFor "Right condition" ("inconsistent: " ++ toStrings (theta : rightsOf (wfsOf tk))) right
+
+
+mPlusLoop :: TableauxIP -> (TableauxIP, [String])
+mPlusLoop ti = case lowestMplusWithoutIP ti of
+                 Nothing -> (ti, [ "<p>There are no remaining M+ nodes without interpolant.</p>" ])
+                 Just _  -> let (nextTI, output) = solveLowestMplus ti
+                                (final, outputs) = mPlusLoop nextTI
+                            in  (final , output ++ outputs)
+
+solveLowestMplus :: TableauxIP -> (TableauxIP, [String])
+solveLowestMplus ti =
   let
-    ti = tiOf tWithInt
     Just mstart = lowestMplusWithoutIP ti
     tj = tjOf $ head $ childrenOf mstart
     (y1, y2) = (leftsOf $ wfsOf tj, rightsOf $ wfsOf mstart)
     rightComponents = nubOrd $ map (\pth -> rightsOf (wfsOf (tj `at` pth)) ) (allPathsIn tj)
     tk = tkOf tj
     filledTK = annotateTk tj tk
+    newTI = fillLowestMplus ti
   in
-    unlines $ map strOrErr $
-    [ "<h3>T<sup>I</sup>, after removing all n-nodes (Def 26):</h3>"
-    , svg ti
-    , "<h3>Lowest M+ rule without interpolant:</h3>"
+    (newTI,
+    [ "<hr /><h3>Lowest M+ rule without interpolant:</h3>"
     , svg mstart
     , "<h3 title='Y1 and Y2 are the left and right sets of the node obtained using M+.'>Y1 and Y2 sets</h3>"
     , "<p>Y1 = " ++ intercalate ", " (map toString y1) ++"</p>"
@@ -134,41 +173,17 @@ extraInfo tWithInt =
             ++ show (tOfTriangle tj y) ++ "\n"
            ) rightComponents
     , "</pre>"
-    -- , "<h3>T<sup>K</sup> (Def 31):</h3>"
-    -- , svg tk
-    ]
-    -- ++
-    -- [ "<h3>Canonical programs (single steps in T<sup>K</sup> (Def 32):</h3>"
-    -- , "<pre>"
-    -- ]
-    -- ++
-    -- [ pad 42 (show (init pth) ++ " to " ++ show pth ++ ": ") ++ toString (canonProg tj tk (tk `at` init pth) [last pth]) | pth <- filter (not . null) (allPathsIn tk) ]
-    -- ++
-    -- ++ "</pre>"
-    ++
-    [ "<h3>T<sup>K</sup> with canonical programs and interpolants (Defs 30, 31, 32 and 33):</h3>"
+    , "<h3>T<sup>K</sup> with canonical programs and interpolants (Defs 30, 31, 32 and 33):</h3>"
     , svg (annotateTk tj tk)
     , "<h3>Interpolant for the root of T<sup>K</sup>:</h3>"
     , "<p>Original: " ++ toString (ipFor tj tk []) ++ "<br />"
     , "Simplified: " ++ toString (simplify $ ipFor tj tk []) ++ "</p>"
-    , "<p>Is it actually an interpolant for the root of T<sup>K</sup>?</p>"
-    , let
-        theta = ipFor tj tk []
-        (vocCon,left,right) = checkCorrectIPfor theta tk
-        lineFor str statement bit =
-          "<p class='" ++ (if bit then "success" else "error") ++ "'>" ++ str ++ " (" ++ statement ++ " ): " ++ show bit ++ "</p>\n"
-      in
-        -- TODO: show what the conditions say here...
-        lineFor "Vocabulary condition" ("voc(" ++ toString theta ++ ") ⊆ voc(" ++ toStrings (leftsOf (wfsOf tk)) ++ ") ∩ voc(" ++ toStrings (leftsOf (wfsOf tk)) ++ ")") vocCon
-        ++
-        lineFor "Left condition" ("inconsistent: " ++ toString (Neg theta) ++ [',' | not (null (leftsOf (wfsOf tk))) ] ++ toStrings (leftsOf (wfsOf tk))) left
-        ++
-        lineFor "Right condition" ("inconsistent: " ++ toString theta ++ [',' | not (null (rightsOf (wfsOf tk))) ] ++ toStrings (rightsOf (wfsOf tk))) right
+    , (simplify $ ipFor tj tk []) `isActuallyInterpolantFor` tk
     , "<h3>Helper functions for the proof that it is an interpolant</h3>"
     , "<p>Sets J(s) for each s in T<sup>K</sup> (Def 34):</p>"
     , "<pre>"
     , concatMap (\pth ->
-                   show pth ++ "\t\t"
+                   pad 16 (show pth)
                    ++ toStrings (jSetOf tj filledTK pth)
                    ++ "\n"
                 ) $ allPathsIn filledTK
@@ -176,7 +191,7 @@ extraInfo tWithInt =
     , "<p>Sets K(s) for each s in T<sup>K</sup> (Def 34):</p>"
     , "<pre>"
     , concatMap (\pth ->
-                   show pth ++ "\t\t"
+                   pad 16 (show pth)
                    ++ toStrings (kSetOf tj filledTK pth)
                    ++ "\n"
                 ) $ allPathsIn filledTK
@@ -184,7 +199,7 @@ extraInfo tWithInt =
     , "<p>Simplified K(s) for each s in T<sup>K</sup> (Def 34):</p>"
     , "<pre>"
     , concatMap (\pth ->
-                   show pth ++ "\t\t"
+                   pad 16 (show pth)
                    ++ toStrings (sort $ nubOrd $ map simplify $ kSetOf tj filledTK pth)
                    ++ "\n"
                 ) $ allPathsIn filledTK
@@ -192,10 +207,9 @@ extraInfo tWithInt =
     --
     -- TODO: Lema 25: extended tableau for K(s^i)
     --
-    , "<h3>Result after we keep on interpolating</h3>"
-    , svg $ keepInterpolating tWithInt
-    -- TODO: check if root interpolant is correct?
     ]
+    )
+
 
 strOrErr :: String -> String
 strOrErr str =

@@ -128,12 +128,11 @@ rightsOf wfs = [f | (Right f,_) <- wfs]
 -- For any branching rule we combine the two previous interpolants
 -- with a connective depending on the side of the active formula (see page ??)
 branchIP :: ([TableauxIP] -> [(Either Form Form, Maybe Form)] -> Maybe Form)
-branchIP [t1,t2] actives  = Just $ connective (ipOf t1) (ipOf t2) where
+branchIP ts actives  = Just $ foldl1 connective (map ipOf ts) where
   connective = case actives of
     [(Left  _, _)] -> dis -- left side is active, use disjunction
     [(Right _, _)] -> Con -- right side is active, use conjunction
     otherActives   -> error $ "Could not find the active side: " ++ show otherActives
-branchIP _ _ = error "branchIP only works for exactly two branches."
 
 -- | Fill interpolants for the easy cases, not involving extra conditions.
 -- Based on Lemma 14 and Lemma 15.
@@ -155,38 +154,22 @@ fillIPs n@(Node wfs Nothing _ rule actives ts)
   | not (all hasIP ts) = Node wfs Nothing Nothing rule actives (map fillIPs ts)
 -- If left side is empty, then T is an interpolant:
   | null (leftsOf wfs) = Node wfs (Just top) Nothing rule actives ts
--- Non-end nodes where children already have IPs: distinguish rules
+-- Lemma 15: Non-end nodes where children already have IPs: distinguish rules
   | otherwise = let
-      newMIP = case (rule,actives) of
-        -- single-child rules are easy, the interpolant stays the same:
-        ("¬" ,_) -> Just $ ipOf t where [t] = ts
-        ("∧" ,_) -> Just $ ipOf t where [t] = ts
-        ("¬?",_) -> Just $ ipOf t where [t] = ts
-        ("¬;",_) -> Just $ ipOf t where [t] = ts
-        ("∪" ,_) -> Just $ ipOf t where [t] = ts
-        (";" ,_) -> Just $ ipOf t where [t] = ts
-        ("n" ,_) -> Just $ ipOf t where [t] = ts
-        ("M+",_) -> Just $ ipOf t where [t] = ts -- Start of a T^J, deal with it later!
-        ("M-",_) -> Just $ ipOf t where [t] = ts
-        -- for the branching rule we combine the two previous interpolants
-        -- with a connective depending on the side of the active formula:
-        ("¬∧",_) -> branchIP ts actives
-        ("?" ,_) -> branchIP ts actives
-        ("¬∪",_) -> branchIP ts actives
-        ("¬n",_) -> branchIP ts actives
+      newMIP = case (rule,actives,ts) of
         -- critical rule: prefix previous interpolant with diamond or Box, depending on active side
         -- if the other side is empty, use ⊥ or T, because <a>T and T have different voc (page 44)
-        ("At",[(Left  (Neg (Box (Ap x) _)),_)]) ->
-          let [t] = ts
-          in Just $ if null $ catMaybes [ projection x g | (Right g, _) <- wfs ] then Bot else dia (Ap x) (ipOf t)
-        ("At",[(Right (Neg (Box (Ap x) _)),_)]) ->
-          let [t] = ts
-          in Just $ if null $ catMaybes [ projection x g | (Left g, _) <- wfs ] then top else Box (Ap x) (ipOf t)
-        -- end nodes due to extra conditions:
-        ('4':_,_) -> Just top -- NOTE: DANGEROUS provisorium, n-nodes should be deleted instead!? FIXME?
-        ('6':_,_) -> Nothing
-        -- There should not be any remaining cases:
-        (rl  ,_) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms wfs actives ++ "\n  Unable to interpolate: " ++ show n
+        ("At",[(Left  (Neg (Box (Ap x) _)),_)],[t]) ->
+          Just $ if null $ catMaybes [ projection x g | (Right g, _) <- wfs ] then Bot else dia (Ap x) (ipOf t)
+        ("At",[(Right (Neg (Box (Ap x) _)),_)],[t]) ->
+          Just $ if null $ catMaybes [ projection x g | (Left g, _) <- wfs ] then top else Box (Ap x) (ipOf t)
+        ("At", _, _) -> error $ "Critical rule applied to " ++ ppWForms wfs actives ++ "\n  Unable to interpolate: " ++ show n
+        -- end nodes due to extra condition 6:
+        ('6':_,_, []) -> Nothing -- end node due to condition 6, deal with it later!
+        -- There should not be any empty cases:
+        (rl  ,_, []) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms wfs actives ++ "\n  Unable to interpolate: " ++ show n
+        -- Default case is to use branchIP (Lemma 15):
+        (_, _, _) -> branchIP ts actives
       in Node wfs newMIP Nothing rule actives ts
 
 fillAllIPs :: TableauxIP -> TableauxIP
@@ -478,18 +461,15 @@ kSetOf tj tk pth = sort $ nubOrd $
 -- * General functions
 
 proveWithInt :: Form -> TableauxIP
-proveWithInt f = ipt1 where
-  t1 = prove f
-  ipt0 = toEmptyTabIP t1 :: TableauxIP
-  ipt1 = fillAllIPs ipt0
+proveWithInt = keepInterpolating . tiOf . toEmptyTabIP . prove
 
 proveAndInterpolate :: (Form,Form) -> (TableauxIP,Maybe Form)
 proveAndInterpolate (ante,cons)
   | not $ provable (ante --> cons) = error $ "This implication is not valid " ++ toString (ante --> cons)
   | otherwise = (ipt1,mip) where
       t1 = prove (ante --> cons)
-      ipt0 = toEmptyTabIP t1 :: TableauxIP
-      ipt1@(Node _ mip _ _ _ _) = fillAllIPs ipt0 -- TODO: use keepInterpolating here?
+      ti = tiOf $ toEmptyTabIP t1 :: TableauxIP
+      ipt1@(Node _ mip _ _ _ _) = keepInterpolating ti
 
 interpolate :: (Form,Form) -> Maybe Form
 interpolate = snd . proveAndInterpolate
