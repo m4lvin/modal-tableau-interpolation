@@ -229,6 +229,21 @@ immediateSubPrograms (Star p1) = [p1]
 immediateSubPrograms (NStar p1) = [p1]
 immediateSubPrograms (Test f) = map Test $ immediateSubFormulas f
 
+dropPartFormulas :: Form -> [Form]
+dropPartFormulas Bot       = []
+dropPartFormulas (At _)    = []
+dropPartFormulas (Neg f)   = [f]
+dropPartFormulas (Con f g) = [f,g] ++ [Con f' g | f' <- dropPartFormulas f] ++ [Con f g' | g' <- dropPartFormulas g]
+dropPartFormulas (Box x f) = [f] ++ [Box x' f | x' <- dropPartPrograms x] ++ [Box x f' | f' <- dropPartFormulas f]
+
+dropPartPrograms :: Prog -> [Prog]
+dropPartPrograms (Ap _) = []
+dropPartPrograms (Cup p1 p2) = [p1,p2] ++ [Cup p1' p2  | p1' <- dropPartPrograms p1] ++ [Cup p1  p2' | p2' <- dropPartPrograms p2]
+dropPartPrograms (p1 :- p2)  = [p1,p2] ++ [p1' :- p2  | p1' <- dropPartPrograms p1] ++ [p1  :- p2' | p2' <- dropPartPrograms p2]
+dropPartPrograms (Star p1)   = map Star $ dropPartPrograms p1
+dropPartPrograms (NStar p1)  = map NStar $ dropPartPrograms p1
+dropPartPrograms (Test f)    = map Test $ dropPartFormulas f
+
 ---- SEMANTICS ----
 
 type Valuation a = a -> [Atom]
@@ -288,7 +303,7 @@ instance Arbitrary Form where
       , Con <$> genForm (n `div` factor) <*> genForm (n `div` factor)
       , Box <$> arbitrary <*> genForm (n `div` factor)
       ]
-  shrink f = immediateSubFormulas f ++ [ simplify f | simplify f /= f]
+  shrink f = dropPartFormulas f ++ immediateSubFormulas f ++ [ simplify f | simplify f /= f]
 
 instance Arbitrary Prog where
   arbitrary = simplifyProg <$> sized genProg where
@@ -302,4 +317,4 @@ instance Arbitrary Prog where
       , Star <$> genProg (n `div` factor)
       , Test <$> arbitrary
       ]
-  shrink x = immediateSubPrograms x ++ [ simplifyProg x | simplifyProg x /= x ]
+  shrink x = dropPartPrograms x ++ immediateSubPrograms x ++ [ simplifyProg x | simplifyProg x /= x ]
