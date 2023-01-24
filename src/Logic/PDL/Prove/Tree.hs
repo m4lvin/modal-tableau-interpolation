@@ -163,6 +163,7 @@ weightOf (Right _, _) = first Right
 
 isClosedBy :: [WForm] -> [WForm]
 isClosedBy wfs
+  | not (all (isNormal . fst . collapse) wfs) = [] -- Never close n-nodes (note after Definition 12)
   | Bot `elem` map (fst . collapse) wfs = take 1 [ wf | wf <- wfs, fst (collapse wf) == Bot ]
   | otherwise = [ wf | wf <- wfs, Neg (fst (collapse wf)) `elem` map (fst . collapse) wfs ]
                 ++
