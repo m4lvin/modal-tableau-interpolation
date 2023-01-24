@@ -13,4 +13,4 @@ isInterpolantFor i (f,g) =
 testIPgen :: ((Form,Form) -> Maybe Form) -> (Form,Form) -> Bool
 testIPgen intfct (f,g) = case intfct (f,g) of
   Just h -> h `isInterpolantFor` (f,g)
-  Nothing -> True -- TODO change to `False` when everything works!
+  Nothing -> False

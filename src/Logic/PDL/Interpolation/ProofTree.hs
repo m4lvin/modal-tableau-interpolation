@@ -90,7 +90,7 @@ ppTabStr = ppTab' "" where
        ++
        concatMap (\t -> (if length ts > 1 then pref ++ ".\n" else "") ++ ppTab' (pref ++ if length ts > 1 then "   " else "") t) ts
 
--- | Convert a Tableaux to a TableauxIP without interpolants.
+-- | Convert a Tableaux to a TableauxIP (with no interpolants yet).
 toEmptyTabIP :: Tableaux -> TableauxIP
 toEmptyTabIP T.End = error "Cannot convert End nodes to TableauxIP."
 toEmptyTabIP (T.Node wfs _ rule actives [T.End]) =
@@ -136,10 +136,11 @@ branchIP [t1,t2] actives  = Just $ connective (ipOf t1) (ipOf t2) where
 branchIP _ _ = error "branchIP only works for exactly two branches."
 
 -- | Fill interpolants for the easy cases, not involving extra conditions.
+-- Based on Lemma 14 and Lemma 15.
 fillIPs :: TableauxIP -> TableauxIP
 -- Ends and already interpolated nodes: nothing to do:
 fillIPs t@(Node _ (Just _) _ _ _ _) = t
--- Closed end nodes: use the active formulas or a constant as interpolant:
+-- Lemma 14: Closed end nodes: use the active formulas or a constant as interpolant:
 fillIPs (Node wfs Nothing mtyp "✘" actives []) = Node wfs mip mtyp "✘" actives [] where
   candidates = map fst actives -- NOTE: ignore markings
   mip = listToMaybe $ lrIp candidates
@@ -193,7 +194,8 @@ fillAllIPs = fixpoint fillIPs -- FIXME: is this necessary?
 
 -- * Definitions to deal with condition 6 end nodes
 
--- | Definition 26: remove n-nodes to obtain T^I
+-- | Definition 26: given T, remove n-nodes to obtain T^I.
+-- This may result in a non-binary tree!
 tiOf :: TableauxIP -> TableauxIP
 tiOf = snd . head . tiOfRec where
   -- When node n is deleted the parent of n must append rule of n to its own rule.
@@ -422,7 +424,7 @@ ipFor tj tk pth
                           | (Node otherWfs _ otherMtyp _ _ _) <- historyTo tk pth ]) =
       iOf tj (rightsOf t_wfs) -- end node with no same-pair predecessor, use I(t) := I(Y).
   | null s1_sn = top -- all other end nodes get I(t):=1.
-  | length s1_sn == 1 && a_prog /= Test top = Box a_prog (ipFor tj tk (pth ++ [0]))
+  | length s1_sn == 1 && a_prog /= Test top = Box a_prog (ipFor tj tk (pth ++ [0])) -- QUESTION: a_prog might not be in vocab!?
   | otherwise = multicon $ [ ipFor tj tk $ pth ++ [k]
                            | (k,_) <- zip [0,1] (childrenOf (tk `at` pth)) ]
   where
