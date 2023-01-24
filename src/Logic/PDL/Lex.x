@@ -66,3 +66,18 @@ tokens :-
   "e"               { \ p _ -> TokenE                 p }
   -- Ints:
   $dig+             { \ p s -> TokenInt (read s)      p }
+
+{
+type LexResult a = Either (Int,Int) a
+
+alexScanTokensSafe :: String -> LexResult [Token AlexPosn]
+alexScanTokensSafe str = go (alexStartPos,'\n',[],str) where
+  go inp@(pos,_,_,str) =
+    case (alexScan inp 0) of
+      AlexEOF -> Right []
+      AlexError ((AlexPn _ line column),_,_,_) -> Left (line,column)
+      AlexSkip  inp' len     -> go inp'
+      AlexToken inp' len act -> case (act pos (take len str), go inp') of
+        (_, Left lc) -> Left lc
+        (x, Right y) -> Right (x : y)
+}

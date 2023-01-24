@@ -16,6 +16,8 @@ import qualified Logic.BasicModal
 %tokentype { Token AlexPosn }
 %error { parseError }
 
+%monad { ParseResult } { >>= } { Right }
+
 %token
   TOP    { TokenTop    _ }
   BOT    { TokenBot    _ }
@@ -113,14 +115,24 @@ Prog : 'a' INT { Ap ('a' : show $2) }
      | '?' PDLForm { Test $2 }
 
 {
-parseError :: [Token AlexPosn] -> a
-parseError []     = error ("Empty parseError!")
-parseError (t:ts) = error ("Parse error in line " ++ show lin ++ ", column " ++ show col ++ ": " ++ show t)
-  where (AlexPn abs lin col) = apn t
+type ParseResult a = Either (Int,Int) a
+
+parseError :: [Token AlexPosn] -> ParseResult a
+parseError []     = Left (1,1)
+parseError (t:ts) = Left (lin,col)
+  where (AlexPn _ lin col) = apn t
+
+scanParseSafe :: _ -> String -> ParseResult a
+scanParseSafe pfunc input =
+  case alexScanTokensSafe input of
+    Left pos        -> Left pos
+    Right lexResult -> case pfunc lexResult of
+      Left pos -> Left pos
+      Right x  -> Right x
 
 instance IsString Logic.BasicModal.Form where
-  fromString = parseK . alexScanTokens
+  fromString = (\(Right f) -> f) . parseK . alexScanTokens
 
 instance IsString Logic.PDL.Form where
-  fromString = parsePDL . alexScanTokens
+  fromString = (\(Right f) -> f) . parsePDL . alexScanTokens
 }

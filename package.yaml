@@ -43,7 +43,7 @@ executables:
   tapdleau:
     source-dirs: exec
     main: tapdleau.hs
-    ghc-options: -threaded
+    ghc-options: -Wall -threaded
     dependencies:
       - base >= 4.8 && < 5
       - containers

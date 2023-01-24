@@ -1,11 +1,10 @@
 {-# LANGUAGE OverloadedStrings, TemplateHaskell #-}
 
-module Main where
+module Main (main) where
 
 import Prelude
-import Control.DeepSeq (force, NFData)
+import Control.DeepSeq (force)
 import Control.Exception (evaluate, catch, SomeException)
-import Control.Monad.IO.Class (liftIO)
 import Data.Containers.ListUtils (nubOrd)
 import Data.FileEmbed
 import Data.List (intercalate, sort)
@@ -14,7 +13,6 @@ import Web.Scotty
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as E
 import qualified Data.Text.Lazy as TL
-import Data.String(fromString)
 import qualified Language.Javascript.JQuery as JQuery
 import Language.Haskell.TH.Syntax
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort)
@@ -28,7 +26,6 @@ import qualified Logic.BasicModal.Interpolation.ProofTree
 
 import Logic.PDL
 import Logic.Internal
-import Logic.PDL.Lex
 import Logic.PDL.Parse
 import Logic.PDL.Prove.Tree
 import Logic.PDL.Interpolation.ProofTree
@@ -47,14 +44,15 @@ main = do
     post "/prove" $ do
       logic <- param "logic"
       textinput <- param "textinput"
-      extra <- param "extra" -- TODO: remove this and enable by default!
-      parseResult <- liftIO $ myCatch (if logic == ("K" :: String) then Left ( parseK (alexScanTokens textinput) :: BM.Form) else Right (fromString textinput :: Logic.PDL.Form))
+      let parseResult = if logic == ("K" :: String)
+                        then Left  (scanParseSafe parseK   textinput :: ParseResult BM.Form)
+                        else Right (scanParseSafe parsePDL textinput :: ParseResult Logic.PDL.Form)
       html $ mconcat $ map TL.pack $ case parseResult of
-        Left err ->
-          [ "<pre> INPUT: " ++ textinput ++ "</pre>"
-          -- TODO mark column of parse or lex error
-          , "<pre> PARSE ERRROR: " ++ err ++ "</pre>" ]
-        Right (Left bmlF) ->
+        Left (Left (_,col)) ->
+          [ "<pre>INPUT: " ++ textinput ++ "</pre>"
+          , "<pre>" ++ replicate (col + length ("INPUT:" :: String)) ' ' ++ "^</pre>"
+          , "<pre>Parse error in column " ++ show col ++ ".</pre>" ]
+        Left (Right bmlF) ->
           let t = Logic.BasicModal.Prove.Tree.prove bmlF
               closed = Logic.BasicModal.Prove.Tree.isClosedTab t
               tWithInt = Logic.BasicModal.Interpolation.ProofTree.proveWithInt bmlF
@@ -65,6 +63,10 @@ main = do
               else "NOT proved. <style type='text/css'> #output { border-color: red; } </style>\n"
           , "<div align='center'>" ++ if closed then svg tWithInt else svg t ++ "</div>"
           ]
+        Right (Left (_,col)) ->
+          [ "<pre>INPUT: " ++ textinput ++ "</pre>"
+          , "<pre>" ++ replicate (col + length ("INPUT:" :: String)) ' ' ++ "^</pre>"
+          , "<pre>Parse error in column " ++ show col ++ ".</pre>" ]
         Right (Right pdlF) ->
           let t = prove pdlF
               closed = isClosedTab t
@@ -74,12 +76,10 @@ main = do
           , if closed
               then "PROVED. <style type='text/css'> #output { border-color: green; } </style>\n"
               else "NOT proved. <style type='text/css'> #output { border-color: red; } </style>\n"
+              -- TODO: also provide information "interpolated successfully" or "interpolated wrongly"
           , "<div align='center'>" ++ svg t ++ "</div>"
-          , if closed && extra == (1 :: Int) then extraInfo tWithInt else ""
+          , if closed then interpolateInfo tWithInt else ""
           ]
-
-myCatch :: NFData a => a -> IO (Either String a)
-myCatch x = catch (evaluate (force (Right x))) (\e-> return $ Left (show (e :: SomeException)))
 
 embeddedFile :: String -> T.Text
 embeddedFile str = case str of
@@ -88,8 +88,8 @@ embeddedFile str = case str of
   _            -> error "File not found."
 
 -- | Given the TI of a closed tableau, show TI, TJ, TK etc. to get an interpolant.
-extraInfo :: TableauxIP -> String
-extraInfo ti =
+interpolateInfo :: TableauxIP -> String
+interpolateInfo ti =
   unlines $ map strOrErr $
     [ "<h3>T<sup>I</sup></h3>"
     , "<p>This is T after removing all n-nodes (Def 26) and using Lemma 14 and 15 for the \"easy\" interpolants.</p>"
@@ -178,7 +178,7 @@ solveLowestMplus ti =
     , "<h3>Interpolant for the root of T<sup>K</sup>:</h3>"
     , "<p>Original: " ++ toString (ipFor tj tk []) ++ "<br />"
     , "Simplified: " ++ toString (simplify $ ipFor tj tk []) ++ "</p>"
-    , (simplify $ ipFor tj tk []) `isActuallyInterpolantFor` tk
+    , simplify (ipFor tj tk []) `isActuallyInterpolantFor` tk
     , "<h3>Helper functions for the proof that it is an interpolant</h3>"
     , "<p>Sets J(s) for each s in T<sup>K</sup> (Def 34):</p>"
     , "<pre>"
