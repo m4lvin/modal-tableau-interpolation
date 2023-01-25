@@ -125,14 +125,16 @@ leftsOf, rightsOf :: [WForm] -> [Form]
 leftsOf  wfs = [f | (Left  f,_) <- wfs]
 rightsOf wfs = [f | (Right f,_) <- wfs]
 
--- For any branching rule we combine the two previous interpolants
--- with a connective depending on the side of the active formula (see page ??)
-branchIP :: ([TableauxIP] -> [(Either Form Form, Maybe Form)] -> Maybe Form)
-branchIP ts actives  = Just $ foldl1 connective (map ipOf ts) where
-  connective = case actives of
-    [(Left  _, _)] -> dis -- left side is active, use disjunction
-    [(Right _, _)] -> Con -- right side is active, use conjunction
-    otherActives   -> error $ "Could not find the active side: " ++ show otherActives
+-- | Given a list of children, combine all previous interpolants
+-- with a connective depending on the side that differs.
+-- Based on Lemma 15. Note that there may be 1, 2 or more children!
+branchIP :: [WForm] -> [TableauxIP] -> Maybe Form
+branchIP _   [] = error "No children given!"
+branchIP wfs ts = Just $ foldl1 connective (map ipOf ts) where
+  connective
+    | all (\t -> rightsOf wfs == rightsOf (wfsOf t)) ts = dis -- left side is active, use disjunction
+    | all (\t -> leftsOf  wfs == leftsOf  (wfsOf t)) ts = Con -- right side is active, use conjunction
+    | otherwise = error $ "Cannot combine interpolants when both sides change:\n" ++ show wfs ++ "\n\n" ++ intercalate "\n" (map show ts)
 
 -- | Fill interpolants for the easy cases, not involving extra conditions.
 -- Based on Lemma 14 and Lemma 15.
@@ -171,7 +173,7 @@ fillIPs n@(Node wfs Nothing _ rule actives ts)
         -- There should not be any empty cases:
         (rl  ,_, []) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms wfs actives ++ "\n  Unable to interpolate: " ++ show n
         -- Default case is to use branchIP (Lemma 15):
-        (_, _, _) -> branchIP ts actives
+        (_, _, _) -> branchIP wfs ts
       in Node wfs newMIP Nothing rule actives ts
 
 fillAllIPs :: TableauxIP -> TableauxIP
