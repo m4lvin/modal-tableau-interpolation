@@ -70,7 +70,7 @@ Prover:
 - [ ] Implement extra conditions:
     1. [X] when reaching an atomic Box or NegBox, go back from n to *
     2. [X] instead of X;[a^n]P reach X
-    3. [ ] apply rules to n-formula whenever possible / prioritise them!
+    3. [X] apply rules to n-formula whenever possible / prioritise them!
     4. [X] Never apply a rule to a ¬[a^n] node (and mark those as end nodes!)
     5. [ ] directly after M+ do not apply M-
     6. [X] close normal nodes with critical same-set predecessors (if loaded when whole path is loaded)

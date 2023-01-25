@@ -42,6 +42,7 @@ someValidImplications =
   , "q -> [c]~F"
   , "(q ∧ ¬[?([?⊤*]s)*]⊤) -> q"
   , "(q ∧ ¬[?([?⊤*]s)*]⊤) -> (q ^ q)"
+  , "[?⊤]s -> [?([(?⊥)*]⊤)]s"
   ]
 
 -- | Formulas that should *not* be provable.

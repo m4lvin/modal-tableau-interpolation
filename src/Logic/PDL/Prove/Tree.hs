@@ -222,8 +222,13 @@ extensionsUpTo k t = if extensions t /= [t] then concatMap (extensionsUpTo (k-1)
 pairWithList :: (a -> [b]) -> [a] -> [(a,b)]
 pairWithList f xs = [ (x, y) | x <- xs, y <- f x ]
 
+-- | Extra condition 3: If possible, apply a rule to an n-formula.
+nFormulasFirst :: [(WForm,RuleApplication)] -> [(WForm,RuleApplication)]
+nFormulasFirst wfs | not (all (isNormal . fst . collapse . fst) wfs) = filter (not . isNormal . fst . collapse . fst) wfs
+                   | otherwise = wfs
+
 whatshallwedo :: [WForm] -> [(WForm,RuleApplication)]
-whatshallwedo wfs = chooseRule $ pairWithList (map extraNewFormChanges . availableRules . collapse) wfs where
+whatshallwedo wfs = chooseRule $ nFormulasFirst $ pairWithList (map extraNewFormChanges . availableRules . collapse) wfs where
   availableRules mf =
     maybeToList (ruleFor mf)
     ++
@@ -253,14 +258,14 @@ isClosedTab End = False -- check must succeed above the End!
 isClosedTab (Node wfs _ _       _ [End]) | not (isNormalNode wfs) = True
 isClosedTab (Node wfs _ _       _ [End]) | isLoadedNode wfs = True
 isClosedTab (Node _   _ "✘"     _ [End]) = True
-isClosedTab (Node _   _ "4"     _ [End]) = False -- QUESTION: really? check page 15 ...
-isClosedTab (Node _   _ ('6':_) _ [End]) = False -- normal and free, but not closed!
+isClosedTab (Node _   _ "4"     _ [End]) = False -- end node, see page 15
+isClosedTab (Node _   _ ('6':_) _ [End]) = False -- normal and free, but might be not closed
 isClosedTab (Node _   _ rule    _ [End]) = error $ "rule " ++ rule ++ " should not create an End node!"
 isClosedTab (Node _   _ _       _ []   ) = False
 isClosedTab (Node _   _ _       _ ts   ) = all isClosedTab ts
 
 globalSearchLimit :: Int
-globalSearchLimit = 200 -- TODO: adjust depending on formula size, see page 20 and 26
+globalSearchLimit = 200 -- TODO: remove or adjust depending on formula size, see page 20 and 26
 
 -- To prove f --> g, start with proper partition.
 -- To prove f, start with  ¬f.
