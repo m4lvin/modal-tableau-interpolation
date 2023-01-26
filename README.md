@@ -44,6 +44,11 @@ See [the test file](test/basicmodal.hs) for more examples, including interpolati
 
 Public web interface: <https://w4eg.de/malvin/illc/tapdleau/>
 
+To run the web interface locally do `stack build` and then `stack exec tapdleau`.
+For developing you can recompile and restart the web interface on any code changes Like this:
+
+    stack build --file-watch --exec "bash -c \"pkill tapdleau; stack exec tapdleau &\""
+
 ## Automated Tests
 
 Use `stack test` to run all tests from the [test](test/) folder.

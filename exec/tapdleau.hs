@@ -8,7 +8,7 @@ import Control.Exception (evaluate, catch, SomeException)
 import Data.Containers.ListUtils (nubOrd)
 import Data.FileEmbed
 import Data.List (intercalate, sort)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, fromJust, isJust)
 import Web.Scotty
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as E
@@ -70,15 +70,21 @@ main = do
         Right (Right pdlF) ->
           let t = prove pdlF
               closed = isClosedTab t
-              tWithInt = fillAllIPs $ tiOf $ toEmptyTabIP t
+              ti = tiOf $ toEmptyTabIP t
+              tWithInt = keepInterpolating ti
+              interpolated = isJust (mipOf tWithInt)
+              ipcheck = checkCorrectIPfor (fromJust (mipOf tWithInt)) tWithInt
+              correctIP = ipcheck == (True,True,True)
+              message = case (closed,interpolated,correctIP) of
+                (False,_    ,_    ) -> "NOT proved. <style> #output { border-color: orange; } </style>\n"
+                (True ,False,_    ) -> "PROVED, but NO interpolant. <style> #output { border-color: red; } </style>\n"
+                (True ,True ,False) -> "PROVED but WRONG interpolant "++ show ipcheck ++ ". <style> #output { border-color: red; } </style>\n"
+                (True ,True ,True ) -> "PROVED and CORRECT interpolant. <style> #output { border-color: green; } </style>\n"
           in
           [ "<pre>Parsed input: " ++ toString pdlF  ++ "</pre>"
-          , if closed
-              then "PROVED. <style type='text/css'> #output { border-color: green; } </style>\n"
-              else "NOT proved. <style type='text/css'> #output { border-color: red; } </style>\n"
-              -- TODO: also provide information "interpolated successfully" or "interpolated wrongly"
+          , message
           , "<div align='center'>" ++ svg t ++ "</div>"
-          , if closed then interpolateInfo tWithInt else ""
+          , if closed then interpolateInfo ti else ""
           ]
 
 embeddedFile :: String -> T.Text
@@ -150,7 +156,7 @@ solveLowestMplus ti =
     , "<p>List of all nodes of T<sup>J</sup>:</p>"
     , "<pre>"
     , concatMap (\pth ->
-                   show pth ++ "\t\t"
+                   pad 16 (show pth)
                    ++ ppWFormsTyp Nothing (wfsOf (tj `at` pth)) []
                    ++ "\n"
                 ) $ allPathsIn tj
