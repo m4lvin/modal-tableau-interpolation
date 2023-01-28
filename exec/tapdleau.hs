@@ -122,15 +122,15 @@ isActuallyInterpolantFor theta tk =
       in
         lineFor "Vocabulary condition" ("voc(" ++ toString theta ++ ") ⊆ voc(" ++ toStrings (leftsOf (wfsOf tk)) ++ ") ∩ voc(" ++ toStrings (rightsOf (wfsOf tk)) ++ ")") vocCon
         ++
-        lineFor "Left condition" ("inconsistent: " ++ toStrings (Neg theta : leftsOf (wfsOf tk))) left
+        lineFor "Left condition" ("inconsistent: " ++ toStrings (Neg theta : map simplify (leftsOf (wfsOf tk)))) left
         ++
-        lineFor "Right condition" ("inconsistent: " ++ toStrings (theta : rightsOf (wfsOf tk))) right
+        lineFor "Right condition" ("inconsistent: " ++ toStrings (theta : map simplify (rightsOf (wfsOf tk)))) right
 
 
 mPlusLoop :: TableauxIP -> (TableauxIP, [String])
 mPlusLoop ti = case lowestMplusWithoutIP ti of
                  Nothing -> (ti, [ "<p>There are no remaining M+ nodes without interpolant.</p>" ])
-                 Just _  -> let (nextTI, output) = solveLowestMplus ti
+                 Just _  -> let (nextTI, output) = solveLowestMplus $ fillAllIPs ti
                                 (final, outputs) = mPlusLoop nextTI
                             in  (final , output ++ outputs)
 
