@@ -23,13 +23,13 @@ type Interpolant = Maybe Form
 data TableauxIP = Node
                   { wfsOf :: [WForm]
                   , mipOf :: Interpolant -- ^ Maybe a formula that is an interpolant for this node.
-                  , mtypOf :: Maybe TypeTK
+                  , mtypOf :: Maybe TypeTK -- ^ Maybe a type marker for T^K.
                   , ruleOf :: RuleName
                   , activesOf :: [WForm]
                   , childrenOf :: [TableauxIP] }
   deriving (Eq,Ord,Show)
 
--- Type markers for T^K which is annotated with 1,2,3.
+-- | Type markers for T^K which is annotated with 1,2,3.
 data TypeTK = One | Two | Three
   deriving (Eq,Ord,Show)
 
@@ -97,6 +97,27 @@ toEmptyTabIP (T.Node wfs _ rule actives [T.End]) =
   Node wfs Nothing Nothing rule actives []
 toEmptyTabIP (T.Node wfs _ rule actives ts) =
   Node wfs Nothing Nothing rule actives (map toEmptyTabIP ts)
+
+-- | Definition 26: given T, remove n-nodes to obtain T^I.
+-- This may result in a non-binary tree!
+tiOf :: TableauxIP -> TableauxIP
+tiOf = snd . head . tiOfRec where
+  -- When node n is deleted the parent of n must append rule of n to its own rule.
+  -- Given my child n, what should I add to my rule and what replaces n?
+  tiOfRec  :: TableauxIP -> [(RuleName,TableauxIP)]
+  tiOfRec n
+    | isNormalNode (wfsOf n) = let childs = concatMap tiOfRec (childrenOf n)
+                               in [ ("", n { ruleOf = combine (ruleOf n : map fst childs)
+                                           , childrenOf = map snd childs } ) ]
+    | otherwise = -- delete n itself!
+        map (\(childRule, t) -> (combine [ruleOf n, childRule], t)) $ concatMap tiOfRec (childrenOf n)
+  -- Combine rules without inserting too many commas.
+  combine :: [RuleName] -> RuleName
+  combine [] = ""
+  combine ("":rs) = combine rs
+  combine [rule] = rule
+  combine (rule:rest) = rule ++ [',' | not . null $ combine rest] ++ combine rest
+
 
 hasIP :: TableauxIP -> Bool
 hasIP (Node _ (Just _) _ _ _ _) = True
@@ -177,37 +198,29 @@ fillIPs n@(Node wfs Nothing _ rule actives ts)
       in Node wfs newMIP Nothing rule actives ts
 
 fillAllIPs :: TableauxIP -> TableauxIP
-fillAllIPs = fixpoint fillIPs -- FIXME: is this necessary?
+fillAllIPs = fixpoint fillIPs
 
 -- * Definitions to deal with condition 6 end nodes
 
--- | Definition 26: given T, remove n-nodes to obtain T^I.
--- This may result in a non-binary tree!
-tiOf :: TableauxIP -> TableauxIP
-tiOf = snd . head . tiOfRec where
-  -- When node n is deleted the parent of n must append rule of n to its own rule.
-  -- Given my child n, what should I add to my rule and what replaces n?
-  tiOfRec  :: TableauxIP -> [(RuleName,TableauxIP)]
-  tiOfRec n
-    | isNormalNode (wfsOf n) = let childs = concatMap tiOfRec (childrenOf n)
-                               in [ ("", n { ruleOf = combine (ruleOf n : map fst childs)
-                                           , childrenOf = map snd childs } ) ]
-    | otherwise = -- delete n itself!
-        map (\(childRule, t) -> (combine [ruleOf n, childRule], t)) $ concatMap tiOfRec (childrenOf n)
-  -- Combine rules without inserting too many commas.
-  combine :: [RuleName] -> RuleName
-  combine [] = ""
-  combine ("":rs) = combine rs
-  combine [rule] = rule
-  combine (rule:rest) = rule ++ [',' | not . null $ combine rest] ++ combine rest
-
--- Find a node where M+ is applied, we have no interpolant yet, and there is no such node below.
+-- | Find a lowest M+ application without interpolant.
 lowestMplusWithoutIP :: TableauxIP -> Maybe TableauxIP
 lowestMplusWithoutIP n@(Node _ Nothing _ rule _ _) | "M+" `isInfixOf` rule =
   case mapMaybe lowestMplusWithoutIP (childrenOf n) of
     [] -> Just n
     _  -> listToMaybe $ mapMaybe lowestMplusWithoutIP (childrenOf n)
 lowestMplusWithoutIP n = listToMaybe $ mapMaybe lowestMplusWithoutIP (childrenOf n)
+
+-- | Find a lowest M+ application without interpolant and fill it via T^J and $T^K.
+fillLowestMplus :: TableauxIP -> TableauxIP
+fillLowestMplus n@(Node _ Nothing _ rule _ _)
+  | "M+" `isInfixOf` rule && null (mapMaybe lowestMplusWithoutIP (childrenOf n)) =
+      let
+        ti = tiOf n
+        tj = let (x:_) = childrenOf ti in tjOf x
+        tk = tkOf tj
+      in
+        n { mipOf = Just $ simplify $ ipFor tj tk [] }
+fillLowestMplus n = n { childrenOf = map fillLowestMplus (childrenOf n) }
 
 -- Definition 27: sub-tableau T^J
 tjOf :: TableauxIP -> TableauxIP
@@ -274,8 +287,9 @@ trianglePrime tab sp tp =
                    && wfsOf (tab `at ` up) == wfsOf (tab `at` sp))
            (allPathsIn tab) )
 
--- Definition 29:
--- T(Y)^ε
+-- * Definition 29: partition of T(Y)
+
+-- | T(Y)^ε
 tOfEpsilon :: TableauxIP -> [Form] -> [Path]
 tOfEpsilon tabTJ y = [ root_to_s | root_to_s <- tOf tabTJ y
                                  , not $ any (trianglePrime tabTJ root_to_s) (tOf tabTJ y) ]
@@ -287,15 +301,15 @@ tOfI tabTJ y = filter (\root_to_s -> not $ any (trianglePrime tabTJ root_to_s) (
 tOfTriangle :: TableauxIP -> [Form] -> [Path]
 tOfTriangle tabTJ y = tOfEpsilon tabTJ y \\ tOfI tabTJ y
 
--- Definition 30: I(Y)
+-- | Definition 30: I(Y)
 -- NOTE: different from ipOf
 iOf :: TableauxIP -> [Form] -> Form
 iOf tj y = case tOfI tj y of
   [] -> Bot
   t1_tn -> multidis [ t_i | (Just t_i) <- map (mipOf . at tj) t1_tn ]
 
--- Definition 31: T^K
--- Idea: Nodes in T^K here correspond to Y-regions in T^J.
+-- | Definition 31: T^K
+-- Idea: Nodes in \(T^K\) here correspond to Y-regions in T^J.
 -- Input should be the node Y1/Y2 obtained using M+ (page 35)
 tkOf :: TableauxIP -> TableauxIP
 tkOf n@(Node _ (Just _) _ _ _ _) = error $ "Already have an interpolant, why bother with T^K?\n" ++ ppTabStr n
@@ -311,7 +325,7 @@ tkOf n@(Node t_wfs Nothing _ _ _ _) = tk where
   y2 = rightsOf t_wfs
   yWithMarkings = filter (isRight . fst) t_wfs
 
--- Define the successors in T^K, three cases as in Definition 31.
+-- | Successors in \(T^K\), three cases as in Definition 31.
 tkSuccessorsAt :: TableauxIP -> TableauxIP -> Path -> [TableauxIP]
 tkSuccessorsAt tj tk pth =
   case mtyp of
@@ -418,7 +432,7 @@ ipFor tj tk pth
     n@(Node t_wfs _ t_mtyp _ _ s1_sn) = tk `at` pth -- NOTE: n≤2
     ((a_prog, _):_) = canonProgStep tj tk n
 
--- | Annotate TK with canonical programs (instead of rules) and interpolants.
+-- | Annotate TK with canonical programs (as rules) and interpolants.
 annotateTk :: TableauxIP -> TableauxIP -> TableauxIP
 annotateTk tj tk = annotateInside [] where
   annotateInside pth =
@@ -426,18 +440,6 @@ annotateTk tj tk = annotateInside [] where
     in n { mipOf = Just (ipFor tj tk pth)
          , ruleOf = intercalate " // " $ map (toString . fst) (canonProgStep tj tk n)
          , childrenOf = [ annotateInside (pth ++ [k]) | (k,_) <- zip [0,1] (childrenOf n) ]  }
-
-fillLowestMplus :: TableauxIP -> TableauxIP
--- If there is no lower M+ application without IP, then we fill the one here:
-fillLowestMplus n@(Node _ Nothing _ rule _ _)
-  | "M+" `isInfixOf` rule && null (mapMaybe lowestMplusWithoutIP (childrenOf n)) =
-      let
-        ti = tiOf n
-        tj = let (x:_) = childrenOf ti in tjOf x
-        tk = tkOf tj
-      in
-        n { mipOf = Just $ simplify $ ipFor tj tk [] }
-fillLowestMplus n = n { childrenOf = map fillLowestMplus (childrenOf n) }
 
 keepInterpolating :: TableauxIP -> TableauxIP
 keepInterpolating = fixpoint (fillLowestMplus . fillAllIPs)
