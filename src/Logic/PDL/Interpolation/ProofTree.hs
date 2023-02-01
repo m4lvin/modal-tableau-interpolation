@@ -163,7 +163,7 @@ fillIPs :: TableauxIP -> TableauxIP
 -- Ends and already interpolated nodes: nothing to do:
 fillIPs t@(Node _ (Just _) _ _ _ _) = t
 -- Lemma 14: Closed end nodes: use the active formulas or a constant as interpolant:
-fillIPs (Node wfs Nothing mtyp "✘" actives []) = Node wfs mip mtyp "✘" actives [] where
+fillIPs (Node wfs Nothing mtyp "✘" actives []) = Node wfs mip mtyp "✘" actives [] where -- QUESTION: Why [] and not [End] here?
   candidates = map fst actives -- NOTE: ignore markings
   mip = listToMaybe $ lrIp candidates
   lrIp fs = [ Bot | Left  Bot `elem` fs ]
