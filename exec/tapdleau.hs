@@ -70,7 +70,7 @@ main = do
         Right (Right pdlF) ->
           let t = prove pdlF
               closed = isClosedTab t
-              ti = tiOf $ toEmptyTabIP t
+              ti = fillAllIPs $ tiOf $ toEmptyTabIP t
               tWithInt = keepInterpolating ti
               interpolated = isJust (mipOf tWithInt)
               ipcheck = checkCorrectIPfor (fromJust (mipOf tWithInt)) tWithInt
@@ -130,8 +130,8 @@ isActuallyInterpolantFor theta tk =
 mPlusLoop :: TableauxIP -> (TableauxIP, [String])
 mPlusLoop ti = case lowestMplusWithoutIP ti of
                  Nothing -> (ti, [ "<p>There are no remaining M+ nodes without interpolant.</p>" ])
-                 Just _  -> let (nextTI, output) = solveLowestMplus $ fillAllIPs ti
-                                (final, outputs) = mPlusLoop nextTI
+                 Just _  -> let (nextTI, output) = solveLowestMplus ti
+                                (final, outputs) = mPlusLoop (fillAllIPs nextTI)
                             in  (final , output ++ outputs)
 
 solveLowestMplus :: TableauxIP -> (TableauxIP, [String])
