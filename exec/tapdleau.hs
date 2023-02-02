@@ -97,7 +97,7 @@ embeddedFile str = case str of
 interpolateInfo :: TableauxIP -> String
 interpolateInfo ti =
   unlines $ map strOrErr $
-    [ "<h3>T<sup>I</sup></h3>"
+    [ "<h3>T<sup>I</sup> with easy interpolants</h3>"
     , "<p>This is T after removing all n-nodes (Def 26) and using Lemma 14 and 15 for the \"easy\" interpolants.</p>"
     , svg ti
     ]

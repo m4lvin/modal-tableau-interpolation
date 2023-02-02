@@ -9,9 +9,16 @@ someValidities :: [Form]
 someValidities =
   [ top
   , Neg Bot
-  , "p | ~p"
-  , "[a]~p | <a>p"
+  , "p | ¬p"
+  , "[a]¬p | <a>p"
   , "[a*]p <-> [a**]p"
+  , "¬(¬[(?q ; a)*]⊤ ∧ ¬[(a ∪ ?p)*]q)"
+  , "¬¬¬(¬[(?q ; a)*]⊤ ∧ ¬[(a ∪ ?p)*]q)"
+  , "[c**]⊤ ∧ [?⊥]r"
+  , "[c]p v ([c]⊤ ∧ [?⊥]r)"
+  , "[c]p v ([c*]⊤ ∧ [?⊥]r)"
+  , "[a*]T v [a*]p"
+  , "[a*]p v [a*]T"
   ]
 
 someValidImplications :: [Form]
@@ -27,19 +34,17 @@ someValidImplications =
   , Con (Box a p) (Box b (Con p q)) --> Box (Cup a b) p
   , Con (Box (Star a) p) (Box b (Con p q)) --> Box (Cup (Star a) b) p
   , Box (Star a) p --> dia (Star a) p
-  , Box (Star a) p --> Box (Star (Star a)) p
-  , Box (Star (Star a)) p --> Box (Star a) p
-  , dia (Star a) p --> dia (Star (Star a)) p
-  , dia (Star (Star a)) p --> dia (Star a) p
   , "[a* u ?p]q -> [a u ?r]q"
   , "q -> [a]T"
-  , "[?p u ?~p](r & ~r) -> q"
-  , "[?p u ?~p]F -> q"
+  , "[?p u ?¬p](r & ¬r) -> q"
+  , "[?p u ?¬p]F -> q"
   , "T -> [c]T"
   , "[a*]p -> [a**]p"
   , "[a**]p -> [a*]p"
+  , "¬[a*]p -> ¬[a**]p"
+  , "¬[a**]p -> ¬[a*]p"
   , "[a* u ?p]q -> [a u ?r]q"
-  , "q -> [c]~F"
+  , "q -> [c]¬F"
   , "(q ∧ ¬[?([?⊤*]s)*]⊤) -> q"
   , "(q ∧ ¬[?([?⊤*]s)*]⊤) -> (q ^ q)"
   , "[?⊤]s -> [?([(?⊥)*]⊤)]s"

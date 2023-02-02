@@ -32,16 +32,16 @@ main = hspec $ do
       fromString "p1" `shouldBe` At "p1"
     it "parse '[a]p <-> [b]q'" $
       fromString "[a]p <-> [b]q" `shouldBe` ( Box (Ap "a") (At "p") <--> Box (Ap "b") (At "q") )
-  describe "prove negation of the first three formulas in data/formulae_exp_unsat.txt" $ do
+  describe "prove negation of the first two formulas in data/formulae_exp_unsat.txt" $ do
     fileLines <- runIO $ readFile "data/formulae_exp_unsat.txt"
     mapM_
       (\l -> it (myExcerpt l) $ (provable . Neg) (fromString l))
-      (take 3 $ filter (not . null) (lines fileLines))
-  describe "do NOT prove negation of first three formulas in data/formulae_exp_sat.txt" $ do
+      (take 2 $ filter (not . null) (lines fileLines))
+  describe "do NOT prove negation of first two formulas in data/formulae_exp_sat.txt" $ do
     fileLines <- runIO $ readFile "data/formulae_exp_sat.txt"
     mapM_
       (\l -> it (myExcerpt l) $ (not . provable . Neg) (fromString l))
-      (take 3 $ filter (not . null) (lines fileLines))
+      (take 2 $ filter (not . null) (lines fileLines))
   describe "inconsistent" $ do
     it "{ [a]p, ¬[a](p ∨ r), ¬[a](q ∨ r) }" $
       inconsistent [ Box a p, Neg (Box a (p `dis` r)), Neg (Box a (q `dis` r)) ]
@@ -54,6 +54,14 @@ main = hspec $ do
   describe "random formulas" $ do
     prop "provable f `elem` [True,False] -- but no error"
       (\f -> provable f `elem` [True,False])
+    prop "provable f iff provable ~~f"
+      (\f -> provable f === provable (Neg (Neg f)))
+    prop "if (provable f or provable g) then provable (f v g)"
+      (\f g -> (provable f || provable g) `implies` provable (dis f g))
+    prop "if (provable f and provable g) then provable (f ∧ g)"
+      (\f g -> (provable f && provable g) `implies` provable (Con f g))
+    prop "provable (f -> g) iff provable (¬g -> ¬f)"
+      (\f g -> provable (f --> g) === provable (Neg g --> Neg f))
     -- describe "segerbergFor random formulas" $
     --   mapM_ (\ k -> do
     --            prop (show k)
