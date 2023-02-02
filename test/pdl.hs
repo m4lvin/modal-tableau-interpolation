@@ -23,6 +23,10 @@ main = hspec $ do
     mapM_ proveTest someValidities
   describe "someValidImplications" $
     mapM_ proveTest someValidImplications
+  describe "do not prove negations of someValidities" $
+    mapM_ (disproveTest . Neg) someValidities
+  describe "do not prove negations of someValidImplications" $
+    mapM_ (disproveTest . Neg) someValidImplications
   describe "someNonValidities" $
     mapM_ disproveTest someNonValidities
   describe "segerbergFor p q a b" $

@@ -65,11 +65,11 @@ instance DispAble Tableaux where
         edge pref (pref ++ show y' ++ ":") [toLabel rule]
         ) (zip ts [(0::Integer)..])
 
-type RuleWeight = Int -- IDEA: use data RuleType = Local | Critical | Marking  or similar?
+type RulePriority = Int -- TODO: use a finite data RuleType = Local | Critical | Marking  or similar?
 
 -- | Rules: Given a formula, is their an applicable rule?
 -- If so, which rule, what replaces the active formula, and how do other formulas change and survive?
-type RuleApplication = (RuleName, RuleWeight, [[Marked Form]], Form -> Maybe Form)
+type RuleApplication = (RuleName, RulePriority, [[Marked Form]], Form -> Maybe Form)
 
 noChange :: Form -> Maybe Form
 noChange = Just
@@ -82,11 +82,12 @@ isMarked :: (a, Maybe Form) -> Bool
 isMarked (_,Nothing) = False
 isMarked (_,Just _ ) = True
 
--- Mark  ¬[a_1]...[a_n]g  with  g.
+-- | The (M+) rule, marking ¬[a_1]...[a_n]g  with g.
+-- This rule has priority 4.
 markRulesFor :: Marked Form -> [RuleApplication]
 markRulesFor (Neg f, Nothing) = case boxesOf f of
   ([] , _)         -> []
-  (_:_, g) -> [ ("M+", 0, [ [ (Neg f, Just g) ] ], noChange) ]
+  (_:_, g) -> [ ("M+", 4, [ [ (Neg f, Just g) ] ], noChange) ]
 markRulesFor (_, Nothing) = []
 markRulesFor (_, Just _)  = [] -- TODO add M- rule here, but not immediately after M+
 
@@ -143,8 +144,8 @@ ruleFor (Neg (Box (NStar _) _)    ,_) = Nothing -- per condition 4 no rule may b
 ruleFor (Box (NStar _) _          ,_) = Nothing -- QUESTION: can there be Box NStar nodes at all?
 
 extraNewFormChanges :: RuleApplication -> RuleApplication
-extraNewFormChanges (ruleName, ruleWeight, newFormLists, changeFunction) =
-  (ruleName, ruleWeight, map (map con1backToStar) newFormLists, changeFunction)
+extraNewFormChanges (ruleName, rulePriority, newFormLists, changeFunction) =
+  (ruleName, rulePriority, map (map con1backToStar) newFormLists, changeFunction)
   where
   -- extra condition 1
   con1backToStar :: Marked Form -> Marked Form
@@ -234,22 +235,24 @@ whatshallwedo wfs = chooseRule $ nFormulasFirst $ pairWithList (map extraNewForm
     ++
     concat [ markRulesFor mf | not (any isMarked wfs) ]
 
--- | Choosing a rule.
--- There might be multiple applicable rules of the same or different weight.
--- (or lower is for marking rules which have 0)
+-- | Choosing a rule. This is reduces the search space for efficiency.
+-- We sort and group all possible rule applications by their priority.
+-- Within each priority we pick one and postpone all others, with an
+-- exception for priority 4 (i.e. (At) and (M+) rules) where always
+-- all possible applications must be considered.
 chooseRule :: [(WForm,RuleApplication)] -> [(WForm,RuleApplication)]
 chooseRule moves
-  -- if possible apply one weight 1 rule, ignore all larger for now:
-  | any ((== 1) . wOf) moves = take 1 $ filter ((<= 1) . wOf) moves
-  -- else, if possible apply one weight 2 rule, ignore all larger for now:
-  | any ((== 2) . wOf) moves = take 1 $ filter ((<= 2) . wOf) moves
-  -- else, if possible apply one weight 3 rule, do it, ignore all larger for now:
-  | any ((== 3) . wOf) moves = take 1 $ filter ((<= 3) . wOf) moves
-  -- else, if possible apply all weight 4 or lower rules in parallel:
-  | any ((<= 4) . wOf) moves = filter ((<= 4) . wOf) moves
+  -- if possible apply one priority 1 rule, ignore all else for now:
+  | any ((== 1) . wOf) moves = take 1 (filter ((== 1) . wOf) moves)
+  -- else, if possible apply one priority 2 rule, ignore else for now:
+  | any ((== 2) . wOf) moves = take 1 (filter ((== 2) . wOf) moves)
+  -- else, if possible apply one priority 3 rule, do it, ignore all else for now:
+  | any ((== 3) . wOf) moves = take 1 (filter ((== 3) . wOf) moves)
+  -- else, if possible apply all priority 4 rules in parallel:
+  | any ((<= 4) . wOf) moves = filter ((== 4) . wOf) moves
   | otherwise = []
   where
-     wOf (_,(_,weight,_,_))= weight
+     wOf (_,(_,priority,_,_))= priority
 
 -- Definition 16, page 29
 -- "A tableau T is called closed iff all normal free end nodes of T are closed."
