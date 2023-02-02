@@ -250,7 +250,7 @@ tjOf = tjOf' [] where
       , wfs `elem` history -- Stop when there is a predecessor with same pair.
       ]
 
--- Definition 28
+-- | Definition 28
 -- D(T): disjunction of conjunctions of each of the given nodes (of T^J)
 dOf :: [[WForm]] -> Form
 dOf tjNodes = multidis [ multicon (leftsOf wfs) | wfs <- tjNodes ]
@@ -261,7 +261,7 @@ tOf tj y = filter (seteq y . rightsOf . wfsOf . at tj) (allPathsIn tj)
 dtyOf :: TableauxIP -> [Form] -> Form
 dtyOf t y = dOf $ map (wfsOf . at t) $ tOf t y
 
--- A path, given by the indices to go from start to end.
+-- | A path in a tableau, given by the indices to go from start to end.
 type Path = [Int]
 
 at :: TableauxIP -> Path -> TableauxIP
@@ -291,7 +291,7 @@ isProperPrefixOf p1 p2 = p1 `isPrefixOf` p2 && length p1 /= length p2
 isImmediatePredOf :: Path -> Path -> Bool
 isImmediatePredOf p1 p2 = p1 `isPrefixOf` p2 && length p1 + 1 == length p2
 
--- Definition 15: ◁' which is ◁ plus "loops" (page 21, needed for Def 29)
+-- | Definition 15: ◁' which is ◁ plus "loops" (page 21, needed for Def 29)
 -- NOTE: s and t are given by paths from tab root; tab and sp need not be the same.
 trianglePrime :: TableauxIP -> Path -> Path -> Bool
 trianglePrime tab sp tp =
@@ -305,15 +305,15 @@ trianglePrime tab sp tp =
 
 -- * Definition 29: partition of T(Y)
 
--- | T(Y)^ε
+-- | \(T(Y)^ε\)
 tOfEpsilon :: TableauxIP -> [Form] -> [Path]
 tOfEpsilon tabTJ y = [ root_to_s | root_to_s <- tOf tabTJ y
                                  , not $ any (trianglePrime tabTJ root_to_s) (tOf tabTJ y) ]
--- T(Y)^I  -- nodes where we (should) already have interpolants!
+-- | \(T(Y)^I\) — These are nodes where we (should) already have interpolants!
 tOfI :: TableauxIP -> [Form] -> [Path]
 tOfI tabTJ y = filter (\root_to_s -> not $ any (trianglePrime tabTJ root_to_s) (allPathsIn tabTJ))
                       (tOfEpsilon tabTJ y)
--- T(Y)^◁
+-- | \(T(Y)^◁\)
 tOfTriangle :: TableauxIP -> [Form] -> [Path]
 tOfTriangle tabTJ y = tOfEpsilon tabTJ y \\ tOfI tabTJ y
 
@@ -324,9 +324,9 @@ iOf tj y = case tOfI tj y of
   [] -> Bot
   t1_tn -> multidis [ t_i | (Just t_i) <- map (mipOf . at tj) t1_tn ]
 
--- | Definition 31: T^K
--- Idea: Nodes in \(T^K\) here correspond to Y-regions in T^J.
--- Input should be the node Y1/Y2 obtained using M+ (page 35)
+-- | Definition 31: \(T^K\)
+-- Idea: Nodes in \(T^K\) correspond to Y-regions in T^J.
+-- Input should be the node Y1/Y2 obtained using M+ (page 35).
 tkOf :: TableauxIP -> TableauxIP
 tkOf n@(Node _ (Just _) _ _ _ _) = error $ "Already have an interpolant, why bother with T^K?\n" ++ ppTabStr n
 tkOf n@(Node t_wfs Nothing _ _ _ _) = tk where
@@ -386,7 +386,7 @@ tkSuccessorsAt tj tk pth =
     y = rightsOf wfs
     yWithMarkings = filter (isRight . fst) wfs
 
--- All successors of a node in a TK tableau, with the paths to them.
+-- | All successors of a node in a TK tableau, with the paths to them.
 -- This is <, transitive closure of ◁.
 allSuccsOf :: TableauxIP -> [(Path, TableauxIP)]
 allSuccsOf (Node _ _ _ _ _ tks) = nexts ++ laters where
@@ -407,7 +407,7 @@ canonProg tj tk tk_s (i:rest)
     let (prog, next) = canonProgStep tj tk tk_s !! i
     in prog :- canonProg tj tk next rest
 
--- Definition 32: canonical programs
+-- | Definition 32: canonical programs
 -- One step programs, from given node si in TK to all immediate successors sj in TK.
 -- Assumption: we already have canonical programs for all nodes below sj.
 canonProgStep :: TableauxIP -> TableauxIP -> TableauxIP -> [(Prog, TableauxIP)]
@@ -433,7 +433,7 @@ canonProgStep tj tk (Node si_wfs _ (Just itype) si_rule si_actives tks) =
         else Test top
     ij -> error $ "Impossible transition in TK: " ++ show ij
 
--- Definition 33: Interpolants for T^K nodes
+-- | Definition 33: Interpolants for T^K nodes
 ipFor :: TableauxIP -> TableauxIP -> Path -> Form
 -- end nodes of T^K:
 ipFor tj tk pth
