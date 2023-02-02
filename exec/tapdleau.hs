@@ -137,7 +137,10 @@ mPlusLoop ti = case lowestMplusWithoutIP ti of
 solveLowestMplus :: TableauxIP -> (TableauxIP, [String])
 solveLowestMplus ti =
   let
-    Just mstart = lowestMplusWithoutIP ti
+    Just mstartOriginal = lowestMplusWithoutIP ti
+    -- If M+ is not on the right we need to flip the tableau — see `fillLowestMplus`.
+    isOnRight = or [ True | (Right _, _) <- activesOf mstartOriginal ]
+    mstart = if isOnRight then mstartOriginal else flipTab mstartOriginal
     tj = tjOf $ head $ childrenOf mstart
     (y1, y2) = (leftsOf $ wfsOf tj, rightsOf $ wfsOf mstart)
     rightComponents = nubOrd $ map (\pth -> rightsOf (wfsOf (tj `at` pth)) ) (allPathsIn tj)
@@ -147,6 +150,7 @@ solveLowestMplus ti =
   in
     (newTI,
     [ "<hr /><h3>Lowest M+ rule without interpolant:</h3>"
+    , if isOnRight then "" else "<p title='See remark before Defintiion 27.'>Note: M+ is used on the left, hence we flip the tableau now and will later negate the TK interpolant!</p>" -- TODO
     , svg mstart
     , "<h3 title='Y1 and Y2 are the left and right sets of the node obtained using M+.'>Y1 and Y2 sets</h3>"
     , "<p>Y1 = " ++ intercalate ", " (map toString y1) ++"</p>"

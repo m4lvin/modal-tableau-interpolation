@@ -215,12 +215,28 @@ fillLowestMplus :: TableauxIP -> TableauxIP
 fillLowestMplus n@(Node _ Nothing _ rule _ _)
   | "M+" `isInfixOf` rule && null (mapMaybe lowestMplusWithoutIP (childrenOf n)) =
       let
-        ti = tiOf n
+        -- NOTE: The remark before Defintiion 27 wlog assumes M+ is applied in Y2 (Right).
+        -- If instead it is in Y1 (Left) then we flip the tableau (which also negates all
+        -- interpolants already found) ...
+        isOnRight = or [ True | (Right _, _) <- activesOf n ]
+        ti = if isOnRight then n else flipTab n
         tj = let (x:_) = childrenOf ti in tjOf x
         tk = tkOf tj
       in
-        n { mipOf = Just $ simplify $ ipFor tj tk [] }
+        -- ... and negate the TK interpolant to get our interpolant for the root of n.
+        n { mipOf = Just $ simplify $ (if isOnRight then id else Neg) $ ipFor tj tk [] }
 fillLowestMplus n = n { childrenOf = map fillLowestMplus (childrenOf n) }
+
+-- | Swap the left and right components in all nodes and
+-- replace interpolants found so far by their (non-)negations.
+flipTab :: TableauxIP -> TableauxIP
+flipTab (Node wfs mip mtyp rule actives ts) =
+  Node (map flipWForm wfs) (flipIP mip) mtyp rule actives (map flipTab ts) where
+    flipWForm (Right f, m) = (Left  f, m)
+    flipWForm (Left  f, m) = (Right f, m)
+    flipIP Nothing        = Nothing
+    flipIP (Just (Neg f)) = Just f
+    flipIP (Just f)       = Just (Neg f)
 
 -- Definition 27: sub-tableau T^J
 tjOf :: TableauxIP -> TableauxIP
