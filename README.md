@@ -94,11 +94,6 @@ Interpolation:
 - [X] use TI etc. to find interpolants for loaded sub-tableaux, iterate!
 - [ ] make warning more visible when defined interpolant is not actually an interpolant!
 - [ ] fillIPs: end notes due to extra condition 4 ??
-- Problematic examples:
-    - `s -> [?(¬q)*]⊤` (found using QuickCheck, not using M+ but just condition 4)
-    - `¬[c][(c ; d)**]⊤ -> p`
-    - `[a**]p -> [a*]p`
-    - anything with empty allowed vocabulary?
 
 Bonus Information:
 
@@ -109,7 +104,7 @@ These are not needed to define interpolants, but part of the proof the definitio
 
 Testing:
 
-- [ ] self-testing: generate random implication, check if provable, compute interpolant, check if it is indeed an interpolant
+- [X] self-testing: generate random implication, check if provable, compute interpolant, check if it is indeed an interpolant
 - [ ] check for agreement with other PDL provers
     - [ ] http://rsise.anu.edu.au/~rpg/PDLProvers/
     - [ ] https://www.irit.fr/Lotrec/

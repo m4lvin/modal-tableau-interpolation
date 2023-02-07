@@ -52,6 +52,8 @@ someValidImplications =
   , "[(a u b)*]p -> [b******]p"
   , "[(a u b)*]p -> [a*******]p"
   , "[(a u b)*]p -> [b********]p"
+  , "¬[c][(c ; d)**]⊤ -> p"
+  , "s -> [?(¬q)*]⊤"
   ]
 
 -- | Formulas that should *not* be provable.
