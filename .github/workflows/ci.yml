@@ -10,14 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Cache
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         key: stack
         path: |
           ~/.stack
           ~/.stack-work
-    - uses: actions/checkout@v2
-    - name: Compile
+    - uses: actions/checkout@v3
+    - name: Compile all tests
       run: stack --system-ghc test --no-run-tests
     - name: "Run tests: propositional"
       run: stack --system-ghc test Logic:test:propositional
@@ -32,12 +32,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Cache
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         key: stack
         path: |
           ~/.stack
           ~/.stack-work
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Compile web interface
       run: stack --system-ghc build Logic:exe:tapdleau
