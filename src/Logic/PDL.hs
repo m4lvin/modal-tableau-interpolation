@@ -207,10 +207,11 @@ simplifyProg :: Prog -> Prog
 simplifyProg = fixpoint simstep where
   simstep (Ap ap)       = Ap ap
   simstep (Cup pr1 pr2) | pr1 == pr2 = pr1
-                        | otherwise  = Cup (simstep pr1) (simstep pr2) -- TODO: merge sub-Cups
+                        | otherwise  = Cup (simstep pr1) (simstep pr2)
   simstep (Test (Neg Bot) :- pr2)  = simstep pr2
   simstep (pr1 :- Test (Neg Bot))  = simstep pr1
   simstep (pr1 :- pr2)  = simstep pr1 :- simstep pr2
+  simstep (Star (Star pr)) = Star(simstep pr)
   simstep (Star  pr)    = Star (simstep pr)
   simstep (NStar pr)    = NStar (simstep pr)
   simstep (Test   f)    = Test (simplify f)
@@ -295,7 +296,7 @@ globeval m f = all (\w -> eval (m,w) f) (worlds m)
 -- | Generate random formulas.
 instance Arbitrary Form where
   arbitrary = simplify <$> sized genForm where
-    factor = 4
+    factor = 10
     genForm 0 = elements [ Bot, top, o, p, q, r, s ]
     genForm 1 = elements [ Bot, top, o, p, q, r, s ]
     genForm n = oneof
@@ -308,7 +309,7 @@ instance Arbitrary Form where
 
 instance Arbitrary Prog where
   arbitrary = simplifyProg <$> sized genProg where
-    factor = 4
+    factor = 10
     genProg 0 = elements [ Test top, Test Bot, a, b, c, d ]
     genProg 1 = elements [ Test top, Test Bot, a, b, c, d ]
     genProg n = oneof
@@ -319,3 +320,10 @@ instance Arbitrary Prog where
       , Test <$> arbitrary
       ]
   shrink x = dropPartPrograms x ++ immediateSubPrograms x ++ [ simplifyProg x | simplifyProg x /= x ]
+
+newtype SimpleForm = SF Form deriving (Eq,Ord,Show)
+
+-- | Generate random simplified formulas.
+instance Arbitrary SimpleForm where
+  arbitrary = SF <$> arbitrary
+  shrink (SF g) = map SF $ shrink g

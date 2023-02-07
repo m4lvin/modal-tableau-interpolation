@@ -16,9 +16,6 @@ import Logic.PDL.Interpolation.ProofTree
 
 main :: IO ()
 main = hspec $ do
-  describe "simplify" $
-    prop "preserves provability"
-      (\f -> provable f === provable (simplify f))
   describe "someValidities" $
     mapM_ proveTest someValidities
   describe "someValidImplications" $
@@ -55,30 +52,34 @@ main = hspec $ do
       inconsistent [ r `Con` Neg (Box a p), r --> Box a (p `Con` q) ]
   describe "borzechowski" $
     proveTest borzechowski
-  describe "random formulas" $ do
+  describe "random examples" $ modifyMaxDiscardRatio (const 1000) $ do
     prop "provable f `elem` [True,False] -- but no error"
-      (\f -> provable f `elem` [True,False])
+      (fTest $ \f -> provable f `elem` [True,False])
     prop "provable f iff provable ~~f"
-      (\f -> provable f === provable (Neg (Neg f)))
+      (fTest $ \f -> provable f === provable (Neg (Neg f)))
     prop "if (provable f or provable g) then provable (f v g)"
-      (\f g -> (provable f || provable g) `implies` provable (dis f g))
+      (fgTest $ \f g -> (provable f || provable g) ==> provable (dis f g))
     prop "if (provable f and provable g) then provable (f ∧ g)"
-      (\f g -> (provable f && provable g) `implies` provable (Con f g))
+      (fgTest $ \f g -> (provable f && provable g) ==> provable (Con f g))
     prop "provable (f -> g) iff provable (¬g -> ¬f)"
-      (\f g -> provable (f --> g) === provable (Neg g --> Neg f))
-    -- describe "segerbergFor random formulas" $
-    --   mapM_ (\ k -> do
-    --            prop (show k)
-    --              (\ f1 f2 p1 p2 -> provable (segerbergFor f1 f2 p1 p2 !! k) )
-    --         ) [0..(length (segerbergFor p q a b) - 1)]
+      (fgTest $ \f g -> provable (f --> g) === provable (Neg g --> Neg f))
+    prop "simplify preserves provability"
+      (fTest $ \ f -> provable f === provable (simplify f))
+
   describe "interpolate" $ modifyMaxDiscardRatio (const 1000) $ do
     describe "someValidImplications" $
       mapM_ (\(Neg (Con f (Neg g))) ->
         it (toString f ++ " -> " ++ toString g) $ testIPgen interpolate (f,g)) someValidImplications
-    prop "random examples"
-      (\(f,g) -> provable (f `imp` g) ==> testIPgen interpolate (f,g))
-    prop "random nice examples"
-      (\(f,g) -> isNice (f,g) ==> testIPgen interpolate (f,g))
+    prop "random implications"
+      (fgTest $ \f g -> provable (f `imp` g) ==> testIPgen interpolate (f,g))
+    prop "random nice implications"
+      (fgTest $ \f g -> isNice (f,g) ==> testIPgen interpolate (f,g))
+
+fTest :: Testable prop => (Form -> prop) -> (SimpleForm -> Property)
+fTest testfun (SF f) = counterexample (toString f) . within 10000000 $ testfun f -- ten seconds
+
+fgTest :: Testable prop => (Form -> Form -> prop) -> (SimpleForm -> SimpleForm -> Property)
+fgTest testfun (SF f) (SF g) = counterexample (toString f ++ " -> " ++ toString g) . within 10000000 $ testfun f g -- ten seconds
 
 proveTest :: Form -> SpecWith ()
 proveTest f = it (toString f) $ provable f `shouldBe` True
