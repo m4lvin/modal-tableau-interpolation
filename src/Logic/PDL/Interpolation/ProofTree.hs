@@ -17,19 +17,23 @@ import qualified Logic.PDL.Prove.Tree as T (Tableaux(Node,End))
 import Logic.Internal
 import Logic.PDL.Interpolation ()
 
+-- | An interpolant might be there, or not.
 type Interpolant = Maybe Form
+
+-- * Tableaux with interpolants
 
 -- | A Tableau with interpolants.
 data TableauxIP = Node
-                  { wfsOf :: [WForm]
-                  , mipOf :: Interpolant -- ^ Maybe a formula that is an interpolant for this node.
-                  , mtypOf :: Maybe TypeTK -- ^ Maybe a type marker for T^K.
-                  , ruleOf :: RuleName
-                  , activesOf :: [WForm]
-                  , childrenOf :: [TableauxIP] }
+                  { wfsOf :: [WForm]           -- ^ A list of (left/right) weighted (posisbly marked) formulas.
+                  , mipOf :: Interpolant       -- ^ Maybe a formula that is an interpolant for this node.
+                  , mtypOf :: Maybe TypeTK     -- ^ Type marker for \(T^K\).
+                  , ruleOf :: RuleName         -- ^ Rule that is applied at this node.
+                  , activesOf :: [WForm]       -- ^ Active formulas to which the rule is applied here.
+                  , childrenOf :: [TableauxIP] -- ^ Child nodes, can be more than 2.
+                  }
   deriving (Eq,Ord,Show)
 
--- | Type markers for T^K which is annotated with 1,2,3.
+-- | Type markers for \(T^K\) which is annotated with 1,2,3.
 data TypeTK = One | Two | Three
   deriving (Eq,Ord,Show)
 
@@ -41,6 +45,10 @@ showTyp Three = "3"
 isEndNode :: TableauxIP -> Bool
 isEndNode (Node _ _ _ _ _ []) = True
 isEndNode _ = False
+
+hasIP :: TableauxIP -> Bool
+hasIP (Node _ (Just _) _ _ _ _) = True
+hasIP (Node _ Nothing  _ _ _ _) = False
 
 ppIP :: Interpolant -> String
 ppIP (Just f) = toString f
@@ -98,7 +106,32 @@ toEmptyTabIP (T.Node wfs _ rule actives [T.End]) =
 toEmptyTabIP (T.Node wfs _ rule actives ts) =
   Node wfs Nothing Nothing rule actives (map toEmptyTabIP ts)
 
--- | Definition 26: given T, remove n-nodes to obtain T^I.
+-- | Check three conditions for a formula to be a correct interpolant for the root of a tableau.
+checkCorrectIPfor :: Form -> TableauxIP -> (Bool, Bool, Bool)
+checkCorrectIPfor f (Node wfs _ _ _ _ _ ) =
+  ( atomsIn f ⊆ (atomsIn (leftsOf wfs) ∩ atomsIn (rightsOf wfs))
+  , inconsistent (Neg f : leftsOf wfs)
+  , inconsistent (f : rightsOf wfs)
+  )
+
+-- | Check if a formula is a correct interpolant for the root of a tableau.
+isCorrectIPfor :: Form -> TableauxIP -> Bool
+isCorrectIPfor f n = vocCon && left && right
+  where (vocCon,left,right) = checkCorrectIPfor f n
+
+-- | Get interpolant at the root of a tableau, assuming there is one.
+ipOf :: TableauxIP -> Form
+ipOf (Node _ (Just f ) _ _ _ _) = f
+ipOf n@(Node _ Nothing   _ _ _ _) = error $ "No interpolant here (yet):" ++ ppTabStr n
+
+-- | Get left or right formulas, and ignore markings!
+leftsOf, rightsOf :: [WForm] -> [Form]
+leftsOf  wfs = [f | (Left  f,_) <- wfs]
+rightsOf wfs = [f | (Right f,_) <- wfs]
+
+-- * The easy part
+
+-- | Definition 26: given \(T\), remove n-nodes to obtain \(T^I\).
 -- This may result in a non-binary tree!
 tiOf :: TableauxIP -> TableauxIP
 tiOf = snd . head . tiOfRec where
@@ -117,34 +150,6 @@ tiOf = snd . head . tiOfRec where
   combine ("":rs) = combine rs
   combine [rule] = rule
   combine (rule:rest) = rule ++ [',' | not . null $ combine rest] ++ combine rest
-
-
-hasIP :: TableauxIP -> Bool
-hasIP (Node _ (Just _) _ _ _ _) = True
-hasIP (Node _ Nothing  _ _ _ _) = False
-
-checkCorrectIPfor :: Form -> TableauxIP -> (Bool, Bool, Bool)
-checkCorrectIPfor f (Node wfs _ _ _ _ _ ) =
-  (
-    atomsIn f ⊆ (atomsIn (leftsOf wfs) ∩ atomsIn (rightsOf wfs))
-  ,
-    inconsistent (Neg f : leftsOf wfs)
-  ,
-    inconsistent (f : rightsOf wfs)
-  )
-
-isCorrectIPfor :: Form -> TableauxIP -> Bool
-isCorrectIPfor f n =
-  vocCon && left && right where (vocCon,left,right) = checkCorrectIPfor f n
-
-ipOf :: TableauxIP -> Form
-ipOf (Node _ (Just f ) _ _ _ _) = f
-ipOf n@(Node _ Nothing   _ _ _ _) = error $ "No interpolant here (yet):" ++ ppTabStr n
-
--- | Get left or right formulas, and ignore markings!
-leftsOf, rightsOf :: [WForm] -> [Form]
-leftsOf  wfs = [f | (Left  f,_) <- wfs]
-rightsOf wfs = [f | (Right f,_) <- wfs]
 
 -- | Given a list of children, combine all previous interpolants
 -- with a connective depending on the side that differs.
@@ -197,12 +202,15 @@ fillIPs n@(Node wfs Nothing _ rule actives ts)
         (_, _, _) -> branchIP wfs ts
       in Node wfs newMIP Nothing rule actives ts
 
+-- | Use fillIPs as often as possible.
 fillAllIPs :: TableauxIP -> TableauxIP
 fillAllIPs = fixpoint fillIPs
 
--- * Definitions to deal with condition 6 end nodes
+-- * The hard part: condition 6 end nodes
 
--- | Find a lowest M+ application without interpolant.
+-- ** Find lowest \(M+\) to get \(T^J\)
+
+-- | Find a lowest \(M+\) application without interpolant.
 lowestMplusWithoutIP :: TableauxIP -> Maybe TableauxIP
 lowestMplusWithoutIP n@(Node _ Nothing _ rule _ _) | "M+" `isInfixOf` rule =
   case mapMaybe lowestMplusWithoutIP (childrenOf n) of
@@ -210,7 +218,7 @@ lowestMplusWithoutIP n@(Node _ Nothing _ rule _ _) | "M+" `isInfixOf` rule =
     _  -> listToMaybe $ mapMaybe lowestMplusWithoutIP (childrenOf n)
 lowestMplusWithoutIP n = listToMaybe $ mapMaybe lowestMplusWithoutIP (childrenOf n)
 
--- | Find a lowest M+ application without interpolant and fill it via T^J and $T^K.
+-- | Find a lowest \(M+\) application without interpolant and fill it via \(T^J\) and \(T^K\).
 fillLowestMplus :: TableauxIP -> TableauxIP
 fillLowestMplus n@(Node _ Nothing _ rule _ _)
   | "M+" `isInfixOf` rule && null (mapMaybe lowestMplusWithoutIP (childrenOf n)) =
@@ -238,7 +246,7 @@ flipTab (Node wfs mip mtyp rule actives ts) =
     flipIP (Just (Neg f)) = Just f
     flipIP (Just f)       = Just (Neg f)
 
--- Definition 27: sub-tableau T^J
+-- | Definition 27: sub-tableau \(T^J\)
 tjOf :: TableauxIP -> TableauxIP
 tjOf = tjOf' [] where
   tjOf' history (Node wfs ip _ rule actives ts) =
@@ -250,16 +258,19 @@ tjOf = tjOf' [] where
       , wfs `elem` history -- Stop when there is a predecessor with same pair.
       ]
 
--- | Definition 28
--- D(T): disjunction of conjunctions of each of the given nodes (of T^J)
+-- ** Definition 28
+
+-- | \(D(T)\): disjunction of conjunctions of each of the given nodes (of \(T^J\))
 dOf :: [[WForm]] -> Form
 dOf tjNodes = multidis [ multicon (leftsOf wfs) | wfs <- tjNodes ]
--- T(Y): all nodes where the right side is Y
+-- | \(T(Y)\): all nodes where the right side is Y
 tOf :: TableauxIP -> [Form] -> [Path]
 tOf tj y = filter (seteq y . rightsOf . wfsOf . at tj) (allPathsIn tj)
-
+-- | \(D(T(Y)\)
 dtyOf :: TableauxIP -> [Form] -> Form
 dtyOf t y = dOf $ map (wfsOf . at t) $ tOf t y
+
+-- ** Paths and Histories
 
 -- | A path in a tableau, given by the indices to go from start to end.
 type Path = [Int]
@@ -303,7 +314,7 @@ trianglePrime tab sp tp =
                    && wfsOf (tab `at ` up) == wfsOf (tab `at` sp))
            (allPathsIn tab) )
 
--- * Definition 29: partition of T(Y)
+-- ** Definition 29: partition of T(Y)
 
 -- | \(T(Y)^ε\)
 tOfEpsilon :: TableauxIP -> [Form] -> [Path]
@@ -317,6 +328,8 @@ tOfI tabTJ y = filter (\root_to_s -> not $ any (trianglePrime tabTJ root_to_s) (
 tOfTriangle :: TableauxIP -> [Form] -> [Path]
 tOfTriangle tabTJ y = tOfEpsilon tabTJ y \\ tOfI tabTJ y
 
+-- ** Building \(T^K\)
+
 -- | Definition 30: I(Y)
 -- NOTE: different from ipOf
 iOf :: TableauxIP -> [Form] -> Form
@@ -325,7 +338,7 @@ iOf tj y = case tOfI tj y of
   t1_tn -> multidis [ t_i | (Just t_i) <- map (mipOf . at tj) t1_tn ]
 
 -- | Definition 31: \(T^K\)
--- Idea: Nodes in \(T^K\) correspond to Y-regions in T^J.
+-- Idea: Nodes in \(T^K\) correspond to \(Y\)-regions in \(T^J\).
 -- Input should be the node Y1/Y2 obtained using M+ (page 35).
 tkOf :: TableauxIP -> TableauxIP
 tkOf n@(Node _ (Just _) _ _ _ _) = error $ "Already have an interpolant, why bother with T^K?\n" ++ ppTabStr n
@@ -370,8 +383,8 @@ tkSuccessorsAt tj tk pth =
 -- 3 to 1 has n many successors:
   Just Three ->
       [ Node
-      ( (Left (dOf (map (wfsOf . at tj) $ tOf tj z)), Nothing)
-        : [ mf | mf <- wfsOf childT, isRight (fst mf) ] )
+        ( (Left (dOf (map (wfsOf . at tj) $ tOf tj z)), Nothing)
+          : [ mf | mf <- wfsOf childT, isRight (fst mf) ] )
         Nothing -- no interpolants in TK??
         (Just One)
         "" -- anarchy, no rule!?
@@ -395,21 +408,23 @@ allSuccsOf (Node _ _ _ _ _ tks) = nexts ++ laters where
            | ([i],tk) <- nexts
            , (path,suc) <- allSuccsOf tk ]
 
--- | Canonical program from s to t along a path in TK
+-- | Canonical program along a path in \(T^K\)
 canonProg :: TableauxIP -> TableauxIP -> TableauxIP -> Path -> Prog
 canonProg _  _  _    []  = error "No canonical program for empty path."
 canonProg tj tk tk_s [t_index]
-  | t_index > length (canonProgStep tj tk tk_s) - 1 = error $ "canonProg: This node has no child " ++ show t_index ++ ":\n\n" ++ ppTabStr tk_s
+  | t_index > length (canonProgStep tj tk tk_s) - 1 =
+      error $ "This node has no child " ++ show t_index ++ ":\n\n" ++ ppTabStr tk_s
   | otherwise = fst $ canonProgStep tj tk tk_s !! t_index
 canonProg tj tk tk_s (i:rest)
-  | i > length (canonProgStep tj tk tk_s) - 1 = error $ "canonProg: This node has no child " ++ show i ++ ":\n" ++ ppTabStr tk_s
+  | i > length (canonProgStep tj tk tk_s) - 1 =
+      error $ "This node has no child " ++ show i ++ ":\n" ++ ppTabStr tk_s
   | otherwise =
     let (prog, next) = canonProgStep tj tk tk_s !! i
     in prog :- canonProg tj tk next rest
 
--- | Definition 32: canonical programs
--- One step programs, from given node si in TK to all immediate successors sj in TK.
--- Assumption: we already have canonical programs for all nodes below sj.
+-- | Definition 32: canonical programs.
+-- One step from given node \(s^i\) in \(T^K\) to all immediate successors \(s^j\) in \(T^K\).
+-- Assumption: we already have canonical programs for all nodes below \(s^j\).
 canonProgStep :: TableauxIP -> TableauxIP -> TableauxIP -> [(Prog, TableauxIP)]
 canonProgStep _  _  (Node _      _ Nothing      _ _ _) = error "Need type for canonProgStep."
 canonProgStep tj tk (Node si_wfs _ (Just itype) si_rule si_actives tks) =
@@ -433,7 +448,7 @@ canonProgStep tj tk (Node si_wfs _ (Just itype) si_rule si_actives tks) =
         else Test top
     ij -> error $ "Impossible transition in TK: " ++ show ij
 
--- | Definition 33: Interpolants for T^K nodes
+-- | Definition 33: Interpolants for \(T^K\) nodes
 ipFor :: TableauxIP -> TableauxIP -> Path -> Form
 -- end nodes of T^K:
 ipFor tj tk pth
@@ -448,7 +463,7 @@ ipFor tj tk pth
     n@(Node t_wfs _ t_mtyp _ _ s1_sn) = tk `at` pth -- NOTE: n≤2
     ((a_prog, _):_) = canonProgStep tj tk n
 
--- | Annotate TK with canonical programs (as rules) and interpolants.
+-- | Annotate \(T^K\) with canonical programs (as rules) and interpolants.
 annotateTk :: TableauxIP -> TableauxIP -> TableauxIP
 annotateTk tj tk = annotateInside [] where
   annotateInside pth =
@@ -457,12 +472,9 @@ annotateTk tj tk = annotateInside [] where
          , ruleOf = intercalate " // " $ map (toString . fst) (canonProgStep tj tk n)
          , childrenOf = [ annotateInside (pth ++ [k]) | (k,_) <- zip [0,1] (childrenOf n) ]  }
 
-keepInterpolating :: TableauxIP -> TableauxIP
-keepInterpolating = fixpoint (fillLowestMplus . fillAllIPs)
+-- ** Tools for the interpolant-is-an-interpolant proof
 
--- * Tools for the interpolant-is-an-interpolant proof
-
--- | Definition 34: Set J(s)
+-- | Definition 34: Set \(J(s)\)
 jSetOf :: TableauxIP -> TableauxIP -> Path -> [Form]
 jSetOf _  _ [] = [] -- J(t_o) := {}
 jSetOf tj tk pth_s = sort $ nubOrd $
@@ -476,15 +488,22 @@ jSetOf tj tk pth_s = sort $ nubOrd $
   , formulaP <- jSetOf tj tk pth_t ++ [ ipOf (tk `at` pth_t) ]
   ]
 
+-- | Definition 34: set \(K(s)\)
 kSetOf :: TableauxIP -> TableauxIP -> Path -> [Form]
 kSetOf tj tk pth = sort $ nubOrd $
   ipOf (tk `at` pth) : jSetOf tj tk pth ++ rightsOf (wfsOf $ tk `at` pth)
 
--- * General functions
+-- * General wrapper functions
 
+-- | Keep iterating the whole procedure to (hopefully) find all interpolants.
+keepInterpolating :: TableauxIP -> TableauxIP
+keepInterpolating = fixpoint (fillLowestMplus . fillAllIPs)
+
+-- | Try to prove the given formula and annotate the resulting tableau with interpolants.
 proveWithInt :: Form -> TableauxIP
 proveWithInt = keepInterpolating . tiOf . toEmptyTabIP . prove
 
+-- | Interpolate a given valid implication; return tablau and interpolant.
 proveAndInterpolate :: (Form,Form) -> (TableauxIP,Maybe Form)
 proveAndInterpolate (ante,cons)
   | not $ provable (ante --> cons) = error $ "This implication is not valid " ++ toString (ante --> cons)
@@ -493,12 +512,17 @@ proveAndInterpolate (ante,cons)
       ti = tiOf $ toEmptyTabIP t1 :: TableauxIP
       ipt1@(Node _ mip _ _ _ _) = keepInterpolating ti
 
+-- | Interpolate a given valid implication; return only the interpolant.
 interpolate :: (Form,Form) -> Maybe Form
 interpolate = snd . proveAndInterpolate
 
+-- | Check if a pair of formulas can serve as a nice non-trivial interpolation example.
+-- Here \(\phi \to \psi\) is nice when it is provable, the two subformulas have
+-- different and non-empty vocabularies, \(\lnot \phi\) is not provable, and
+-- \(\psi\) is not provable. For efficiency we check the vocabularies first.
 isNice :: (Form,Form) -> Bool
-isNice (f,g) = provable (f `imp` g)
-            && atomsIn f /= [] && atomsIn g /= []
+isNice (f,g) = atomsIn f /= [] && atomsIn g /= []
             && atomsIn f /= atomsIn g
             && (not . provable . Neg $ f)
             && (not . provable $ g)
+            && provable (f `imp` g)
