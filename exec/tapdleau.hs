@@ -23,6 +23,7 @@ import Text.Read (readMaybe)
 import qualified Logic.BasicModal as BM
 import qualified Logic.BasicModal.Prove.Tree
 import qualified Logic.BasicModal.Interpolation.ProofTree
+import qualified Logic.BasicModal.Consistent as BMCons
 
 import Logic.PDL
 import Logic.Internal
@@ -63,6 +64,10 @@ main = do
               else "NOT proved. <style type='text/css'> #output { border-color: red; } </style>\n"
           , "<div align='center'>" ++ if closed then svg tWithInt else svg t ++ "</div>"
           ]
+          ++ [ "<div align='center'>counter model:<br />"
+               ++ svg (BMCons.toIntModel $ fromJust $ BMCons.tabToMod t)
+               ++ "</div>"
+             | not closed ]
         Right (Left (_,col)) ->
           [ "<pre>INPUT: " ++ textinput ++ "</pre>"
           , "<pre>" ++ replicate (col + length ("INPUT:" :: String)) ' ' ++ "^</pre>"

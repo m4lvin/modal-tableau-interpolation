@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, FlexibleInstances #-}
 
 module Logic.BasicModal where
 
@@ -15,7 +15,7 @@ import Logic.Internal
 
 type Atom = String
 
-data Form = Bot | At String | Neg Form | Con Form Form | Box Form
+data Form = Bot | At Atom | Neg Form | Con Form Form | Box Form
   deriving (Eq,Ord,Show,Generic)
 instance NFData Form
 
@@ -151,6 +151,14 @@ instance Show w => DispAble (Model w) where
   toGraph m =
     mapM_ (\w -> do
       node (show w) [shape Circle, toLabel $ show w ++ ":" ++ ppAts (val m w)]
+      mapM_ (\w' -> edge (show w) (show w') []) (rel m w)
+      ) (worlds m)
+
+instance (Eq w, Show w) => DispAble (Model w, w) where
+  toGraph (m, actual) =
+    mapM_ (\w -> do
+      node (show w) [ shape (if w == actual then DoubleCircle else Circle)
+                    , toLabel $ show w ++ ":" ++ ppAts (val m w)]
       mapM_ (\w' -> edge (show w) (show w') []) (rel m w)
       ) (worlds m)
 

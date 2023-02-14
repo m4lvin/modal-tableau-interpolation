@@ -5,7 +5,7 @@ import Data.Maybe
 import Logic.BasicModal
 import Logic.BasicModal.Prove.Tree
 
--- | Given a tableaux, build a Kripke model if possible.
+-- | Given a tableaux, build a pointed Kripke model if possible.
 tabToMod :: Tableaux -> Maybe (Model [Form], [Form])
 -- no model when closed:
 tabToMod End = error "cannot make model for end marker"
@@ -52,3 +52,15 @@ comboModel w localTruths oldModels = (newM, w) where
   oldIn _ _ [] = undefined
   oldIn f x (m:ms) | x `elem` worlds m = f m x
                    | otherwise         = oldIn f x ms
+
+toIntModel :: Eq a => (Model a, a) -> (Model Int, Int)
+toIntModel (KrM w v rl, oldActual) =
+  (KrM (map snd mapping)
+       (v . reverseMap)
+       (map myMap . rl . reverseMap)
+  , myMap oldActual)
+  where
+    reverseMap new = fromJust (lookup new gnippam)
+    myMap old = fromJust (lookup old mapping)
+    mapping = zip w [0..]
+    gnippam = zip [0..] w
