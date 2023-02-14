@@ -298,7 +298,7 @@ globeval m f = all (\(w,_) -> eval (m,w) f) (worldsOf m)
 
 -- | Generate random formulas.
 instance Arbitrary Form where
-  arbitrary = simplify <$> sized genForm where
+  arbitrary = sized genForm where
     factor = 10
     genForm 0 = elements [ Bot, top, o, p, q, r, s ]
     genForm 1 = elements [ Bot, top, o, p, q, r, s ]
@@ -311,7 +311,7 @@ instance Arbitrary Form where
   shrink f = dropPartFormulas f ++ immediateSubFormulas f ++ [ simplify f | simplify f /= f]
 
 instance Arbitrary Prog where
-  arbitrary = simplifyProg <$> sized genProg where
+  arbitrary = sized genProg where
     factor = 10
     genProg 0 = elements [ Test top, Test Bot, a, b, c, d ]
     genProg 1 = elements [ Test top, Test Bot, a, b, c, d ]
@@ -328,7 +328,7 @@ newtype SimpleForm = SF Form deriving (Eq,Ord,Show)
 
 -- | Generate random simplified formulas.
 instance Arbitrary SimpleForm where
-  arbitrary = SF <$> arbitrary
+  arbitrary = SF . simplify <$> arbitrary
   shrink (SF g) = map SF $ shrink g
 
 
