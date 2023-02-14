@@ -66,6 +66,12 @@ main = hspec $ do
     prop "simplify preserves provability"
       (fTest $ \ f -> provable f === provable (simplify f))
 
+  describe "semantics" $ do
+    prop "exampleLoop falsifies some formula" $
+      expectFailure (fTest $ \ f -> (exampleLoop,1) |= f)
+    prop "exampleLoop falsifies some <a> formula" $
+      expectFailure (fTest $ \ f -> (exampleLoop,1) |= (dia (Ap "a") f))
+
   describe "interpolate" $ modifyMaxDiscardRatio (const 1000) $ do
     describe "someValidImplications" $
       mapM_ (\(Neg (Con f (Neg g))) ->

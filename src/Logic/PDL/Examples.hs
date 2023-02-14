@@ -87,12 +87,12 @@ borzechowski = x1 --> x2 where
   x1 = Box (Star (a :- a)) (p `Con` Box (a :- (b `Cup` c)) Bot)
   x2 = Box (Star a) (p `dis` Box c q)
 
--- | Example model with two worlds
+-- | Example model with two worlds.
+-- Program a has loops at both worlds.
+-- Program b goes from world 1 to 2 and back.
 exampleLoop :: Model Int
-exampleLoop = KrM [1,2] myVal ["a"] myRel where
-  myVal 1 = ["p", "q"]
-  myVal 2 = ["r"]
-  myVal _ = undefined
-  myRel "a" 1 = [2]
-  myRel "b" 2 = [1]
-  myRel _   _ = []
+exampleLoop = KrM
+  [ (1, ["p", "q"])
+  , (2, ["r"]) ]
+  [ ("a", [(1,1),(2,2)])
+  , ("b", [(2,1),(1,2)]) ]

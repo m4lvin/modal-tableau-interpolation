@@ -65,5 +65,5 @@ main = hspec $ do
   describe "consistency" $ modifyMaxSuccess (const 100000) $ do
     prop "if consistent, then tabToMod provides a model"
       (\ f -> consistent [f] ==> isJust (tabToMod (tableauFor [f])))
-    prop "if not provable, then true in tabToMod provides a model"
+    prop "if consistent, then tabToMod provides a model"
       (\ f -> consistent [f] ==> fromJust (tabToMod (tableauFor [f])) `eval` f)

@@ -4,6 +4,7 @@ module Logic.PDL where
 
 import Control.DeepSeq(NFData)
 import Data.List
+import Data.Maybe
 import Data.GraphViz hiding (Star)
 import Data.GraphViz.Types.Monadic hiding ((-->))
 import GHC.Generics (Generic)
@@ -11,7 +12,7 @@ import Test.QuickCheck
 
 import Logic.Internal
 
----- SYNTAX ----
+-- * SYNTAX
 
 type Atom = String
 
@@ -246,26 +247,24 @@ dropPartPrograms (Star p1)   = map Star $ dropPartPrograms p1
 dropPartPrograms (NStar p1)  = map NStar $ dropPartPrograms p1
 dropPartPrograms (Test f)    = map Test $ dropPartFormulas f
 
----- SEMANTICS ----
+-- * SEMANTICS
 
-type Valuation a = a -> [Atom]
+-- | Kripke models with worlds of some arbitrary type.
+data Model a = KrM { worldsOf :: [(a, [Atom])]
+                   , progsOf  :: [(Atom,[(a,a)])]
+                   } deriving (Eq,Show)
 
-type Relations a = Atom -> a -> [a]
+val :: Eq a => Model a -> a -> [Atom]
+val m w = fromJust $ lookup w (worldsOf m)
 
-data Model a = KrM { worlds :: [a]
-                   , val :: Valuation a
-                   , progs :: [Atom]
-                   , rel :: Relations a
-                   }
+rel :: Eq a => Model a -> Atom -> a -> [a]
+rel m pr w = map snd $ filter ((== w) . fst ) (fromJust $ lookup pr (progsOf m))
 
-instance Show a => Show (Model a) where
-  show m = "KrM " ++ show (worlds m) ++ " undefined " ++ show (progs m) ++ " undefined "  -- TODO
-
-instance Show a => DispAble (Model a) where
-  toGraph m = mapM_ (\w -> do
-                        node (show w) [shape Circle, toLabel $ show w ++ ":" ++ ppAts (val m w)]
-                        mapM_(\ap -> mapM_ (\w' -> edge (show w) (show w') [ toLabel ap ]) (rel m ap w)) (progs m)
-                    ) (worlds m)
+instance (Eq a, Show a) => DispAble (Model a) where
+  toGraph m = mapM_ (\(w,props) -> do
+                        node (show w) [shape Circle, toLabel $ show w ++ ":" ++ ppAts props]
+                        mapM_(\(ap,_) -> mapM_ (\w' -> edge (show w) (show w') [ toLabel ap ]) (rel m ap w)) (progsOf m)
+                    ) (worldsOf m)
 
 -- | Evaluate formula on a pointed model
 eval :: Eq a => (Model a, a) -> Form -> Bool
@@ -274,6 +273,10 @@ eval (m,w) (At at)   = at `elem` val m w
 eval (m,w) (Neg f)   = not $ eval (m,w) f
 eval (m,w) (Con f g) = eval (m,w) f && eval (m,w) g
 eval (m,w) (Box pr f) = all (\w' -> eval (m,w') f) (relval m pr w)
+
+-- | \(\vDash\)
+(|=) :: Eq a => (Model a, a) -> Form -> Bool
+(|=) = eval
 
 -- | Evaluate a program on a model
 relval :: Eq a => Model a -> Prog -> a -> [a]
@@ -289,9 +292,9 @@ lfp :: Eq a => (a -> a) -> a -> a
 lfp f x = if f x == x then x else lfp f (f x)
 
 globeval :: Eq a => Model a -> Form -> Bool
-globeval m f = all (\w -> eval (m,w) f) (worlds m)
+globeval m f = all (\(w,_) -> eval (m,w) f) (worldsOf m)
 
----- RANDOM GENERATION ----
+-- * Random generation
 
 -- | Generate random formulas.
 instance Arbitrary Form where
