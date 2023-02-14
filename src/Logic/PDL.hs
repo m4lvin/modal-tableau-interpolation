@@ -261,10 +261,19 @@ rel :: Eq a => Model a -> Atom -> a -> [a]
 rel m pr w = map snd $ filter ((== w) . fst ) (fromJust $ lookup pr (progsOf m))
 
 instance (Eq a, Show a) => DispAble (Model a) where
-  toGraph m = mapM_ (\(w,props) -> do
+  toGraph m =
+    mapM_ (\(w,props) -> do
                         node (show w) [shape Circle, toLabel $ show w ++ ":" ++ ppAts props]
                         mapM_(\(ap,_) -> mapM_ (\w' -> edge (show w) (show w') [ toLabel ap ]) (rel m ap w)) (progsOf m)
-                    ) (worldsOf m)
+          ) (worldsOf m)
+
+instance (Eq a, Show a) => DispAble (Model a, a) where
+  toGraph (m, actual) =
+    mapM_ (\(w,props) -> do
+                        node (show w) [shape $ if w == actual then DoubleCircle else Circle
+                                      , toLabel $ show w ++ ":" ++ ppAts props]
+                        mapM_(\(ap,_) -> mapM_ (\w' -> edge (show w) (show w') [ toLabel ap ]) (rel m ap w)) (progsOf m)
+          ) (worldsOf m)
 
 -- | Evaluate formula on a pointed model
 eval :: Eq a => (Model a, a) -> Form -> Bool
@@ -284,7 +293,7 @@ relval m (Ap ap)     = rel m ap
 relval m (Cup p1 p2) = \w -> nub (relval m p1 w ++ relval m p2 w)
 relval m (p1 :- p2)  = concatMap (relval m p2) . relval m p1
 relval m (Test f)    = \w -> [ w | eval (m,w) f ]
-relval m (Star pr)   = \w -> lfp (concatMap (relval m pr)) [w]
+relval m (Star pr)   = \w -> lfp (nub . concatMap (relval m pr)) [w]
 relval m (NStar pr)  = relval m (Star pr)
 
 -- | Least fixpoint.

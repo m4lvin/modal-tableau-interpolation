@@ -70,7 +70,13 @@ main = hspec $ do
     prop "exampleLoop falsifies some formula" $
       expectFailure (fTest $ \ f -> (exampleLoop,1) |= f)
     prop "exampleLoop falsifies some <a> formula" $
-      expectFailure (fTest $ \ f -> (exampleLoop,1) |= (dia (Ap "a") f))
+      expectFailure (fTest $ \ f -> (exampleLoop,1) |= dia (Ap "a") f)
+    prop "formulas get evaluated quickly on random models" $
+      \ (SF f) m -> counterexample (toString f ++ "\n" ++ show m) . within 10000000 $
+        ((m :: Model Int, 0) |= f) `elem` [True,False]
+    prop "a formula false in a model must not be provable" $
+      \ (SF f) m -> counterexample (toString f ++ "\n" ++ show m) . within 10000000 $
+        not ((m :: Model Int, 0) |= f) ==> not (provable f)
 
   describe "interpolate" $ modifyMaxDiscardRatio (const 1000) $ do
     describe "someValidImplications" $
