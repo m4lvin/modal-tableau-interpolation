@@ -110,6 +110,7 @@ Testing:
     - [ ] https://www.irit.fr/Lotrec/
           see also https://github.com/bilals/lotrec
     - [ ] http://www.cs.man.ac.uk/~schmidt/pdl-tableau/
+          (NOTE: prototype only, not working for nested stars)
 
 Semantics:
 
