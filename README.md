@@ -92,7 +92,6 @@ Interpolation:
 - [X] Correct definition of (At)-interpolants in the empty-side edge cases.
 - [X] TI, TJ, TK, canonical programs, interpolants for TK
 - [X] use TI etc. to find interpolants for loaded sub-tableaux, iterate!
-- [ ] make warning more visible when defined interpolant is not actually an interpolant!
 - [ ] fillIPs: end notes due to extra condition 4 ??
 
 Bonus Information:
@@ -116,8 +115,8 @@ Semantics:
 
 - [X] Kripke models
 - [X] satisfaction
-- [ ] arbitrary models
-- [ ] generate Kripke model from open tableau?
+- [X] generate random arbitrary models
+- [ ] build counter model from open tableaux? (done for BML)
 
 Nice to have:
 

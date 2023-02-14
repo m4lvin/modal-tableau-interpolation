@@ -330,3 +330,21 @@ newtype SimpleForm = SF Form deriving (Eq,Ord,Show)
 instance Arbitrary SimpleForm where
   arbitrary = SF <$> arbitrary
   shrink (SF g) = map SF $ shrink g
+
+
+-- | Generate random models.
+instance Arbitrary (Model Int) where
+  arbitrary = do
+    nonActualWorlds <- sublistOf [1..9]
+    let myWorlds = 0 : nonActualWorlds
+    let totalRel = [(x,y) | x <- myWorlds, y <- myWorlds ]
+    myW <- mapM (\w -> do
+                    truths <- sublistOf (map return "pqrst")
+                    return (w, truths)
+                ) myWorlds
+    myR <- mapM ((\prg -> do
+                    links <- sublistOf totalRel
+                    return (prg, links)
+                 ) . return ) "abcd"
+    return $ KrM myW myR
+  -- TODO: shrink

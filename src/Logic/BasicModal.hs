@@ -4,6 +4,7 @@ module Logic.BasicModal where
 
 import Control.DeepSeq(NFData)
 import Data.List
+import Data.Maybe
 import Data.GraphViz
 import Data.GraphViz.Types.Monadic hiding ((-->))
 import GHC.Generics (Generic)
@@ -223,3 +224,19 @@ instance Arbitrary Form where
       , Box <$> genForm (n `div` factor)
       ]
   shrink = immediateSubformulas
+
+-- | Generate random models.
+instance Arbitrary (Model Int) where
+  arbitrary = do
+    nonActualWorlds <- sublistOf [1..9]
+    let myWorlds = 0 : nonActualWorlds
+    let totalRel = [(x,y) | x <- myWorlds, y <- myWorlds ]
+    myW <- mapM (\w -> do
+                    truths <- sublistOf (map return "pqrst")
+                    return (w, truths)
+                ) myWorlds
+    let myVal w = fromJust $ lookup w myW
+    myR <- sublistOf totalRel
+    let myRel w = map snd $ filter ((==w) . fst) myR
+    return $ KrM myWorlds myVal myRel
+  -- TODO: shrink

@@ -96,3 +96,16 @@ exampleLoop = KrM
   , (2, ["r"]) ]
   [ ("a", [(1,1),(2,2)])
   , ("b", [(2,1),(1,2)]) ]
+
+-- | Example model conisting of a binary tree.
+binaryTree :: Int -> Model Int
+binaryTree k = KrM
+  [ (w, [show w]) | w <- [1..k] ]
+  [ ("a", [(x,x*2  ) | x <- [1..k], x*2   <= k ])
+  , ("b", [(x,x*2+1) | x <- [1..k], x*2+1 <= k ]) ]
+
+-- | Example model conisting of a ring.
+ring :: Int -> Model Int
+ring k = KrM
+  [ (w, [show w]) | w <- [1..k] ]
+  [ ("a", (k,1) : [(x, x+1) | x <- [1..(k-1)] ]) ]
