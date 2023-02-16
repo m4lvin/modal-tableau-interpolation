@@ -77,6 +77,9 @@ main = hspec $ do
     prop "a formula false in a model must not be provable" $
       \ (SF f) m -> counterexample (toString f ++ "\n" ++ show m) . within 10000000 $
         not ((m :: Model Int, 0) |= f) ==> not (provable f)
+    describe "ring" $ do
+      let fs = "<(a;a)*>p49 & ~<(a;a)*>p48" in
+        it ("(ring 50, 1) |= " ++ fs) $ (ring 50, 1) |= fromString fs
 
   describe "interpolate" $ modifyMaxDiscardRatio (const 1000) $ do
     describe "someValidImplications" $
