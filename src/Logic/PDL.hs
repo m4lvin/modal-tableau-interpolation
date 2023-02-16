@@ -293,12 +293,19 @@ relval m (Ap ap)     = rel m ap
 relval m (Cup p1 p2) = \w -> nub (relval m p1 w ++ relval m p2 w)
 relval m (p1 :- p2)  = concatMap (relval m p2) . relval m p1
 relval m (Test f)    = \w -> [ w | eval (m,w) f ]
-relval m (Star pr)   = \w -> lfp (nub . concatMap (relval m pr)) [w]
+relval m (Star pr)   = \w -> lfpList (relval m pr) [w]
 relval m (NStar pr)  = relval m (Star pr)
 
 -- | Least fixpoint.
 lfp :: Eq a => (a -> a) -> a -> a
 lfp f x = if f x == x then x else lfp f (f x)
+
+-- | Lazy least fixpoint for lists.
+lfpList :: Eq a => (a -> [a]) -> [a] -> [a]
+lfpList _ []  = []
+lfpList f set = set ++ rest where
+  rest | all (`elem` set) (concatMap f set) = set
+       | otherwise = lfpList f (set ++ (concatMap f set \\ set))
 
 globeval :: Eq a => Model a -> Form -> Bool
 globeval m f = all (\(w,_) -> eval (m,w) f) (worldsOf m)
