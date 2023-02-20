@@ -4,7 +4,6 @@ module Logic.PDL where
 
 import Control.DeepSeq(NFData)
 import Data.List
-import Data.Maybe
 import Data.GraphViz hiding (Star)
 import Data.GraphViz.Types.Monadic hiding ((-->))
 import GHC.Generics (Generic)
@@ -254,11 +253,15 @@ data Model a = KrM { worldsOf :: [(a, [Atom])]
                    , progsOf  :: [(Atom,[(a,a)])]
                    } deriving (Eq,Show)
 
-val :: Eq a => Model a -> a -> [Atom]
-val m w = fromJust $ lookup w (worldsOf m)
+val :: (Show a, Eq a) => Model a -> a -> [Atom]
+val m w = case lookup w (worldsOf m) of
+  Just truths -> truths
+  Nothing     -> error $ "Could not find world " ++ show w ++ " in this model:\n" ++ show m
 
-rel :: Eq a => Model a -> Atom -> a -> [a]
-rel m pr w = map snd $ filter ((== w) . fst ) (fromJust $ lookup pr (progsOf m))
+rel :: (Show a, Eq a) => Model a -> Atom -> a -> [a]
+rel m pr w = case lookup pr (progsOf m) of
+  Just rl -> map snd $ filter ((== w) . fst ) rl
+  Nothing -> error  $ "Could not find program " ++ show pr ++ " in this model:\n" ++ show m
 
 instance (Eq a, Show a) => DispAble (Model a) where
   toGraph m =
@@ -276,7 +279,7 @@ instance (Eq a, Show a) => DispAble (Model a, a) where
           ) (worldsOf m)
 
 -- | Evaluate formula on a pointed model
-eval :: Eq a => (Model a, a) -> Form -> Bool
+eval :: (Show a, Eq a) => (Model a, a) -> Form -> Bool
 eval (_,_) Bot       = False
 eval (m,w) (At at)   = at `elem` val m w
 eval (m,w) (Neg f)   = not $ eval (m,w) f
@@ -284,11 +287,11 @@ eval (m,w) (Con f g) = eval (m,w) f && eval (m,w) g
 eval (m,w) (Box pr f) = all (\w' -> eval (m,w') f) (relval m pr w)
 
 -- | \(\vDash\)
-(|=) :: Eq a => (Model a, a) -> Form -> Bool
+(|=) :: (Show a, Eq a) => (Model a, a) -> Form -> Bool
 (|=) = eval
 
 -- | Evaluate a program on a model
-relval :: Eq a => Model a -> Prog -> a -> [a]
+relval :: (Show a, Eq a) => Model a -> Prog -> a -> [a]
 relval m (Ap ap)     = rel m ap
 relval m (Cup p1 p2) = \w -> nub (relval m p1 w ++ relval m p2 w)
 relval m (p1 :- p2)  = concatMap (relval m p2) . relval m p1
@@ -307,7 +310,7 @@ lfpList f set = set ++ rest where
   rest | all (`elem` set) (concatMap f set) = set
        | otherwise = lfpList f (set ++ (concatMap f set \\ set))
 
-globeval :: Eq a => Model a -> Form -> Bool
+globeval :: (Show a, Eq a) => Model a -> Form -> Bool
 globeval m f = all (\(w,_) -> eval (m,w) f) (worldsOf m)
 
 -- * Random generation
