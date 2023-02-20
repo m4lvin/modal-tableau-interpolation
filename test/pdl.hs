@@ -1,18 +1,19 @@
 module Main where
 
-import Data.String(fromString)
+import Data.Maybe
+import Data.String (fromString)
 import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
 
 import Logic.Internal
 import Logic.PDL
+import Logic.PDL.Consistent
 import Logic.PDL.Examples
-import Logic.PDL.Parse()
-import Logic.PDL.Prove.Tree
-
 import Logic.PDL.Interpolation
 import Logic.PDL.Interpolation.ProofTree
+import Logic.PDL.Parse ()
+import Logic.PDL.Prove.Tree
 
 main :: IO ()
 main = hspec $ do
@@ -80,6 +81,12 @@ main = hspec $ do
     describe "ring" $ do
       let fs = "<(a;a)*>p49 & ~<(a;a)*>p48" in
         it ("(ring 50, 1) |= " ++ fs) $ (ring 50, 1) |= fromString fs
+
+  describe "consistency" $ modifyMaxSuccess (const 100000) $ do
+    prop "if consistent, then tabToMod provides a model"
+      (\ f -> consistent [f] ==> isJust (tabToMod (tableauFor [f])))
+    prop "if consistent, then tabToMod provides a model"
+      (\ f -> consistent [f] ==> fromJust (tabToMod (tableauFor [f])) `eval` f)
 
   describe "interpolate" $ modifyMaxDiscardRatio (const 1000) $ do
     describe "someValidImplications" $

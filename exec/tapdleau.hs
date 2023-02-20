@@ -30,6 +30,7 @@ import Logic.Internal
 import Logic.PDL.Parse
 import Logic.PDL.Prove.Tree
 import Logic.PDL.Interpolation.ProofTree
+import Logic.PDL.Consistent as PDLCOns
 
 main :: IO ()
 main = do
@@ -89,7 +90,9 @@ main = do
           [ "<pre>Parsed input: " ++ toString pdlF  ++ "</pre>"
           , message
           , "<div align='center'>" ++ svg t ++ "</div>"
-          , if closed then interpolateInfo ti else ""
+          , if closed
+            then interpolateInfo ti
+            else counterModelInfo pdlF t
           ]
 
 embeddedFile :: String -> T.Text
@@ -225,6 +228,22 @@ solveLowestMplus ti =
     ]
     )
 
+counterModelInfo :: Form -> Tableaux -> String
+counterModelInfo pdlF t =
+  let (msg, state, cm) =
+        case PDLCOns.tabToMod t of
+          Nothing -> ("Error: could not find a countermodel!", "error", undefined)
+          Just m | m |= Neg pdlF -> ("This model falsifies the given formula.", "success", m)
+                 | otherwise     -> ("WRONG COUNTERMODEL does not falsify given formula", "error", m)
+  in
+    unlines $ map strOrErr
+      [ "<br />"
+      , "<div align='center'>counter model:<br />"
+      , svg (PDLCOns.toIntModel cm)
+      , "<p style='align:center;' class='" ++ state ++ "'>"
+      , msg
+      , "</p>"
+      , "</div>" ]
 
 strOrErr :: String -> String
 strOrErr str =

@@ -6,21 +6,29 @@ import Logic.PDL
 import Logic.PDL.Prove.Tree
 
 -- | Given a tableaux, build a pointed Kripke model if possible.
---
--- TODO WARNING: copied from BasicModal - most rules still missing!
---
 tabToMod :: Tableaux -> Maybe (Model [Form], [Form])
 -- no model when closed:
 tabToMod End = error "cannot make model for end marker"
 tabToMod (Node _ _ "✘" _ _) = Nothing
--- same model as child for single-branch rules:
-tabToMod (Node _ _ "¬" _ [child]) = tabToMod child
-tabToMod (Node _ _ "∧" _ [child]) = tabToMod child
+-- single-branch rules:
+tabToMod (Node _ _ "¬"  _ [child]) = tabToMod child
+tabToMod (Node _ _ "∧"  _ [child]) = tabToMod child
+tabToMod (Node _ _ "¬?" _ [child]) = tabToMod child
+tabToMod (Node _ _ "¬;" _ [child]) = tabToMod child
+tabToMod (Node _ _ "∪"  _ [child]) = tabToMod child
+tabToMod (Node _ _ ";"  _ [child]) = tabToMod child
+tabToMod (Node _ _ "n"  _ [child]) = tabToMod child
+-- special rules:
+tabToMod (Node _ _ "M+" _ [child]) = tabToMod child
+tabToMod (Node _ _ ('6':':':' ':_) _ [child]) = tabToMod child
+tabToMod (Node _ _ "4"  _ [child]) = tabToMod child
 -- splitting rule:
-tabToMod (Node _ _ "¬∧" _ children) =
-  listToMaybe $ mapMaybe tabToMod children
+tabToMod (Node _ _ "¬∧" _ children) = listToMaybe $ mapMaybe tabToMod children
+tabToMod (Node _ _ "?"  _ children) = listToMaybe $ mapMaybe tabToMod children
+tabToMod (Node _ _ "¬∪" _ children) = listToMaybe $ mapMaybe tabToMod children
+tabToMod (Node _ _ "¬n" _ children) = listToMaybe $ mapMaybe tabToMod children
 -- atomic rule:
-tabToMod (Node wfs _ "¬☐" _ [child]) =
+tabToMod (Node wfs _ "At" _ [child]) =
   case tabToMod child of
     Nothing -> Nothing
     Just _  ->

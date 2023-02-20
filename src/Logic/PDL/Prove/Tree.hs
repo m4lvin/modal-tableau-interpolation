@@ -295,6 +295,9 @@ tableauFor fs = head $ filterOneIfAny isClosedTab $ extensionsUpTo globalSearchL
 inconsistent :: [Form] -> Bool
 inconsistent = isClosedTab . tableauFor
 
+consistent :: [Form] -> Bool
+consistent = not . inconsistent
+
 tableauShow :: [Form] -> IO ()
 tableauShow fs = do
   let t = tableauFor fs
