@@ -12,6 +12,7 @@ tabToMod :: Tableaux -> Maybe (Model [Form], [Form])
 tabToMod End = Nothing
 tabToMod (Node _ _ "✘" _ _) = Nothing
 -- single-branch rules:
+-- IDEA: should we still add the current formula to the current world??
 tabToMod (Node _ _ "¬"  _ [child]) = tabToMod child
 tabToMod (Node _ _ "∧"  _ [child]) = tabToMod child
 tabToMod (Node _ _ "¬?" _ [child]) = tabToMod child
@@ -22,6 +23,7 @@ tabToMod (Node _ _ "n"  _ [child]) = tabToMod child
 -- special rules:
 tabToMod (Node _ _ "M+" _ [child]) = tabToMod child
 tabToMod (Node _ _ ('6':':':' ':_) _ [child]) = tabToMod child
+  -- TODO: identify worlds here, based on the number of back-steps given by condition 6 marker?
 tabToMod (Node _ _ "4"  _ [child]) = tabToMod child
 -- splitting rule:
 tabToMod (Node _ _ "¬∧" _ children) = listToMaybe $ mapMaybe tabToMod children
@@ -69,7 +71,7 @@ comboProgs (ar:rest) = mergeProg ar $ comboProgs rest
 -- - the new world must be fresh, i.e. not be in the models already!
 -- - the given models must not overlap in worlds!
 -- Differences compared to BasicModal:
--- - [ ] we now also need an atom for the program label.
+-- - [X] we now also need an atom for the program label.
 -- - [ ] when and how to create loops? we need them to stick to finite models.
 comboModel :: (Show w, Eq w) => w -> [Atom] -> [(Atom, (Model w, w))] -> (Model w, w)
 comboModel w localTruths oldModels = (newM, w) where
