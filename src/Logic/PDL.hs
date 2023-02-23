@@ -261,7 +261,7 @@ val m w = case lookup w (worldsOf m) of
 rel :: (Show a, Eq a) => Model a -> Atom -> a -> [a]
 rel m pr w = case lookup pr (progsOf m) of
   Just rl -> map snd $ filter ((== w) . fst ) rl
-  Nothing -> error  $ "Could not find program " ++ show pr ++ " in this model:\n" ++ show m
+  Nothing -> [] -- assume that non-mentioned program has an empty relation!
 
 instance (Eq a, Show a) => DispAble (Model a) where
   toGraph m =

@@ -233,7 +233,7 @@ counterModelInfo pdlF t =
   let (msg, state, cm) =
         case PDLCOns.tabToMod t of
           Nothing -> ("Error: could not find a countermodel!", "error", undefined)
-          Just m | m |= Neg pdlF -> ("This model falsifies the given formula.", "success", m)
+          Just m | PDLCOns.toIntModel m |= Neg pdlF -> ("This model falsifies the given formula.", "success", m)
                  | otherwise     -> ("WRONG COUNTERMODEL does not falsify given formula", "error", m)
   in
     unlines $ map strOrErr

@@ -1,5 +1,6 @@
 module Logic.PDL.Consistent where
 
+import Data.List
 import Data.Maybe
 
 import Logic.PDL
@@ -51,13 +52,13 @@ tabToMod (Node wfs _ "" _ []) =
   truthsHere = [ prp | At prp <- map (fst . collapse) wfs ]
 tabToMod (Node _ _ rule _ _) = error $ "unknown rule: " ++ rule
 
-mergeProg :: (Atom,[(a,a)]) -> [(Atom,[(a,a)])] -> [(Atom,[(a,a)])]
+mergeProg :: Eq a=> (Atom,[(a,a)]) -> [(Atom,[(a,a)])] -> [(Atom,[(a,a)])]
 mergeProg (pa,ra) [] = [(pa,ra)]
 mergeProg (pa,ra) ((pb,rb):rest)
-  | pa == pb  = (pa, ra ++ rb) : rest -- QUESTION: "nub" needed here?
+  | pa == pb  = (pa, nub $ ra ++ rb) : rest
   | otherwise = (pb,rb) : mergeProg (pa,ra) rest
 
-comboProgs :: [(Atom,[(a,a)])] -> [(Atom,[(a,a)])]
+comboProgs :: Eq a => [(Atom,[(a,a)])] -> [(Atom,[(a,a)])]
 comboProgs [] = []
 comboProgs [ar] = [ar]
 comboProgs (ar:rest) = mergeProg ar $ comboProgs rest
@@ -70,7 +71,7 @@ comboProgs (ar:rest) = mergeProg ar $ comboProgs rest
 -- Differences compared to BasicModal:
 -- - [ ] we now also need an atom for the program label.
 -- - [ ] when and how to create loops? we need them to stick to finite models.
-comboModel :: Eq w => w -> [Atom] -> [(Atom, (Model w, w))] -> (Model w, w)
+comboModel :: (Show w, Eq w) => w -> [Atom] -> [(Atom, (Model w, w))] -> (Model w, w)
 comboModel w localTruths oldModels = (newM, w) where
   newM = KrM ((w, localTruths) : concatMap (worldsOf . fst . snd) oldModels) newProgs
   oldLinks = concatMap (progsOf . fst . snd) oldModels
