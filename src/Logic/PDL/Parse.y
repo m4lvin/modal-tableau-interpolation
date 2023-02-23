@@ -45,6 +45,10 @@ import qualified Logic.BasicModal
   'e'    { TokenE      _ }
   ':-'   { TokenSemicolon _ }
   '?'    { TokenTest   _ }
+  'while'{ TokenWhile  _ }
+  'if'   { TokenIf     _ }
+  'then' { TokenThen   _ }
+  'else' { TokenElse   _ }
   'u'    { TokenCup    _ }
   '*'    { TokenStar   _ }
   INT    { TokenInt $$ _ }
@@ -113,6 +117,8 @@ Prog : 'a' INT { Ap ('a' : show $2) }
      | Prog ':-' Prog { $1 :- $3 }
      | Prog '*' { Star $1 }
      | '?' PDLForm { Test $2 }
+     | 'while' PDLForm Prog { while $2 $3 }
+     | 'if' PDLForm 'then' Prog 'else' Prog { ite $2 $4 $6 }
 
 {
 type ParseResult a = Either (Int,Int) a

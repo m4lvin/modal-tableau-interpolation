@@ -32,5 +32,9 @@ data Token a -- == AlexPn
   | TokenSemicolon         {apn :: a}
   | TokenTest              {apn :: a}
   | TokenStar              {apn :: a}
+  | TokenWhile             {apn :: a}
+  | TokenIf                {apn :: a}
+  | TokenThen              {apn :: a}
+  | TokenElse              {apn :: a}
 
   deriving (Eq,Show)

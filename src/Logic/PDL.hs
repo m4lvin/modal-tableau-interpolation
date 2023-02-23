@@ -130,6 +130,14 @@ multidis fs = foldl1 dis fs
 multicup :: [Prog] -> Prog
 multicup = foldl1 Cup
 
+-- | While-loop as a PDL program.
+while :: Form -> Prog -> Prog
+while f prg = Star (Test f :- prg) :- Test (Neg f)
+
+-- | If-then-else as a PDL program.
+ite :: Form -> Prog -> Prog -> Prog
+ite f p1 p2 = (Test f :- p1) `Cup` (Test (Neg f) :- p2)
+
 -- | Atoms occurring in a formula or program.
 class ContainsAtoms t where
   atomsIn :: t -> [Atom]

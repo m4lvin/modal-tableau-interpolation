@@ -59,6 +59,10 @@ tokens :-
   "*"               { \ p _ -> TokenStar              p }
   ";"               { \ p _ -> TokenSemicolon         p }
   "?"               { \ p _ -> TokenTest              p }
+  "while"           { \ p _ -> TokenWhile             p }
+  "if"              { \ p _ -> TokenIf                p }
+  "then"            { \ p _ -> TokenThen              p }
+  "else"            { \ p _ -> TokenElse              p }
   "a"               { \ p _ -> TokenA                 p }
   "b"               { \ p _ -> TokenB                 p }
   "c"               { \ p _ -> TokenC                 p }
