@@ -52,7 +52,7 @@ tabToMod (Node wfs _ "" _ []) =
 tabToMod (Node _ _ rule _ _) = error $ "unknown rule: " ++ rule
 
 mergeProg :: (Atom,[(a,a)]) -> [(Atom,[(a,a)])] -> [(Atom,[(a,a)])]
-mergeProg (_,_) [] = []
+mergeProg (pa,ra) [] = [(pa,ra)]
 mergeProg (pa,ra) ((pb,rb):rest)
   | pa == pb  = (pa, ra ++ rb) : rest -- QUESTION: "nub" needed here?
   | otherwise = (pb,rb) : mergeProg (pa,ra) rest
