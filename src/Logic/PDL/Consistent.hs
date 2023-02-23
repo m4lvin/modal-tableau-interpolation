@@ -8,7 +8,7 @@ import Logic.PDL.Prove.Tree
 -- | Given a tableaux, build a pointed Kripke model if possible.
 tabToMod :: Tableaux -> Maybe (Model [Form], [Form])
 -- no model when closed:
-tabToMod End = error "cannot make model for end marker"
+tabToMod End = Nothing
 tabToMod (Node _ _ "✘" _ _) = Nothing
 -- single-branch rules:
 tabToMod (Node _ _ "¬"  _ [child]) = tabToMod child
