@@ -232,14 +232,14 @@ counterModelInfo :: Form -> Tableaux -> String
 counterModelInfo pdlF t =
   let (msg, state, cm) =
         case PDLCOns.tabToMod t of
-          Nothing -> ("Error: could not find a countermodel!", "error", undefined)
-          Just m | PDLCOns.toIntModel m |= Neg pdlF -> ("This model falsifies the given formula.", "success", m)
-                 | otherwise     -> ("WRONG COUNTERMODEL does not falsify given formula", "error", m)
+          Nothing                                   -> ("Could not find a countermodel!", "error", Nothing)
+          Just m | PDLCOns.toIntModel m |= Neg pdlF -> ("This model falsifies the given formula.", "success", Just m)
+                 | otherwise                        -> ("Wrong countermodel &mdash; does not falsify given formula", "error", Just m)
   in
     unlines $ map strOrErr
       [ "<br />"
       , "<div align='center'>counter model:<br />"
-      , svg (PDLCOns.toIntModel cm)
+      , maybe "" (svg . PDLCOns.toIntModel) cm
       , "<p style='align:center;' class='" ++ state ++ "'>"
       , msg
       , "</p>"
