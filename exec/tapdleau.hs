@@ -231,15 +231,16 @@ solveLowestMplus ti =
 counterModelInfo :: Form -> Tableaux -> String
 counterModelInfo pdlF t =
   let (msg, state, cm) =
-        case PDLCOns.tabToMod t of
-          Nothing                                   -> ("Could not find a countermodel!", "error", Nothing)
-          Just m | PDLCOns.toIntModel m |= Neg pdlF -> ("This model falsifies the given formula.", "success", Just m)
+        case PDLCOns.makeModel t of
+          -- Nothing                                   -> ("Could not find a countermodel!", "error", Nothing)
+               m | PDLCOns.toIntModel m |= Neg pdlF -> ("This model falsifies the given formula.", "success", Just m)
                  | otherwise                        -> ("Wrong countermodel &mdash; does not falsify given formula", "error", Just m)
   in
     unlines $ map strOrErr
       [ "<br />"
       , "<div align='center'>counter model:<br />"
       , maybe "" (svg . PDLCOns.toIntModel) cm
+      , "<pre>", show cm, "</pre>"
       , "<p style='align:center;' class='" ++ state ++ "'>"
       , msg
       , "</p>"

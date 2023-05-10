@@ -28,6 +28,9 @@ powerset (x:xs) = concat [ [x:rest, rest] | rest <- powerset xs ]
 seteq :: Ord a => [a] -> [a] -> Bool
 seteq xs ys = sort (nubOrd xs) == sort (nubOrd ys)
 
+subseteq :: Eq a => [a] -> [a] -> Bool
+subseteq xs ys = all (`elem` ys) xs
+
 fixpoint :: Eq a => (a -> a) -> a -> a
 fixpoint f x | f x == x  = x
              | otherwise = fixpoint f (f x)

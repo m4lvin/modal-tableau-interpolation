@@ -3,8 +3,72 @@ module Logic.PDL.Consistent where
 import Data.List
 import Data.Maybe
 
+import Logic.Internal (subseteq)
 import Logic.PDL
 import Logic.PDL.Prove.Tree
+
+
+-- | A possible world for the model construction,
+-- given by consistent a list starting with consistent root X and ending with consistent end node Y.
+type TabWorld = [Tableaux]
+
+squash :: ([TabWorld],[TabWorld]) -> [TabWorld]
+squash (ws, vs) = vs ++ ws -- FIXME: is this the right thing to do?!?!
+
+-- | Get worlds for this tableaux: pair of current worlds and other worlds.
+worldsFor :: Tableaux -> ([TabWorld],[TabWorld])
+-- closed, no worlds:
+worldsFor End = ([],[])
+worldsFor (Node _ _ "✘" _ _) = ([],[])
+-- open leaf, create a single world:
+worldsFor n@(Node _ _ "" _ []) = ([[n]],[])
+-- Atomic rule:
+worldsFor n@(Node wfs _ "At" _ [child]) =
+  case worldsFor child of
+    -- If inconsistent, make no world:
+    ([], _) -> ([], [])
+    -- otherwise, ...
+    (_:_, _) ->
+      let
+        childMs = -- ... get open tableaux for all diamonds ...
+          [ worldsFor (tableauFor (Neg f : mapMaybe (projection aprog . fst . collapse) wfs)  )
+          | Neg (Box (Ap aprog) f) <- map (fst . collapse) wfs ]
+      in
+        if any (null . fst) childMs
+          then ([],[])
+          -- ... then make one world here and start collecting new ones:
+          else ([[n]], concatMap squash childMs)
+-- all other rules with children, make
+worldsFor n@(Node _ _ rule _ children)
+  | head rule `elem` "¬∧∪;nM4?" = --- FIXME: incredibly ugly rule check & BUG misisng
+    let chWorlds = map worldsFor children
+        localWorlds = concatMap fst chWorlds
+        rest = concatMap snd chWorlds
+      in (map (n:) localWorlds, rest)
+worldsFor (Node _ _ rule _ _) = error $ "unknown rule: " ++ rule
+
+-- | Given an tableau, build a model.
+-- Uses the construction in the proof of Theorem 3.
+-- TODO: should worlds be [Form] or TabWorld?
+makeModel :: Tableaux -> (Model TabWorld, TabWorld)
+makeModel t = (KrM worlds progs, truthsHere) where
+  tss = squash $ worldsFor t
+  worlds = nub [ (ts, [ x | (Node wfs _ _ _ _ ) <- ts, (At x) <- map (fst . collapse) wfs ] )
+               | ts <- tss ]
+  -- FIXME: should probably use something like "allProgsIn" here:
+  allprogs = nub [ prg | (Neg (Box (Ap prg) _)) <- concatMap formsAtWorld tss ]
+  formsAtWorld = concatMap (map (fst . collapse) . (\(Node wfs _ _ _ _ ) -> wfs))
+  -- Like MB we define \pi(A) the easy way, not caring if actually coming from same tableau!!
+  progs = [ (prg, [ (w1, w2) | w1 <- tss
+                             , w2 <- tss
+                             , mapMaybe (projection prg) (formsAtWorld w1)
+                               `subseteq` formsAtWorld w2
+                             ] )
+          | prg <- allprogs ]
+  truthsHere = head (map fst worlds) -- FIXME: can we be sure that this is the actual world?
+
+-- BUG, probably above here: [a*]p runs forever now, creating an infinite model?
+
 
 -- | Given a tableaux, build a pointed Kripke model if possible.
 tabToMod :: Tableaux -> Maybe (Model [Form], [Form])
@@ -36,7 +100,7 @@ tabToMod (Node wfs _ "At" _ [child]) =
     Nothing -> Nothing
     Just _  ->
       let
-        childMs = -- we need open tableaus for all diamonds!
+        childMs = -- we need open tableaux for all diamonds!
           [ (aprog , tabToMod (tableauFor (Neg f : mapMaybe (projection aprog . fst . collapse) wfs) ) )
           | Neg (Box (Ap aprog) f) <- map (fst . collapse) wfs ]
       in
