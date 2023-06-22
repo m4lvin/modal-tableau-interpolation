@@ -84,8 +84,13 @@ imp f g = Neg (Con f (Neg g))
 (<-->) :: Form -> Form -> Form
 f <--> g = Con (f --> g) (g --> f)
 
+-- | Diamond operator, the dual of Box.
 dia :: Prog -> Form -> Form
 dia pr f = Neg (Box pr (Neg f))
+
+-- | Prefix a formula with multiple boxes.
+boxes :: [Prog] -> Form -> Form
+boxes progs f1 = foldr Box f1 progs
 
 -- | n-ary conjunction and disjunction.
 multicon, multidis :: [Form] -> Form

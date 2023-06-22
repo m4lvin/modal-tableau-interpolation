@@ -97,6 +97,25 @@ projection :: Atom -> Form -> Maybe Form
 projection x (Box (Ap y) g) | x == y = Just g
 projection _ _                       = Nothing
 
+-- | Unravel the program under a star in a diamond. New Definition 10.
+-- The three levels of lists are: branches, formulas, boxes.
+unravelDia :: Prog -> [[[Prog]]]
+unravelDia = f where
+  f (Ap ap)     = [[[Ap ap]]]
+  f (Cup p1 p2) = f p1 ++ f p2
+  f (pa :- pb)  = [ [ra ++ [pb] | ra <- ga ] | ga <- f pa ]
+  f (Test _)    = [ ]
+  f (Star pr)   = f (pr :- Star pr)
+
+-- | Unravel a program under a star in a box. Analogous to 'unravelDia'.
+unravelBox :: Prog -> [[[Prog]]]
+unravelBox = g where
+  g (Ap ap)     = [[[Ap ap]]]
+  g (Cup p1 p2) = [ l1 ++ l2  | l1 <- g p1, l2 <- g p2 ]
+  g (pa :- pb)  = [ [ra ++ [pb] | ra <- ga ] | ga <- g pa ]
+  g (Test _)    = [ [] ]
+  g (Star pr)   = g (pr :- Star pr)
+
 -- | Eleven local rules (pages 15, 18, 19) and the atomic rule (page 24).
 ruleFor :: Marked Form -> Maybe RuleApplication
 -- Nothing to do:
@@ -117,24 +136,25 @@ ruleFor (Box (Cup x y) f ,Nothing) = Just ("∪",  1, [ [(Box x f, Nothing), (Bo
 ruleFor (Box (Cup _ _) _ ,Just _ ) = Nothing
 ruleFor (Box (x :- y) f  ,Nothing) = Just (";",  1, [ [(Box x (Box y f),Nothing)]              ], noChange)
 ruleFor (Box (_ :- _) _  ,Just _ ) = Nothing
--- The (n) rule (note extra condition 1 below)
--- REMOVE? -- ruleFor (Box (Star x) (Box (Star y) f)  ,Nothing) = {- Just ("n",  2, [ [(             Box x (Box (NStar x) (Box (NStar y) f)), Nothing)] ], noChange) -- extra condition 2 -}
--- TODO: (n) rule
-ruleFor (Box (Star x) f                  ,Nothing) = error "TODO: new n rule" -- Just ("n",  2, [ [(f,Nothing), (Box x (Box (Star x)  f               ), Nothing)] ], noChange)
-ruleFor (Box (Star _) _  ,Just _ ) = Nothing -- (n) maye not be applied to marked formulas.
+-- The (n) rule, using unravelBox:
+ruleFor (Box (Star x) f, Nothing) = Just ("n", 2, [ (f, Nothing)
+                                                    : [ (boxes bxs (Box (Star x) f), Nothing) | bxs <- branch ]
+                                                  | branch <- unravelBox x ] , noChange)
+ruleFor (Box (Star _) _  ,Just _ ) = Nothing -- (n) maye not be applied to marked formulas (before Def 13)
 -- Splitting rules:
 ruleFor (Neg (Con f g)   ,Nothing) = Just ("¬∧", 3, [ [(Neg f,Nothing)]
                                                     , [(Neg g,Nothing)]                    ], noChange)
 ruleFor (Neg (Con _ _)   ,Just _ ) = Nothing
-ruleFor (Box (Test f) (Box (Star _) _)  ,Nothing) = Just ("?",  3, [ [(Neg f,Nothing)] -- FIXME was Star was NStar here!
+ruleFor (Box (Test f) (Box (Star _) _)  ,Nothing) = Just ("?",  3, [ [(Neg f,Nothing)] -- FIXME was Star was NStar here!?!?
                                                                     , []                   ], noChange) -- extra condition 2
 ruleFor (Box (Test f) g                  ,Nothing) = Just ("?",  3, [ [(Neg f,Nothing)]
                                                                     , [(g,Nothing)]        ], noChange)
 ruleFor (Box (Test _) _  ,Just _ ) = Nothing
 ruleFor (Neg (Box (Cup x y) f),m ) = Just ("¬∪", 3, [ [(Neg $ Box x f,m)]
                                                     , [(Neg $ Box y f,m)]                  ], noChange)
-ruleFor (Neg (Box (Star x) f) ,m ) = error "TODO" {- Just ("¬n", 3, [ [(Neg f,m) `without` f]
-                                                    , [(Neg $ Box x (Box (NStar x) f),m)]  ], noChange) -}
+ruleFor (Neg (Box (Star x) f) ,m ) = Just ("¬n", 3, [ (Neg f, m) `without` f ] -- remove marking only in left-most branch
+                                                    : [ [ (Neg (boxes bxs (Box (Star x) f)), m) | bxs <- branch ]
+                                                      | branch <- unravelDia x ], noChange)
 -- The critical rule:
 ruleFor (Neg (Box (Ap x) f), Just mf) = Just ("At", 4, [ [(Neg f, Just mf) `without` f]   ], projection x)
 ruleFor (Neg (Box (Ap _) _), Nothing) = Nothing
