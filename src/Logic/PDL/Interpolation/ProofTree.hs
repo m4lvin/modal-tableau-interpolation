@@ -134,22 +134,7 @@ rightsOf wfs = [f | (Right f,_) <- wfs]
 -- | Definition 26: given \(T\), remove n-nodes to obtain \(T^I\).
 -- This may result in a non-binary tree!
 tiOf :: TableauxIP -> TableauxIP
-tiOf = snd . head . tiOfRec where
-  -- When node n is deleted the parent of n must append rule of n to its own rule.
-  -- Given my child n, what should I add to my rule and what replaces n?
-  tiOfRec  :: TableauxIP -> [(RuleName,TableauxIP)]
-  tiOfRec n
-    | isNormalNode (wfsOf n) = let childs = concatMap tiOfRec (childrenOf n)
-                               in [ ("", n { ruleOf = combine (ruleOf n : map fst childs)
-                                           , childrenOf = map snd childs } ) ]
-    | otherwise = -- delete n itself!
-        map (\(childRule, t) -> (combine [ruleOf n, childRule], t)) $ concatMap tiOfRec (childrenOf n)
-  -- Combine rules without inserting too many commas.
-  combine :: [RuleName] -> RuleName
-  combine [] = ""
-  combine ("":rs) = combine rs
-  combine [rule] = rule
-  combine (rule:rest) = rule ++ [',' | not . null $ combine rest] ++ combine rest
+tiOf = id -- NOTE: now trivial because we no longer have n-formulas.
 
 -- | Given a list of children, combine all previous interpolants
 -- with a connective depending on the side that differs.

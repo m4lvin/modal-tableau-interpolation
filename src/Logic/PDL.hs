@@ -19,7 +19,7 @@ data Form = Bot | At Atom | Neg Form | Con Form Form | Box Prog Form
   deriving (Eq,Ord,Show,Generic)
 instance NFData Form
 
-data Prog = Ap Atom | Cup Prog Prog | Prog :- Prog | Star Prog | NStar Prog | Test Form
+data Prog = Ap Atom | Cup Prog Prog | Prog :- Prog | Star Prog | Test Form
   deriving (Eq,Ord,Show,Generic)
 instance NFData Prog
 
@@ -43,7 +43,6 @@ instance Stringable Prog where
   toString (Test (Neg Bot)) = "?⊤"
   toString (Test f)    = "?(" ++ toString f ++ ")"
   toString (Star pr)   = toString pr ++ "*"
-  toString (NStar pr)  = toString pr ++ "ⁿ"
 
 class HasAtoms a where
   isAtomic :: a -> Bool
@@ -55,37 +54,6 @@ instance HasAtoms Form where
 instance HasAtoms Prog where
   isAtomic (Ap _) = True
   isAtomic _      = False
-
-class ContainsNStars a where
-  nToStar :: a -> a
-  isNormal :: a -> Bool
-
-instance ContainsNStars Form where
-  nToStar Bot           = Bot
-  nToStar (At at)       = At at
-  nToStar (Neg (At at)) = Neg (At at)
-  nToStar (Neg f)       = Neg (nToStar f)
-  nToStar (Con f g)     = Con (nToStar f) (nToStar g)
-  nToStar (Box pr f)    = Box (nToStar pr) (nToStar f)
-  isNormal Bot           = True
-  isNormal (At _)        = True
-  isNormal (Neg f)       = isNormal f
-  isNormal (Con f g)     = isNormal f && isNormal g
-  isNormal (Box pr f)    = isNormal pr && isNormal f
-
-instance ContainsNStars Prog where
-  nToStar (Ap ap)     = Ap ap
-  nToStar (Cup p1 p2) = Cup (nToStar p1) (nToStar p2)
-  nToStar (p1 :- p2)  = nToStar p1 :- nToStar p2
-  nToStar (Test f)    = Test (nToStar f)
-  nToStar (Star pr)   = Star (nToStar pr)
-  nToStar (NStar pr)  = Star (nToStar pr)
-  isNormal (Ap _)     = True
-  isNormal (Cup p1 p2) = isNormal p1 && isNormal p2
-  isNormal (p1 :- p2)  = isNormal p1 && isNormal p2
-  isNormal (Test f)    = isNormal f
-  isNormal (Star pr)   = isNormal pr
-  isNormal (NStar _)   = False
 
 o,p,q,r,s :: Form
 [o,p,q,r,s] = map At ["o", "p", "q", "r", "s"]
@@ -155,7 +123,6 @@ instance ContainsAtoms Prog where
   atomsIn (p1 :- p2)  = sort . nub $ concatMap atomsIn [p1,p2]
   atomsIn (Test f)    = atomsIn f
   atomsIn (Star pr)   = atomsIn pr
-  atomsIn (NStar pr)  = atomsIn pr
 
 instance ContainsAtoms a => ContainsAtoms [a] where
   atomsIn xs = sort $ nub $ concatMap atomsIn xs
@@ -174,7 +141,6 @@ class HasMeasure a where
 
 instance HasMeasure Prog where
   measure (Ap _)    = 0
-  measure (NStar _) = 0
   measure (Test f)   = maximum [measure f, measure (Neg f)] + 1
   measure (p1 :- p2) = measure p1 + measure p2 + 1
   measure (Cup p1 p2) = measure p1 + measure p2 + 1
@@ -221,7 +187,6 @@ simplifyProg = fixpoint simstep where
   simstep (pr1 :- pr2)  = simstep pr1 :- simstep pr2
   simstep (Star (Star pr)) = Star(simstep pr)
   simstep (Star  pr)    = Star (simstep pr)
-  simstep (NStar pr)    = NStar (simstep pr)
   simstep (Test   f)    = Test (simplify f)
 
 immediateSubFormulas :: Form -> [Form]
@@ -236,7 +201,6 @@ immediateSubPrograms (Ap _) = []
 immediateSubPrograms (Cup p1 p2) = [p1, p2]
 immediateSubPrograms (p1 :- p2) =  [p1, p2]
 immediateSubPrograms (Star p1) = [p1]
-immediateSubPrograms (NStar p1) = [p1]
 immediateSubPrograms (Test f) = map Test $ immediateSubFormulas f
 
 dropPartFormulas :: Form -> [Form]
@@ -251,7 +215,6 @@ dropPartPrograms (Ap _) = []
 dropPartPrograms (Cup p1 p2) = [p1,p2] ++ [Cup p1' p2  | p1' <- dropPartPrograms p1] ++ [Cup p1  p2' | p2' <- dropPartPrograms p2]
 dropPartPrograms (p1 :- p2)  = [p1,p2] ++ [p1' :- p2  | p1' <- dropPartPrograms p1] ++ [p1  :- p2' | p2' <- dropPartPrograms p2]
 dropPartPrograms (Star p1)   = map Star $ dropPartPrograms p1
-dropPartPrograms (NStar p1)  = map NStar $ dropPartPrograms p1
 dropPartPrograms (Test f)    = map Test $ dropPartFormulas f
 
 -- * SEMANTICS
@@ -305,7 +268,6 @@ relval m (Cup p1 p2) = \w -> nub (relval m p1 w ++ relval m p2 w)
 relval m (p1 :- p2)  = concatMap (relval m p2) . relval m p1
 relval m (Test f)    = \w -> [ w | eval (m,w) f ]
 relval m (Star pr)   = \w -> lfpList (relval m pr) [w]
-relval m (NStar pr)  = relval m (Star pr)
 
 -- | Least fixpoint.
 lfp :: Eq a => (a -> a) -> a -> a

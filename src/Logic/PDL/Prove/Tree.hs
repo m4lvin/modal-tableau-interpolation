@@ -44,9 +44,6 @@ isLeft :: WForm -> Bool
 isLeft (Left  _, _) = True
 isLeft (Right _, _) = False
 
-isNormalNode :: [WForm] -> Bool
-isNormalNode = all (isNormal . fst. collapse)
-
 isLoadedNode :: [WForm] -> Bool
 isLoadedNode = any (isJust . snd)
 
@@ -121,37 +118,26 @@ ruleFor (Box (Cup _ _) _ ,Just _ ) = Nothing
 ruleFor (Box (x :- y) f  ,Nothing) = Just (";",  1, [ [(Box x (Box y f),Nothing)]              ], noChange)
 ruleFor (Box (_ :- _) _  ,Just _ ) = Nothing
 -- The (n) rule (note extra condition 1 below)
-ruleFor (Box (Star x) (Box (NStar y) f)  ,Nothing) = Just ("n",  2, [ [(             Box x (Box (NStar x) (Box (NStar y) f)), Nothing)] ], noChange) -- extra condition 2
-ruleFor (Box (Star x) f                  ,Nothing) = Just ("n",  2, [ [(f,Nothing), (Box x (Box (NStar x)  f               ), Nothing)] ], noChange)
+-- REMOVE? -- ruleFor (Box (Star x) (Box (Star y) f)  ,Nothing) = {- Just ("n",  2, [ [(             Box x (Box (NStar x) (Box (NStar y) f)), Nothing)] ], noChange) -- extra condition 2 -}
+-- TODO: (n) rule
+ruleFor (Box (Star x) f                  ,Nothing) = error "TODO: new n rule" -- Just ("n",  2, [ [(f,Nothing), (Box x (Box (Star x)  f               ), Nothing)] ], noChange)
 ruleFor (Box (Star _) _  ,Just _ ) = Nothing -- (n) maye not be applied to marked formulas.
 -- Splitting rules:
 ruleFor (Neg (Con f g)   ,Nothing) = Just ("¬∧", 3, [ [(Neg f,Nothing)]
                                                     , [(Neg g,Nothing)]                    ], noChange)
 ruleFor (Neg (Con _ _)   ,Just _ ) = Nothing
-ruleFor (Box (Test f) (Box (NStar _) _)  ,Nothing) = Just ("?",  3, [ [(Neg f,Nothing)]
+ruleFor (Box (Test f) (Box (Star _) _)  ,Nothing) = Just ("?",  3, [ [(Neg f,Nothing)] -- FIXME was Star was NStar here!
                                                                     , []                   ], noChange) -- extra condition 2
 ruleFor (Box (Test f) g                  ,Nothing) = Just ("?",  3, [ [(Neg f,Nothing)]
                                                                     , [(g,Nothing)]        ], noChange)
 ruleFor (Box (Test _) _  ,Just _ ) = Nothing
 ruleFor (Neg (Box (Cup x y) f),m ) = Just ("¬∪", 3, [ [(Neg $ Box x f,m)]
                                                     , [(Neg $ Box y f,m)]                  ], noChange)
-ruleFor (Neg (Box (Star x) f) ,m ) = Just ("¬n", 3, [ [(Neg f,m) `without` f]
-                                                    , [(Neg $ Box x (Box (NStar x) f),m)]  ], noChange)
+ruleFor (Neg (Box (Star x) f) ,m ) = error "TODO" {- Just ("¬n", 3, [ [(Neg f,m) `without` f]
+                                                    , [(Neg $ Box x (Box (NStar x) f),m)]  ], noChange) -}
 -- The critical rule:
 ruleFor (Neg (Box (Ap x) f), Just mf) = Just ("At", 4, [ [(Neg f, Just mf) `without` f]   ], projection x)
 ruleFor (Neg (Box (Ap _) _), Nothing) = Nothing
-ruleFor (Neg (Box (NStar _) _)    ,_) = Nothing -- per condition 4 no rule may be applied here - see page 19.
-ruleFor (Box (NStar _) _          ,_) = Nothing -- QUESTION: can there be Box NStar nodes at all?
-
-extraNewFormChanges :: RuleApplication -> RuleApplication
-extraNewFormChanges (ruleName, rulePriority, newFormLists, changeFunction) =
-  (ruleName, rulePriority, map (map con1backToStar) newFormLists, changeFunction)
-  where
-  -- extra condition 1
-  con1backToStar :: Marked Form -> Marked Form
-  con1backToStar (f@(Box (Ap _) _)      ,m) = (nToStar f, m)
-  con1backToStar (f@(Neg (Box (Ap _) _)),m) = (nToStar f, m)
-  con1backToStar mf = mf
 
 -- | Apply change function from a rule to a weighted formulas.
 applyW :: (Form -> Maybe Form) -> WForm -> Maybe WForm
@@ -164,7 +150,7 @@ weightOf (Right _, _) = first Right
 
 isClosedBy :: [WForm] -> [WForm]
 isClosedBy wfs
-  | not (all (isNormal . fst . collapse) wfs) = [] -- Never close n-nodes (note after Definition 12)
+  -- REMOVE? -- | not (all (isNormal . fst . collapse) wfs) = [] -- Never close n-nodes (note after Definition 12)
   | Bot `elem` map (fst . collapse) wfs = take 1 [ wf | wf <- wfs, fst (collapse wf) == Bot ]
   | otherwise = [ wf | wf <- wfs, Neg (fst (collapse wf)) `elem` map (fst . collapse) wfs ]
                 ++
@@ -176,9 +162,9 @@ isClosedBy wfs
 isEndNodeBy :: [WForm] -> History -> [String]
 isEndNodeBy wfsNow history =
   [ show k
-  | isNormalNode wfsNow
+  |
   -- There is a predecessor
-  , (k, (wfsBefore, _)) <- zip [(1 :: Int) ..] history
+  (k, (wfsBefore, _)) <- zip [(1 :: Int) ..] history
   -- with the same set of formulas:
   , wfsNow == wfsBefore -- Note: nodes are always sorted, and partitions must match (page 40).
   -- and the path since then is critical, i.e. (At) has been used: -- TODO: but ignore whether At is used for first node of path (= last list element) (Def 13)
@@ -187,18 +173,11 @@ isEndNodeBy wfsNow history =
   , isLoadedNode wfsNow  `implies` all (isLoadedNode . fst) (take k history)
   ]
 
--- | End nodes due to extra condition 4 (page 25).
-isNotNStarBy :: [WForm] -> [WForm]
-isNotNStarBy = filter (isNotNStar . (fst . collapse)) where
-  isNotNStar (Neg (Box (NStar _) _)) = True
-  isNotNStar _ = False
-
 extensions :: Tableaux -> [Tableaux]
 extensions End             = [End]
 extensions (Node wfs oldHistory "" [] [])
   | not (null (isClosedBy wfs))             = [ Node wfs oldHistory "✘"                                          (isClosedBy wfs)   [End] ]
   | not (null (isEndNodeBy wfs oldHistory)) = [ Node wfs oldHistory ("6: " ++ show (isEndNodeBy wfs oldHistory)) []                 [End] ]
-  | not (null (isNotNStarBy wfs))           = [ Node wfs oldHistory "4"                                          (isNotNStarBy wfs) [End] ]
   | null (whatshallwedo wfs)                = [ Node wfs oldHistory "" [] [] ] -- we are stuck!
   | otherwise =
       map (\ (wf,(ruleName,_,results,change)) ->
@@ -223,13 +202,8 @@ extensionsUpTo k t = if extensions t /= [t] then concatMap (extensionsUpTo (k-1)
 pairWithList :: (a -> [b]) -> [a] -> [(a,b)]
 pairWithList f xs = [ (x, y) | x <- xs, y <- f x ]
 
--- | Extra condition 3: If possible, apply a rule to an n-formula.
-nFormulasFirst :: [(WForm,RuleApplication)] -> [(WForm,RuleApplication)]
-nFormulasFirst wfs | not (all (isNormal . fst . collapse . fst) wfs) = filter (not . isNormal . fst . collapse . fst) wfs
-                   | otherwise = wfs
-
 whatshallwedo :: [WForm] -> [(WForm,RuleApplication)]
-whatshallwedo wfs = chooseRule $ nFormulasFirst $ pairWithList (map extraNewFormChanges . availableRules . collapse) wfs where
+whatshallwedo wfs = chooseRule $ pairWithList (availableRules . collapse) wfs where
   availableRules mf =
     maybeToList (ruleFor mf)
     ++
@@ -258,7 +232,6 @@ chooseRule moves
 -- "A tableau T is called closed iff all normal free end nodes of T are closed."
 isClosedTab :: Tableaux -> Bool
 isClosedTab End = False -- check must succeed above the End!
-isClosedTab (Node wfs _ _       _ [End]) | not (isNormalNode wfs) = True
 isClosedTab (Node wfs _ _       _ [End]) | isLoadedNode wfs = True
 isClosedTab (Node _   _ "✘"     _ [End]) = True
 isClosedTab (Node _   _ "4"     _ [End]) = False -- end node, see page 15
