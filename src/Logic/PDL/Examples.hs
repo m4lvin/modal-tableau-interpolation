@@ -54,6 +54,7 @@ someValidImplications =
   , "[(a u b)*]p -> [b********]p"
   , "¬[c][(c ; d)**]⊤ -> p"
   , "s -> [?(¬q)*]⊤"
+  , "q -> <(?p;a)*>q"
   ]
 
 -- | Formulas that should *not* be provable.
@@ -68,6 +69,9 @@ someNonValidities =
   , Neg $ Box (Star a) (dia a p) -- depends on reading of condition 6
   , Box (Star a) (dia a top)
   , Neg $ Box (Star a) (dia a top) -- depends on reading of condition 6
+  , "<(?p;a)*>q -> q" -- matters for new unraveling method
+  , "<(?p;a)*>q -> (p -> q)"
+  , "q -> [(?p;a)*]q"
   ]
 
 -- | Instances of the Segerberg axioms.
