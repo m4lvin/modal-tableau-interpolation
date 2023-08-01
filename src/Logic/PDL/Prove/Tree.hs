@@ -97,24 +97,31 @@ projection :: Atom -> Form -> Maybe Form
 projection x (Box (Ap y) g) | x == y = Just g
 projection _ _                       = Nothing
 
--- | Unravel the program under a star in a diamond. New Definition 10.
--- The three levels of lists are: branches, formulas, boxes.
-unravelDia :: Prog -> [[[Prog]]]
-unravelDia = f where
-  f (Ap ap)     = [[[Ap ap]]]
-  f (Cup p1 p2) = f p1 ++ f p2
-  f (pa :- pb)  = [ [ra ++ [pb] | ra <- ga ] | ga <- f pa ]
-  f (Test _)    = [ ]
-  f (Star pr)   = f (pr :- Star pr)
-
--- | Unravel a program under a star in a box. Analogous to 'unravelDia'.
-unravelBox :: Prog -> [[[Prog]]]
-unravelBox = g where
-  g (Ap ap)     = [[[Ap ap]]]
-  g (Cup p1 p2) = [ l1 ++ l2  | l1 <- g p1, l2 <- g p2 ]
-  g (pa :- pb)  = [ [ra ++ [pb] | ra <- ga ] | ga <- g pa ]
-  g (Test _)    = [ [] ]
-  g (Star pr)   = g (pr :- Star pr)
+-- | Unravel the program in the top level modality. Assuming "at least one step".
+-- This will be the even newer Definition 10.
+-- The two levels of lists are: branches, formulas.
+unravel :: Form -> [[Form]]
+unravel = g where
+  -- diamonds:
+  g (Neg (Box (Ap ap)     f)) = [[Neg (Box (Ap ap) f)]]
+  g (Neg (Box (Cup p1 p2) f)) = g (Neg (Box p1 f)) ++ g (Neg (Box p2 f))
+  g (Neg (Box (pa :- pb)  f)) = g (Neg (Box pa (Box pb f))) -- wait, this actually easier than before! :-)
+  g (Neg (Box (Test _)    f)) = [ ] -- TODO!
+  g (Neg (Box (Star pr)   f)) = g (Neg (Box pr (Box (Star pr) f)))
+  -- boxes:
+  g (Box (Ap ap)     f) = [[Box (Ap ap) f]]
+  g (Box (Cup p1 p2) f) = [ l1 ++ l2  | l1 <- g (Box p1 f), l2 <- g (Box p2 f) ] -- OKAY?
+  g (Box (pa :- pb)  f) = g (Box pa (Box pb f)) -- yeah!
+  g (Box (Test _)    f) = [ ] -- TODO!
+  g (Box (Star pr)   f) = g (Box pr (Box (Star pr) f))
+  -- other formulas, no unraveling:
+  g f@(Neg Bot) = [[ f ]]
+  g f@(Neg (At _)) = [[ f ]]
+  g f@(Neg (Neg _)) = [[ f ]]
+  g f@(Neg (Con _ _)) = [[ f ]]
+  g f@Bot = [[ f ]]
+  g f@(At _) = [[ f ]]
+  g f@(Con _ _) = [[ f ]]
 
 -- | Eleven local rules (pages 15, 18, 19) and the atomic rule (page 24).
 ruleFor :: Marked Form -> Maybe RuleApplication
@@ -138,23 +145,24 @@ ruleFor (Box (x :- y) f  ,Nothing) = Just (";",  1, [ [(Box x (Box y f),Nothing)
 ruleFor (Box (_ :- _) _  ,Just _ ) = Nothing
 -- The (n) rule, using unravelBox:
 ruleFor (Box (Star x) f, Nothing) = Just ("n", 2, [ (f, Nothing)
-                                                    : [ (boxes bxs (Box (Star x) f), Nothing) | bxs <- branch ]
-                                                  | branch <- unravelBox x ] , noChange)
-ruleFor (Box (Star _) _  ,Just _ ) = Nothing -- (n) maye not be applied to marked formulas (before Def 13)
+                                                    : [ (newF, Nothing) | newF <- fs ]
+                                                  | fs <- unravel (Box x (Box (Star x) f)) ] , noChange)
+ruleFor (Box (Star _) _  ,Just _ ) = Nothing -- (*) maye not be applied to marked formulas (before Def 13)
 -- Splitting rules:
 ruleFor (Neg (Con f g)   ,Nothing) = Just ("¬∧", 3, [ [(Neg f,Nothing)]
                                                     , [(Neg g,Nothing)]                    ], noChange)
 ruleFor (Neg (Con _ _)   ,Just _ ) = Nothing
-ruleFor (Box (Test f) (Box (Star _) _)  ,Nothing) = Just ("?",  3, [ [(Neg f,Nothing)] -- FIXME was Star was NStar here!?!?
-                                                                    , []                   ], noChange) -- extra condition 2
+-- TODO: Can we delete this case, which was for NStar and extra condition 2 before?
+-- ruleFor (Box (Test f) (Box (Star _) _)  ,Nothing) = Just ("?",  3, [ [(Neg f,Nothing)]
+--                                                                    , []                   ], noChange)
 ruleFor (Box (Test f) g                  ,Nothing) = Just ("?",  3, [ [(Neg f,Nothing)]
                                                                     , [(g,Nothing)]        ], noChange)
 ruleFor (Box (Test _) _  ,Just _ ) = Nothing
 ruleFor (Neg (Box (Cup x y) f),m ) = Just ("¬∪", 3, [ [(Neg $ Box x f,m)]
                                                     , [(Neg $ Box y f,m)]                  ], noChange)
-ruleFor (Neg (Box (Star x) f) ,m ) = Just ("¬n", 3, [ (Neg f, m) `without` f ] -- remove marking only in left-most branch
-                                                    : [ [ (Neg (boxes bxs (Box (Star x) f)), m) | bxs <- branch ]
-                                                      | branch <- unravelDia x ], noChange)
+ruleFor (Neg (Box (Star x) f) ,m ) = Just ("¬*", 3, [ (Neg f, m) `without` f ] -- remove marking only in left-most branch
+                                                    : [ [ (newF, m) | newF <- fs ] -- QUESTION: What to do with the marking here? Can we have multiple marked formulas at the same time?
+                                                      | fs <- unravel (Neg (Box x (Box (Star x) f))) ], noChange)
 -- The critical rule:
 ruleFor (Neg (Box (Ap x) f), Just mf) = Just ("At", 4, [ [(Neg f, Just mf) `without` f]   ], projection x)
 ruleFor (Neg (Box (Ap _) _), Nothing) = Nothing
