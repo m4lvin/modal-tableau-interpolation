@@ -8,8 +8,7 @@ import Data.GraphViz hiding (Shape(Star))
 import Data.GraphViz.Types.Monadic hiding ((-->))
 import Data.List (delete, intercalate, sort)
 import Data.Maybe
-import System.IO.Unsafe (unsafePerformIO)
-import System.Console.ANSI
+-- import Debug.Trace
 
 import Logic.Internal
 import Logic.PDL
@@ -100,19 +99,22 @@ projection _ _                       = Nothing
 -- | Unravel the program in the top level modality. Assuming "at least one step".
 -- This will be the even newer Definition 10.
 -- The two levels of lists are: branches, formulas.
-unravel :: Form -> [[Form]]
-unravel = g where
+unravel :: Form -> Form -> [[Form]]
+unravel f0 nform = -- trace ("unravelled " ++ toString f0 ++ " with nform " ++ toString nform ++ " to " ++ intercalate " ; " (map (intercalate "," . map toString) (g f0))) $
+  g f0 where
   -- diamonds:
+  g (Neg f) | f == nform = [ ] -- new way to do condition 4, never create a branch with ~[a^n]P
   g (Neg (Box (Ap ap)     f)) = [[Neg (Box (Ap ap) f)]]
   g (Neg (Box (Cup p1 p2) f)) = g (Neg (Box p1 f)) ++ g (Neg (Box p2 f))
-  g (Neg (Box (pa :- pb)  f)) = g (Neg (Box pa (Box pb f))) -- wait, this actually easier than before! :-)
-  g (Neg (Box (Test _)    f)) = [ ] -- TODO!
+  g (Neg (Box (pa :- pb)  f)) = g (Neg (Box pa (Box pb f))) -- wait, this is actually easier now :-)
+  g (Neg (Box (Test tf)   f)) = [ tf : rest | rest <- g (Neg f) ] -- diamond test is not branching.
   g (Neg (Box (Star pr)   f)) = g (Neg (Box pr (Box (Star pr) f)))
   -- boxes:
+  g f | f == nform =  [ [] ] -- new way to do condition 2, avoid loops.
   g (Box (Ap ap)     f) = [[Box (Ap ap) f]]
   g (Box (Cup p1 p2) f) = [ l1 ++ l2  | l1 <- g (Box p1 f), l2 <- g (Box p2 f) ] -- OKAY?
   g (Box (pa :- pb)  f) = g (Box pa (Box pb f)) -- yeah!
-  g (Box (Test _)    f) = [ ] -- TODO!
+  g (Box (Test tf)   f) = [Neg tf] : g f -- box test is branching.
   g (Box (Star pr)   f) = g (Box pr (Box (Star pr) f))
   -- other formulas, no unraveling:
   g f@(Neg Bot) = [[ f ]]
@@ -143,10 +145,10 @@ ruleFor (Box (Cup x y) f ,Nothing) = Just ("∪",  1, [ [(Box x f, Nothing), (Bo
 ruleFor (Box (Cup _ _) _ ,Just _ ) = Nothing
 ruleFor (Box (x :- y) f  ,Nothing) = Just (";",  1, [ [(Box x (Box y f),Nothing)]              ], noChange)
 ruleFor (Box (_ :- _) _  ,Just _ ) = Nothing
--- The (n) rule, using unravelBox:
-ruleFor (Box (Star x) f, Nothing) = Just ("n", 2, [ (f, Nothing)
+-- The (*) rule, using unravel:
+ruleFor (Box (Star x) f, Nothing) = Just ("*", 2, [ (f, Nothing)
                                                     : [ (newF, Nothing) | newF <- fs ]
-                                                  | fs <- unravel (Box x (Box (Star x) f)) ] , noChange)
+                                                  | fs <- unravel (Box x (Box (Star x) f)) (Box (Star x) f) ] , noChange)
 ruleFor (Box (Star _) _  ,Just _ ) = Nothing -- (*) maye not be applied to marked formulas (before Def 13)
 -- Splitting rules:
 ruleFor (Neg (Con f g)   ,Nothing) = Just ("¬∧", 3, [ [(Neg f,Nothing)]
@@ -160,9 +162,10 @@ ruleFor (Box (Test f) g                  ,Nothing) = Just ("?",  3, [ [(Neg f,No
 ruleFor (Box (Test _) _  ,Just _ ) = Nothing
 ruleFor (Neg (Box (Cup x y) f),m ) = Just ("¬∪", 3, [ [(Neg $ Box x f,m)]
                                                     , [(Neg $ Box y f,m)]                  ], noChange)
+-- The (¬*) rule, also using unravel:
 ruleFor (Neg (Box (Star x) f) ,m ) = Just ("¬*", 3, [ (Neg f, m) `without` f ] -- remove marking only in left-most branch
-                                                    : [ [ (newF, m) | newF <- fs ] -- QUESTION: What to do with the marking here? Can we have multiple marked formulas at the same time?
-                                                      | fs <- unravel (Neg (Box x (Box (Star x) f))) ], noChange)
+                                                    : [ [ (newF, m) | newF <- fs ] -- QUESTION: What to do with the marking here? Can we now have multiple marked formulas at the same time?
+                                                      | fs <- unravel (Neg (Box x (Box (Star x) f))) (Box (Star x) f) ], noChange)
 -- The critical rule:
 ruleFor (Neg (Box (Ap x) f), Just mf) = Just ("At", 4, [ [(Neg f, Just mf) `without` f]   ], projection x)
 ruleFor (Neg (Box (Ap _) _), Nothing) = Nothing

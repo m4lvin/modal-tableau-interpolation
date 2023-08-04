@@ -19,6 +19,7 @@ someValidities =
   , "[c]p v ([c*]⊤ ∧ [?⊥]r)"
   , "[a*]T v [a*]p"
   , "[a*]p v [a*]T"
+  , "[?p*]⊤"
   ]
 
 someValidImplications :: [Form]
@@ -72,6 +73,7 @@ someNonValidities =
   , "<(?p;a)*>q -> q" -- matters for new unraveling method
   , "<(?p;a)*>q -> (p -> q)"
   , "q -> [(?p;a)*]q"
+  , "[(?T;?T)*]p -> q"
   ]
 
 -- | Instances of the Segerberg axioms.

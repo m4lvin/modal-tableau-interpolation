@@ -83,17 +83,17 @@ tabToMod (Node _ _ "¬?" _ [child]) = tabToMod child
 tabToMod (Node _ _ "¬;" _ [child]) = tabToMod child
 tabToMod (Node _ _ "∪"  _ [child]) = tabToMod child
 tabToMod (Node _ _ ";"  _ [child]) = tabToMod child
-tabToMod (Node _ _ "n"  _ [child]) = tabToMod child
 -- special rules:
 tabToMod (Node _ _ "M+" _ [child]) = tabToMod child
 tabToMod (Node _ _ ('6':':':' ':_) _ [child]) = tabToMod child
   -- TODO: identify worlds here, based on the number of back-steps given by condition 6 marker?
 tabToMod (Node _ _ "4"  _ [child]) = tabToMod child
--- splitting rule:
+-- splitting rules:
+tabToMod (Node _ _ "*"  _ children) = listToMaybe $ mapMaybe tabToMod children -- now can be splitting!
 tabToMod (Node _ _ "¬∧" _ children) = listToMaybe $ mapMaybe tabToMod children
 tabToMod (Node _ _ "?"  _ children) = listToMaybe $ mapMaybe tabToMod children
 tabToMod (Node _ _ "¬∪" _ children) = listToMaybe $ mapMaybe tabToMod children
-tabToMod (Node _ _ "¬n" _ children) = listToMaybe $ mapMaybe tabToMod children
+tabToMod (Node _ _ "¬*" _ children) = listToMaybe $ mapMaybe tabToMod children
 -- atomic rule:
 tabToMod (Node wfs _ "At" _ [child]) =
   case tabToMod child of
