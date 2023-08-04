@@ -223,8 +223,7 @@ extensions (Node _  _ []         (_:_) []) = error "Cannot have active formulas 
 extensions (Node _  _ rule@(_:_) _     []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"
 
 extensionsUpTo :: Int -> Tableaux -> [Tableaux]
-extensionsUpTo 0 t = unsafePerformIO (let msg = "   [ !!! Tableau is too long, giving up !!! ]   "
-                                      in putStr msg >> cursorBackward (length msg) >> return [t]) -- TODO error or [] or Nothing?!
+extensionsUpTo 0 _ = error "Tableau is too long, giving up!"
 extensionsUpTo k t = if extensions t /= [t] then concatMap (extensionsUpTo (k-1)) (extensions t) else [t]
 
 pairWithList :: (a -> [b]) -> [a] -> [(a,b)]
