@@ -133,10 +133,10 @@ instance ContainsAtoms a => ContainsAtoms [a] where
   atomsIn xs = sort $ nub $ concatMap atomsIn xs
 
 conSet,disSet :: [Form] -> Form
-conSet []     = Bot
+conSet []     = top
 conSet [f]    = f
 conSet (f:fs) = Con f (conSet fs)
-disSet []     = top
+disSet []     = Bot
 disSet [f]    = f
 disSet (f:fs) = dis f (disSet fs)
 
