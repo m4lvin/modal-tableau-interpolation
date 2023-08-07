@@ -13,7 +13,8 @@ import Data.Maybe
 import Logic.Internal
 import Logic.PDL
 
--- | A Tablaux is either a node or an end marker.
+-- | A Tableau is either a node or an end marker.
+-- TODO: rename type to singular!
 data Tableaux = Node -- ^ A node contains:
                 [WForm]    -- ^ current weighted (and possibly marked) formulas
                 History    -- ^ previous formula lists and rules up to the root

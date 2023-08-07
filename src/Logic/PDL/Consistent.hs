@@ -3,7 +3,7 @@ module Logic.PDL.Consistent where
 import Data.List
 import Data.Maybe
 
-import Logic.Internal (subseteq)
+import Logic.Internal
 import Logic.PDL
 import Logic.PDL.Prove.Tree
 

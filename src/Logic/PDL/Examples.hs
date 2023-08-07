@@ -65,15 +65,20 @@ someNonValidities =
   , dia (Cup a b) p --> dia a p
   , Box (a :- Star a) p --> dia (a :- Star a) p
   , Con (Box a p) (Box b q) --> Box (Cup a b) (Con p q)
-  , Box (Star (Test p)) p
   , Box (Star a) (dia a p) -- depends on reading of condition 6
   , Neg $ Box (Star a) (dia a p) -- depends on reading of condition 6
   , Box (Star a) (dia a top)
   , Neg $ Box (Star a) (dia a top) -- depends on reading of condition 6
-  , "<(?p;a)*>q -> q" -- matters for new unraveling method
+  , "<(?p;a)*>q -> q" -- matters for unraveling
   , "<(?p;a)*>q -> (p -> q)"
   , "q -> [(?p;a)*]q"
   , "[(?T;?T)*]p -> q"
+  , "[(?q u a)*]p"
+  , "[(?q)*]p"
+  , "[(?p)*]p"
+  , "[a*]p"
+  , "[a]~p v [b]~q"  -- needs multi-diamond counter model
+  , "~(~p ^ ~[a]~p ^ ~[b]~q)"
   ]
 
 -- | Instances of the Segerberg axioms.

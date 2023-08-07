@@ -85,6 +85,7 @@ tests:
     source-dirs:
       - test
     main: pdl.hs
+    ghc-options:  -with-rtsopts=-M8G
     dependencies:
       - base >= 4.7 && < 5
       - hspec

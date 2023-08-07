@@ -101,12 +101,12 @@ embeddedFile str = case str of
   "jquery.js"  -> E.decodeUtf8 $(embedFile =<< runIO JQuery.file)
   _            -> error "File not found."
 
--- | Given the TI of a closed tableau, show TI, TJ, TK etc. to get an interpolant.
+-- | Given a closed tableau, show TJ, TK etc. to get an interpolant.
 interpolateInfo :: TableauxIP -> String
 interpolateInfo ti =
   unlines $ map strOrErr $
     [ "<h3>T<sup>I</sup> with easy interpolants</h3>"
-    , "<p>This is T after removing all n-nodes (Def 26) and using Lemma 14 and 15 for the \"easy\" interpolants.</p>"
+    , "<p>This uses Lemma 14 and 15 for the \"easy\" interpolants.</p>"
     , svg ti
     ]
     ++
