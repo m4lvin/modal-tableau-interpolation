@@ -261,20 +261,27 @@ rel m pr w = case lookup pr (progsOf m) of
   Just rl -> map snd $ filter ((== w) . fst ) rl
   Nothing -> [] -- assume that non-mentioned program has an empty relation!
 
-instance (Eq a, Show a) => DispAble (Model a) where
+instance (Eq a, Ord a, Show a) => DispAble (Model a) where
   toGraph m =
     mapM_ (\(w,props) -> do
                         node (show w) [shape Circle, toLabel $ show w ++ ":" ++ ppAts props]
-                        mapM_(\(ap,_) -> mapM_ (\w' -> edge (show w) (show w') [ toLabel ap ]) (rel m ap w)) (progsOf m)
+                        mapM_ (\(ap,_) -> mapM_ (\w' -> if w `elem` rel m ap w'
+                                                      then do when (w < w') (edge (show w) (show w') [ edgeEnds Both, toLabel ap ])
+                                                              when (w == w') (edge (show w) (show w') [ toLabel ap ])
+                                                      else edge (show w) (show w') [ toLabel ap ] )
+                                        (rel m ap w)) (progsOf m)
           ) (worldsOf m)
 
-instance (Eq a, Show a) => DispAble (Model a, a) where
+instance (Eq a, Ord a, Show a) => DispAble (Model a, a) where
   toGraph (m, actual) =
     mapM_ (\(w,props) -> do
                         node (show w) [shape $ if w == actual then DoubleCircle else Circle
                                       , toLabel $ show w ++ ":" ++ ppAts props]
-                        mapM_(\(ap,_) -> mapM_ (\w' -> edge (show w) (show w') [ toLabel ap ]) (rel m ap w)) (progsOf m)
-          ) (worldsOf m)
+                        mapM_ (\(ap,_) -> mapM_ (\w' -> if w `elem` rel m ap w'
+                                                      then do when (w < w') (edge (show w) (show w') [ edgeEnds Both, toLabel ap ])
+                                                              when (w == w') (edge (show w) (show w') [ toLabel ap ])
+                                                      else edge (show w) (show w') [ toLabel ap ] )
+                                        (rel m ap w)) (progsOf m)          ) (worldsOf m)
 
 -- | Evaluate formula on a pointed model
 eval :: (Show a, Eq a) => (Model a, a) -> Form -> Bool
