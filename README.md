@@ -116,7 +116,7 @@ Semantics:
 - [X] Kripke models
 - [X] satisfaction
 - [X] generate random arbitrary models
-- [ ] build counter model from open tableaux? (done for BML)
+- [X] build counter model from open tableaux - following Theorem 3
 
 Nice to have:
 

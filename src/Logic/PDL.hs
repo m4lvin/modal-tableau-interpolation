@@ -3,6 +3,7 @@
 module Logic.PDL where
 
 import Control.DeepSeq(NFData)
+import Control.Monad (when)
 import Data.List
 import Data.GraphViz hiding (Star)
 import Data.GraphViz.Types.Monadic hiding ((-->))
@@ -116,6 +117,7 @@ ite f p1 p2 = (Test f :- p1) `Cup` (Test (Neg f) :- p2)
 -- | Atoms occurring in a formula or program.
 class ContainsAtoms t where
   atomsIn :: t -> [Atom]
+  progsIn :: t -> [Atom]
 
 instance ContainsAtoms Form where
   atomsIn Bot        = []
@@ -123,6 +125,11 @@ instance ContainsAtoms Form where
   atomsIn (Neg f)    = atomsIn f
   atomsIn (Con f g)  = sort . nub $ concatMap atomsIn [f,g]
   atomsIn (Box pr f) = sort . nub $ atomsIn pr ++ atomsIn f
+  progsIn Bot        = []
+  progsIn (At _)     = []
+  progsIn (Neg f)    = progsIn f
+  progsIn (Con f g)  = sort . nub $ concatMap progsIn [f,g]
+  progsIn (Box pr f) = sort . nub $ progsIn pr ++ progsIn f
 
 instance ContainsAtoms Prog where
   atomsIn (Ap at)     = [at]
@@ -130,9 +137,15 @@ instance ContainsAtoms Prog where
   atomsIn (p1 :- p2)  = sort . nub $ concatMap atomsIn [p1,p2]
   atomsIn (Test f)    = atomsIn f
   atomsIn (Star pr)   = atomsIn pr
+  progsIn (Ap at)     = [at]
+  progsIn (Cup p1 p2) = sort . nub $ concatMap progsIn [p1,p2]
+  progsIn (p1 :- p2)  = sort . nub $ concatMap progsIn [p1,p2]
+  progsIn (Test f)    = progsIn f
+  progsIn (Star pr)   = progsIn pr
 
 instance ContainsAtoms a => ContainsAtoms [a] where
   atomsIn xs = sort $ nub $ concatMap atomsIn xs
+  progsIn xs = sort $ nub $ concatMap progsIn xs
 
 conSet,disSet :: [Form] -> Form
 conSet []     = top

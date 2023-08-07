@@ -84,20 +84,17 @@ main = hspec $ do
 
   describe "tabToMod" $ modifyMaxSuccess (const 1000) $ do
     describe "find counter models for someNonValidities" $
-      -- TODO!
-      it "" pending -- mapM_ (\f -> it (toString f) $ isJust (tabToMod (prove f))) someNonValidities
+      mapM_ (\f -> it (toString f) $ isJust (tabToMod (prove f))) someNonValidities
     describe "find correct counter models for someNonValidities" $
-      -- TODO!
-      it "" pending -- mapM_ (\f -> it (toString f) $ fromJust (tabToMod (prove f)) `eval` Neg f) someNonValidities
+      mapM_ (\f -> it (toString f) $ fromJust (tabToMod (prove f)) `eval` Neg f) someNonValidities
     describe "do not find counter models to someValidities" $
       mapM_ (\f -> it (toString f) $ isNothing (tabToMod (prove f))) someValidities
-    prop "randomized: if consistent, then tabToMod provides a model"
-      pending -- (\ f -> consistent [f] ==> isJust (tabToMod (tableauFor [f])))
-    prop "randomized: if f is consistent, then tabToMod provides a model that satisfies f"
-      -- TODO!
-      pending -- (\ f -> consistent [f] ==> fromJust (tabToMod (tableauFor [f])) `eval` f)
-    prop "randomized: if inconsistent, then tabToMod provides no model"
-      pending -- (\ f -> inconsistent [f] ==> isNothing (tabToMod (tableauFor [f])))
+    prop "randomized: if consistent, then tabToMod provides a model" $
+      fTest (\ f -> consistent [f] ==> isJust (tabToMod (tableauFor [f])))
+    prop "randomized: if f is consistent, then tabToMod provides a model that satisfies f" $
+      fTest (\ f -> consistent [f] ==> fromJust (tabToMod (tableauFor [f])) `eval` f)
+    prop "randomized: if inconsistent, then tabToMod provides no model" $
+      fTest (\ f -> inconsistent [f] ==> isNothing (tabToMod (tableauFor [f])))
 
   describe "interpolate" $ modifyMaxDiscardRatio (const 1000) $ do
     describe "someValidImplications" $

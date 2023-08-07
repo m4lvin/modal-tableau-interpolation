@@ -228,19 +228,25 @@ solveLowestMplus ti =
     ]
     )
 
+drawLimit :: Int
+drawLimit = 100
+
 counterModelInfo :: Form -> Tableaux -> String
 counterModelInfo pdlF t =
   let (msg, state, cm) =
-        case PDLCOns.makeModel t of
-          -- Nothing                                   -> ("Could not find a countermodel!", "error", Nothing)
-               m | PDLCOns.toIntModel m |= Neg pdlF -> ("This model falsifies the given formula.", "success", Just m)
+        case PDLCOns.tabToMod t of
+          Nothing                                   -> ("Could not find a countermodel!", "error", Nothing)
+          Just m | PDLCOns.toIntModel m |= Neg pdlF -> ("This model falsifies the given formula.", "success", Just m)
                  | otherwise                        -> ("Wrong countermodel &mdash; does not falsify given formula", "error", Just m)
   in
     unlines $ map strOrErr
       [ "<br />"
       , "<div align='center'>counter model:<br />"
-      , maybe "" (svg . PDLCOns.toIntModel) cm
+      , maybe "" (\m -> if length (worldsOf (fst m)) > drawLimit
+                        then "This model has " ++ show (length (worldsOf (fst m))) ++ " worlds, will not draw more than " ++ show drawLimit ++"."
+                        else (svg . PDLCOns.toIntModel) m) cm
       , "<pre>", show cm, "</pre>"
+      , "<pre>", show (fmap toIntModel cm), "</pre>"
       , "<p style='align:center;' class='" ++ state ++ "'>"
       , msg
       , "</p>"

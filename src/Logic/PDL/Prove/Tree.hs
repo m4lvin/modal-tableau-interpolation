@@ -24,6 +24,11 @@ data Tableaux = Node -- ^ A node contains:
               | End -- ^ End of a tableau (not necessarily closed!)
   deriving (Eq,Ord,Show)
 
+-- | All nodes of a tableau.
+allNodesOf :: Tableaux -> [[WForm]]
+allNodesOf (Node wfs _ _ _ ts) = wfs : concatMap allNodesOf ts
+allNodesOf End = []
+
 -- | A history is a list of pairs of a list of weighted formulas and the rule used.
 -- Note: head of this list is the immediate predecessor, last element is the root!
 type History = [([WForm],RuleName)]
