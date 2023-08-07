@@ -66,21 +66,23 @@ ppAts []       = [ ]
 ppAts [at]     = at
 ppAts (at:ats) = at ++ "," ++ ppAts ats
 
+-- | Top
 top :: Form
 top = Neg Bot
 
-(!) :: Form -> Form
-(!) = Neg
-
+-- | Disjunction
 dis :: Form -> Form -> Form
 dis f g = Neg (Con (Neg f) (Neg g))
 
+-- | Implication
 imp :: Form -> Form -> Form
 imp f g = Neg (Con f (Neg g))
 
+-- | Nice implication
 (-->) :: Form -> Form -> Form
 (-->) = imp
 
+-- | Biimplication
 (<-->) :: Form -> Form -> Form
 f <--> g = Con (f --> g) (g --> f)
 
@@ -164,6 +166,26 @@ instance HasMeasure Form where
 
 instance HasMeasure a => HasMeasure [a] where
   measure = sum . map measure
+
+-- * Simple and Simplified Formulas
+
+-- | Def 9: closed sets for fomulas.
+isClosed :: [Form] -> Bool
+isClosed fs = Bot `elem` fs || any (\f -> Neg f `elem` fs) fs
+
+class CanBeSimple a where
+  isSimple :: a -> Bool
+
+instance CanBeSimple a => CanBeSimple [a] where
+  isSimple = all isSimple
+
+-- | Def 9: simple sets for fomulas.
+instance CanBeSimple Form where
+  isSimple (At _) = True
+  isSimple (Neg (At _)) = True
+  isSimple (Box _ _) = True
+  isSimple (Neg (Box _ _)) = True
+  isSimple _ = False
 
 -- | Simplify a formula by removing double negations etc.
 simplify :: Form -> Form
@@ -318,13 +340,12 @@ instance Arbitrary Prog where
       ]
   shrink x = dropPartPrograms x ++ immediateSubPrograms x ++ [ simplifyProg x | simplifyProg x /= x ]
 
-newtype SimpleForm = SF Form deriving (Eq,Ord,Show)
+newtype SimplifiedForm = SF Form deriving (Eq,Ord,Show)
 
 -- | Generate random simplified formulas.
-instance Arbitrary SimpleForm where
+instance Arbitrary SimplifiedForm where
   arbitrary = SF . simplify <$> arbitrary
   shrink (SF g) = map SF $ shrink g
-
 
 -- | Generate random models.
 instance Arbitrary (Model Int) where

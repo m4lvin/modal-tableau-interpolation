@@ -108,10 +108,10 @@ main = hspec $ do
     prop "random nice implications"
       (fgTest $ \f g -> isNice (f,g) ==> testIPgen interpolate (f,g))
 
-fTest :: Testable prop => (Form -> prop) -> (SimpleForm -> Property)
+fTest :: Testable prop => (Form -> prop) -> (SimplifiedForm -> Property)
 fTest testfun (SF f) = counterexample (toString f) . within 10000000 $ testfun f
 
-fgTest :: Testable prop => (Form -> Form -> prop) -> (SimpleForm -> SimpleForm -> Property)
+fgTest :: Testable prop => (Form -> Form -> prop) -> (SimplifiedForm -> SimplifiedForm -> Property)
 fgTest testfun (SF f) (SF g) =
   counterexample (toString f ++ " -> " ++ toString g) . within 100000000 $ testfun f g
 
