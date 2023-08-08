@@ -88,6 +88,7 @@ tests:
     ghc-options:  -with-rtsopts=-M8G
     dependencies:
       - base >= 4.7 && < 5
+      - containers
       - hspec
       - QuickCheck
       - Logic

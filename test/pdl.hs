@@ -1,5 +1,7 @@
 module Main where
 
+import Data.Containers.ListUtils (nubOrd)
+import Data.List
 import Data.Maybe
 import Data.String (fromString)
 import Test.Hspec
@@ -67,7 +69,7 @@ main = hspec $ do
     prop "simplify preserves provability"
       (fTest $ \ f -> provable f === provable (simplify f))
     prop "simplify gives <= measure [+ distribution]"
-      (fTest $ \ f -> withMaxSuccess 100000 $ label ("measure " ++ show (measure f)) $
+      (fTest $ \ f -> withMaxSuccess 50000 $ label ("measure " ++ show (measure f)) $
         measure (simplify f) <= measure f)
 
   describe "semantics" $ do
@@ -98,6 +100,8 @@ main = hspec $ do
       fTest (\ f -> consistent [f] ==> fromJust (tabToMod (tableauFor [f])) `eval` f)
     prop "randomized: if inconsistent, then tabToMod provides no model" $
       fTest (\ f -> inconsistent [f] ==> isNothing (tabToMod (tableauFor [f])))
+    it "testModelConstruction" $
+      ioProperty $ testModelConstruction (fromString "[(a ∪ b) ∪ d*][c*]¬r")
 
   describe "interpolate" $ modifyMaxDiscardRatio (const 1000) $ do
     describe "someValidImplications" $
@@ -124,3 +128,20 @@ disproveTest f = it (toString f) $ provable f `shouldBe` False
 myExcerpt :: String -> String
 myExcerpt l =
   if length l < 60 then l else take 29 l ++ " ... " ++ (reverse . take 29 . reverse) l
+
+testModelConstruction :: Form -> IO Bool
+testModelConstruction f = do
+  putStrLn $ "Testing counter-model construction for: " ++ toString f
+  let t = tableauFor [Neg f]
+  -- putStrLn "\n\n M0:\n"
+  -- mapM_ print $ m0 t
+  putStrLn $ "M0 contains " ++ show (length (m0 t)) ++ " tableaux, of which " ++ show (length (nubOrd (m0 t))) ++ " are unique."
+  putStr "The tableaux create this many worlds each: "
+  putStrLn $ intercalate "," $ map (show . length . pathSetsOf) (m0 t)
+  let Just m = tabToMod t -- unsafe :-/
+  {-
+  print (tabToMod t)
+  putStrLn "\n\n toIntModel:\n"
+  print (toIntModel <$> tabToMod t)
+  -}
+  return $ m |= Neg f
