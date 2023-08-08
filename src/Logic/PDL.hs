@@ -332,32 +332,37 @@ globeval m f = all (\(w,_) -> eval (m,w) f) (worldsOf m)
 
 -- * Random generation
 
+factor :: Int
+factor = 6
+
+genForm :: Int -> Gen Form
+genForm 0 = elements [ Bot, top, o, p, q, r, s ]
+genForm n = oneof
+  [ elements [ o, p, q, r, s ]
+  , Neg <$> genForm (n `div` factor)
+  , Con <$> genForm (n `div` factor) <*> genForm (n `div` factor)
+  , imp <$> genForm (n `div` factor) <*> genForm (n `div` factor)
+  , Box <$> genProg (n `div` factor) <*> genForm (n `div` factor)
+  , dia <$> genProg (n `div` factor) <*> genForm (n `div` factor)
+  ]
+
+genProg :: Int -> Gen Prog
+genProg 0 = elements [ Test Bot, Test top, a, b, c, d ]
+genProg n = oneof
+  [ elements [ a, b, c, d ]
+  , Cup <$> genProg (n `div` factor) <*> genProg (n `div` factor)
+  , (:-) <$> genProg (n `div` factor) <*> genProg (n `div` factor)
+  , Star <$> genProg (n `div` factor)
+  , Test <$> genForm (n `div` factor)
+  ]
+
 -- | Generate random formulas.
 instance Arbitrary Form where
-  arbitrary = sized genForm where
-    factor = 10
-    genForm 0 = elements [ Bot, top, o, p, q, r, s ]
-    genForm 1 = elements [ Bot, top, o, p, q, r, s ]
-    genForm n = oneof
-      [ elements [ Bot, top, o, p, q, r, s ]
-      , Neg <$> genForm (n `div` factor)
-      , Con <$> genForm (n `div` factor) <*> genForm (n `div` factor)
-      , Box <$> arbitrary <*> genForm (n `div` factor)
-      ]
+  arbitrary = sized genForm
   shrink f = dropPartFormulas f ++ immediateSubFormulas f ++ [ simplify f | simplify f /= f]
 
 instance Arbitrary Prog where
-  arbitrary = sized genProg where
-    factor = 10
-    genProg 0 = elements [ Test top, Test Bot, a, b, c, d ]
-    genProg 1 = elements [ Test top, Test Bot, a, b, c, d ]
-    genProg n = oneof
-      [ elements [ Test top, Test Bot, a, b, c, d ]
-      , Cup <$> genProg (n `div` factor) <*> genProg (n `div` factor)
-      , (:-) <$> genProg (n `div` factor) <*> genProg (n `div` factor)
-      , Star <$> genProg (n `div` factor)
-      , Test <$> arbitrary
-      ]
+  arbitrary = sized genProg
   shrink x = dropPartPrograms x ++ immediateSubPrograms x ++ [ simplifyProg x | simplifyProg x /= x ]
 
 newtype SimplifiedForm = SF Form deriving (Eq,Ord,Show)

@@ -66,6 +66,9 @@ main = hspec $ do
       (fgTest $ \f g -> provable (f --> g) === provable (Neg g --> Neg f))
     prop "simplify preserves provability"
       (fTest $ \ f -> provable f === provable (simplify f))
+    prop "simplify gives <= measure [+ distribution]"
+      (fTest $ \ f -> withMaxSuccess 100000 $ label ("measure " ++ show (measure f)) $
+        measure (simplify f) <= measure f)
 
   describe "semantics" $ do
     prop "exampleLoop falsifies some formula" $
