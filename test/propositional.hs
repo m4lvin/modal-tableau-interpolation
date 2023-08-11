@@ -31,6 +31,8 @@ main = hspec $ do
     it "Bot" $ not . Tree.provable $ bot
     it "Con p (Neg p)" $ not . Tree.provable $ Con p (Neg p)
     it "Con r (dis p (Neg p))" $ not . Tree.provable $ Con r (dis p (Neg p))
+  prop "Soundnes" $ Tree.soundness
+  prop "Completeness" $ Tree.completeness
   describe "Interpolation.Naive" $
     it "(Con p q, dis q r)" $
       testIPgen Naive.interpolate (Con p q, dis q r)

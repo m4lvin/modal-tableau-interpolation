@@ -96,8 +96,10 @@ main = hspec $ do
       mapM_ (\f -> it (toString f) $ isNothing (tabToMod (prove f))) someValidities
     prop "randomized: if consistent, then tabToMod provides a model" $
       fTest (\ f -> consistent [f] ==> isJust (tabToMod (tableauFor [f])))
-    prop "randomized: if f is consistent, then tabToMod provides a model that satisfies f" $
+    prop "randomized: if f is consistent, then tabToMod provides a model of f" $
       fTest (\ f -> consistent [f] ==> fromJust (tabToMod (tableauFor [f])) `eval` f)
+    prop "randomized: if f is consistent, then (toIndModel . tabToMod) satisfies f" $
+      fTest (\ f -> consistent [f] ==> toIntModel (fromJust (tabToMod (tableauFor [f]))) `eval` f)
     prop "randomized: if inconsistent, then tabToMod provides no model" $
       fTest (\ f -> inconsistent [f] ==> isNothing (tabToMod (tableauFor [f])))
     it "testModelConstruction" $

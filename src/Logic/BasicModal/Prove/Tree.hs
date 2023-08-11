@@ -27,10 +27,6 @@ collapse :: WForm -> Form
 collapse (Left  f) = f
 collapse (Right f) = f
 
-leftsOf, rightsOf :: [WForm] -> [Form]
-leftsOf  wfs = [f | Left  f <- wfs]
-rightsOf wfs = [f | Right f <- wfs]
-
 ppWForms :: [WForm] -> [WForm] -> String
 ppWForms wfs actives = intercalate ", " (map ppFormA (filter isLeft wfs)) ++ "   |   " ++ intercalate ", " (map ppFormA (filter (not . isLeft) wfs)) where
   ppFormA wf = [ '»' |  wf `elem` actives ] ++ toString (collapse wf) ++ [ '«' |  wf `elem` actives ]

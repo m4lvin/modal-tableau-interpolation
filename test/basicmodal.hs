@@ -67,3 +67,5 @@ main = hspec $ do
       (\ f -> consistent [f] ==> isJust (tabToMod (tableauFor [f])))
     prop "if consistent, then tabToMod provides a model"
       (\ f -> consistent [f] ==> fromJust (tabToMod (tableauFor [f])) `eval` f)
+    prop "if consistent, then (toIntModel . tabToMod) provides a model"
+      (\ f -> consistent [f] ==> toIntModel (fromJust (tabToMod (tableauFor [f]))) `eval` f)
