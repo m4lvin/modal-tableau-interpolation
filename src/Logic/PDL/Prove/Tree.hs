@@ -6,7 +6,7 @@ import Control.Arrow
 import Data.Containers.ListUtils (nubOrd)
 import Data.GraphViz hiding (Shape(Star))
 import Data.GraphViz.Types.Monadic hiding ((-->))
-import Data.List (delete, intercalate, sort)
+import Data.List
 import Data.Maybe
 -- import Debug.Trace
 
@@ -112,14 +112,14 @@ unravel f0 nform = -- trace ("unravelled " ++ toString f0 ++ " with nform " ++ t
   g (Neg f) | f == nform = [ ] -- new way to do condition 4, never create a branch with ~[a^n]P
   g (Neg (Box (Ap ap)     f)) = [[Neg (Box (Ap ap) f)]]
   g (Neg (Box (Cup p1 p2) f)) = g (Neg (Box p1 f)) ++ g (Neg (Box p2 f))
-  g (Neg (Box (pa :- pb)  f)) = g (Neg (Box pa (Box pb f))) -- wait, this is actually easier now :-)
+  g (Neg (Box (pa :- pb)  f)) = g (Neg (Box pa (Box pb f)))
   g (Neg (Box (Test tf)   f)) = [ tf : rest | rest <- g (Neg f) ] -- diamond test is not branching.
   g (Neg (Box (Star pr)   f)) = g (Neg (Box pr (Box (Star pr) f)))
   -- boxes:
   g f | f == nform =  [ [] ] -- new way to do condition 2, avoid loops.
   g (Box (Ap ap)     f) = [[Box (Ap ap) f]]
-  g (Box (Cup p1 p2) f) = [ l1 ++ l2  | l1 <- g (Box p1 f), l2 <- g (Box p2 f) ] -- OKAY?
-  g (Box (pa :- pb)  f) = g (Box pa (Box pb f)) -- yeah!
+  g (Box (Cup p1 p2) f) = [ l1 ++ l2  | l1 <- g (Box p1 f), l2 <- g (Box p2 f) ]
+  g (Box (pa :- pb)  f) = g (Box pa (Box pb f))
   g (Box (Test tf)   f) = [Neg tf] : g f -- box test is branching.
   g (Box (Star pr)   f) = g (Box pr (Box (Star pr) f))
   -- other formulas, no unraveling:
