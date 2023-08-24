@@ -78,10 +78,10 @@ main = hspec $ do
     prop "exampleLoop falsifies some <a> formula" $
       expectFailure (fTest $ \ f -> (exampleLoop,1) |= dia (Ap "a") f)
     prop "formulas get evaluated quickly on random models" $
-      \ (SF f) m -> counterexample (toString f ++ "\n" ++ show m) . within 10000000 $
+      \ (SF f) m -> counterexample (toString f ++ "\n" ++ show m) . within timeLimit $
         ((m :: Model Int, 0) |= f) `elem` [True,False]
     prop "a formula false in a model must not be provable" $
-      \ (SF f) m -> counterexample (toString f ++ "\n" ++ show m) . within 10000000 $
+      \ (SF f) m -> counterexample (toString f ++ "\n" ++ show m) . within timeLimit $
         not ((m :: Model Int, 0) |= f) ==> not (provable f)
     describe "ring" $ do
       let fs = "<(a;a)*>p49 & ~<(a;a)*>p48" in
@@ -114,12 +114,16 @@ main = hspec $ do
     prop "random nice implications"
       (fgTest $ \f g -> isNice (f,g) ==> testIPgen interpolate (f,g))
 
+timeLimit :: Int
+timeLimit = 100 * second where
+  second = 1000000 -- QuickCheck wants microseconds
+
 fTest :: Testable prop => (Form -> prop) -> (SimplifiedForm -> Property)
-fTest testfun (SF f) = counterexample (toString f) . within 10000000 $ testfun f
+fTest testfun (SF f) = counterexample (toString f) . within timeLimit $ testfun f
 
 fgTest :: Testable prop => (Form -> Form -> prop) -> (SimplifiedForm -> SimplifiedForm -> Property)
 fgTest testfun (SF f) (SF g) =
-  counterexample (toString f ++ " -> " ++ toString g) . within 10000000 $ testfun f g
+  counterexample (toString f ++ " -> " ++ toString g) . within timeLimit $ testfun f g
 
 proveTest :: Form -> SpecWith ()
 proveTest f = it (toString f) $ provable f `shouldBe` True
