@@ -71,6 +71,11 @@ ppAts (at:ats) = at ++ "," ++ ppAts ats
 top :: Form
 top = Neg Bot
 
+-- | Single negation
+neg :: Form -> Form
+neg (Neg f) = f
+neg f = Neg f
+
 -- | Disjunction
 dis :: Form -> Form -> Form
 dis f g = Neg (Con (Neg f) (Neg g))
@@ -180,7 +185,7 @@ instance HasMeasure Form where
 instance HasMeasure a => HasMeasure [a] where
   measure = sum . map measure
 
--- * Simple and Simplified Formulas
+-- * Simple, Simplified and Sub-Formulas
 
 -- | Def 9: closed sets for fomulas.
 isClosed :: [Form] -> Bool
@@ -256,6 +261,20 @@ dropPartPrograms (Cup p1 p2) = [p1,p2] ++ [Cup p1' p2  | p1' <- dropPartPrograms
 dropPartPrograms (p1 :- p2)  = [p1,p2] ++ [p1' :- p2  | p1' <- dropPartPrograms p1] ++ [p1  :- p2' | p2' <- dropPartPrograms p2]
 dropPartPrograms (Star p1)   = map Star $ dropPartPrograms p1
 dropPartPrograms (Test f)    = map Test $ dropPartFormulas f
+
+-- | The Fischer-Ladner Closure.
+-- See for example BRV page
+flClosure :: [Form] -> [Form]
+flClosure = fixpoint (\fs -> nub $ fs ++ concatMap extend fs) where
+  extend Bot       = [Neg Bot]
+  extend (At at)   = [Neg (At at)]
+  extend (Neg f)   = [f]
+  extend (Con f g) = [Neg (Con f g), f, g]
+  extend (Box (Ap ap) f)     = [Neg (Box (Ap ap) f), f]
+  extend (Box (Cup p1 p2) f) = [Neg (Box (Cup p1 p2) f), Box p1 f, Box p2 f]
+  extend (Box (p1 :- p2) f)  = [Neg (Box (p1 :- p2) f), Box p1 (Box p2 f) ]
+  extend (Box (Star p1) f)   = [Neg (Box (Star p1) f), Box p1 (Box (Star p1) f)]
+  extend (Box (Test g) f)    = [Neg (Box (Test g) f), g, f]
 
 -- * SEMANTICS
 

@@ -72,6 +72,12 @@ main = hspec $ do
       (fTest $ \ f -> withMaxSuccess 50000 $ label ("measure " ++ show (measure f)) $
         measure (simplify f) <= measure f)
 
+  describe "Fischer-Ladner closure" $ do
+    prop "length invariant under single negation" $
+      fTest $ \f -> length (flClosure [f]) == length (flClosure [neg f])
+    prop "closed under ¬" $
+      fgTest $ \f g -> (g `elem` flClosure [f]) === (neg g `elem` flClosure [f])
+
   describe "semantics" $ do
     prop "exampleLoop falsifies some formula" $
       expectFailure (fTest $ \ f -> (exampleLoop,1) |= f)
