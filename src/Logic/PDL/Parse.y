@@ -137,8 +137,12 @@ scanParseSafe pfunc input =
       Right x  -> Right x
 
 instance IsString Logic.BasicModal.Form where
-  fromString = (\(Right f) -> f) . parseK . alexScanTokens
+  fromString s = case parseK (alexScanTokens s) of
+    Left e  -> error ("Error at " ++ show e ++ " when parsing " ++ s ++ " \n")
+    Right f -> f
 
 instance IsString Logic.PDL.Form where
-  fromString = (\(Right f) -> f) . parsePDL . alexScanTokens
+  fromString s = case parsePDL (alexScanTokens s) of
+    Left e  -> error ("Error at " ++ show e ++ " when parsing " ++ s ++ " \n")
+    Right f -> f
 }
