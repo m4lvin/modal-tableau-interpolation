@@ -134,7 +134,10 @@ rightsOf wfs = [f | (Right f,_) <- wfs]
 -- | Definition 26: given \(T\), remove n-nodes to obtain \(T^I\).
 -- This may result in a non-binary tree!
 tiOf :: TableauxIP -> TableauxIP
-tiOf = snd . head . tiOfRec where
+tiOf t = if null (tiOfRec t)
+  then Node [] Nothing Nothing "" [] [] -- nothing left after deleting n-nodes!
+  else snd . head . tiOfRec $ t
+  where
   -- When node n is deleted the parent of n must append rule of n to its own rule.
   -- Given my child n, what should I add to my rule and what replaces n?
   tiOfRec  :: TableauxIP -> [(RuleName,TableauxIP)]

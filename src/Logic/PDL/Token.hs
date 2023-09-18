@@ -32,6 +32,7 @@ data Token a -- == AlexPn
   | TokenSemicolon         {apn :: a}
   | TokenTest              {apn :: a}
   | TokenStar              {apn :: a}
+  | TokenN                 {apn :: a}
   | TokenWhile             {apn :: a}
   | TokenIf                {apn :: a}
   | TokenThen              {apn :: a}

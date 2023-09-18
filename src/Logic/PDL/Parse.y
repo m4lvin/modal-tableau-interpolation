@@ -51,6 +51,7 @@ import qualified Logic.BasicModal
   'else' { TokenElse   _ }
   'u'    { TokenCup    _ }
   '*'    { TokenStar   _ }
+  'n'    { TokenN      _ }
   INT    { TokenInt $$ _ }
 
 %left '<-->'
@@ -116,6 +117,7 @@ Prog : 'a' INT { Ap ('a' : show $2) }
      | Prog 'u' Prog { Cup $1 $3 }
      | Prog ':-' Prog { $1 :- $3 }
      | Prog '*' { Star $1 }
+     | Prog 'n' { NStar $1 }
      | '?' PDLForm { Test $2 }
      | 'while' PDLForm Prog { while $2 $3 }
      | 'if' PDLForm 'then' Prog 'else' Prog { ite $2 $4 $6 }

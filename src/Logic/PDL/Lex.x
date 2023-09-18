@@ -57,6 +57,7 @@ tokens :-
   "u"               { \ p _ -> TokenCup               p }
   "∪"               { \ p _ -> TokenCup               p }
   "*"               { \ p _ -> TokenStar              p }
+  "n"               { \ p _ -> TokenN                 p }
   ";"               { \ p _ -> TokenSemicolon         p }
   "?"               { \ p _ -> TokenTest              p }
   "while"           { \ p _ -> TokenWhile             p }
