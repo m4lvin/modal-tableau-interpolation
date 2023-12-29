@@ -124,6 +124,9 @@ main = hspec $ do
     prop "random nice implications"
       (fgTest $ \f g -> isNice (f,g) ==> testIPgen interpolate (f,g))
 
+  prop "CONJECTURE: interpolants never contain non trivial tests" $
+    withMaxSuccess 2000 $ fgTest $ \f g -> provable (f `imp` g) ==> not $ containsNonTrivTest (fromJust $ interpolate (f,g))
+
 timeLimit :: Int
 timeLimit = 100 * second where
   second = 1000000 -- QuickCheck wants microseconds
@@ -161,3 +164,20 @@ testModelConstruction f = do
   print (toIntModel <$> tabToMod t)
   -}
   return $ m |= Neg f
+
+containsNonTrivTest :: Form -> Bool
+containsNonTrivTest Bot       = False
+containsNonTrivTest (At _)    = False
+containsNonTrivTest (Neg f)   = containsNonTrivTest f
+containsNonTrivTest (Con f g) = containsNonTrivTest f || containsNonTrivTest g
+containsNonTrivTest (Box p1 f)   = containsNonTrivTestP p1 || containsNonTrivTest f
+
+containsNonTrivTestP :: Prog -> Bool
+containsNonTrivTestP (Ap _) = False
+containsNonTrivTestP (Cup p1 p2) = containsNonTrivTestP p1 || containsNonTrivTestP p2
+containsNonTrivTestP (p1 :- p2) = containsNonTrivTestP p1 || containsNonTrivTestP p2
+containsNonTrivTestP (Star p1) = containsNonTrivTestP p1
+containsNonTrivTestP (Test f)
+  | f == top = False
+  | f == Bot = False
+  | otherwise = True -- error $ "hell yeah! " ++ show f
