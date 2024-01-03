@@ -4,6 +4,9 @@ module Logic.PDL.Prove.Tree where
 
 import Control.Arrow
 import Data.Containers.ListUtils (nubOrd)
+import qualified Data.GraphViz.Attributes.Complete as C
+import qualified Data.GraphViz.Attributes.HTML as HTML
+import qualified Data.Text.Lazy as T
 import Data.GraphViz hiding (Shape(Star))
 import Data.GraphViz.Types.Monadic hiding ((-->))
 import Data.List
@@ -54,14 +57,26 @@ isLoadedNode = any (isJust . snd)
 
 ppWForms :: [WForm] -> [WForm] -> String
 ppWForms wfs actives = intercalate ", " (map ppFormA (filter isLeft wfs)) ++ "   |   " ++ intercalate ", " (map ppFormA (filter (not . isLeft) wfs)) where
-  ppFormA wf = [ '»' |  wf `elem` actives ] ++ toString (collapse wf) ++ [ '«' |  wf `elem` actives ]
+  ppFormA wf = [ '»' |  wf `elem` actives ] ++ ppLoadForm (collapse wf) ++ [ '«' |  wf `elem` actives ]
+  ppLoadForm :: Marked Form -> String
+  ppLoadForm (x, Just  y) = "__" ++ take (length (toString x) - length (toString y)) (toString x) ++ "__" ++ toString y
+  ppLoadForm (x, Nothing) = toString x
+
+htmlWForms :: [WForm] -> [WForm] -> HTML.Text
+htmlWForms wfs actives = intercalate [sp ", "] (map ppFormA (filter isLeft wfs)) ++ [sp "   |   "] ++ intercalate [sp ", "] (map ppFormA (filter (not . isLeft) wfs)) where
+  sp = HTML.Str . T.pack
+  ppFormA :: WForm -> HTML.Text
+  ppFormA wf = (if wf `elem` actives then \ts -> [HTML.Format HTML.Bold ts] else id) $ htmlLoadForm (collapse wf)
+  htmlLoadForm :: Marked Form -> HTML.Text
+  htmlLoadForm (x, Just  y) = [ HTML.Format HTML.Underline [sp $ take (length (toString x) - length (toString y)) (toString x)], sp $ toString y ]
+  htmlLoadForm (x, Nothing) = [ sp $ toString x ]
 
 instance DispAble Tableaux where
   toGraph = toGraph' "" where
     toGraph' pref End =
       node pref [shape PlainText, toLabel "."]
     toGraph' pref (Node wfs _ rule actives ts) = do
-      node pref [shape PlainText, toLabel $ ppWForms wfs actives]
+      node pref [shape PlainText, C.Label $ C.HtmlLabel $ HTML.Text $ htmlWForms wfs actives]
       mapM_ (\(t,y') -> do
         toGraph' (pref ++ show y' ++ ":") t
         edge pref (pref ++ show y' ++ ":") [toLabel rule]

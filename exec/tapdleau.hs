@@ -145,7 +145,7 @@ mPlusLoop ti = case lowestMplusWithoutIP ti of
 solveLowestMplus :: TableauxIP -> (TableauxIP, [String])
 solveLowestMplus ti =
   let
-    Just mstartOriginal = lowestMplusWithoutIP ti
+    mstartOriginal = fromJust $ lowestMplusWithoutIP ti
     -- If M+ is not on the right we need to flip the tableau — see `fillLowestMplus`.
     isOnRight = or [ True | (Right _, _) <- activesOf mstartOriginal ]
     mstart = if isOnRight then mstartOriginal else flipTab mstartOriginal
