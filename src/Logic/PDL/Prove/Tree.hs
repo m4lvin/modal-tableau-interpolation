@@ -63,7 +63,7 @@ ppWForms wfs actives = intercalate ", " (map ppFormA (filter isLeft wfs)) ++ "  
 
 ppLoadForm :: Marked Form -> String
 ppLoadForm (x, []) = toString x
-ppLoadForm (Neg f, ps) = "~__[" ++ intercalate "][ " (map toString ps) ++ "]__" ++ toString f
+ppLoadForm (Neg f, ps) = "~__[" ++ intercalate "][" (map toString ps) ++ "]__" ++ toString f
 ppLoadForm bad = error $ "bad: " ++ show bad
 
 htmlWForms :: [WForm] -> [WForm] -> HTML.Text
@@ -73,7 +73,7 @@ htmlWForms wfs actives = intercalate [sp ", "] (map ppFormA (filter isLeft wfs))
   ppFormA wf = (if wf `elem` actives then \ts -> [HTML.Format HTML.Bold ts] else id) $ htmlLoadForm (collapse wf)
   htmlLoadForm :: Marked Form -> HTML.Text
   htmlLoadForm (x, []) = [ sp $ toString x ]
-  htmlLoadForm (Neg f, ps) = [ sp "¬[", HTML.Format HTML.Underline [sp $ intercalate "][" (map toString ps)], sp "]", sp $ toString f ]
+  htmlLoadForm (Neg f, ps) = [ HTML.Format HTML.Underline [sp "¬[", sp $ intercalate "][" (map toString ps)], sp "]", sp $ toString f ]
   htmlLoadForm bad = error $ "bad: " ++ show bad
 
 instance DispAble Tableaux where
