@@ -68,11 +68,9 @@ Prover:
 - [X] proper search: extend -> extensions (as in BasicModal)
 - [X] add M+ rule
 - [X] Only allow (At) on marked formulas (page 24)
-- [ ] Check priorities / preferences of all rules.
 - [X] mark active formula (as in BasicModal), needed for interpolation
 - [X] also mark active formula for extra condition 4, and history-path for 6
-- [ ] more uniform encoding of rules and closing conditions
-- [ ] Implement extra conditions:
+- Extra conditions:
     1. [X] when reaching an atomic Box or NegBox, go back from n to *
     2. [X] instead of X;[a^n]P reach X
     3. [X] apply rules to n-formula whenever possible / prioritise them!
@@ -80,6 +78,14 @@ Prover:
     5. [ ] directly after M+ do not apply M-
     6. [X] close normal nodes with critical same-set predecessors (if loaded when whole path is loaded)
     7. [ ] every loaded node that is not an end node by 6, has a successor.
+- Our deviations from Borzechowski:
+    - [X] Avoid n-formulas, use `unravel` instead.
+    - [X] Loading with underlined boxes instead of superscripts.
+    - [ ] Merge (M+) into (At) rule?
+
+Technical debt:
+- [ ] check priorities / preferences of all rules.
+- [ ] more uniform encoding of rules and closing conditions
 
 Interpolation:
 
@@ -92,7 +98,7 @@ Interpolation:
 - [X] Correct definition of (At)-interpolants in the empty-side edge cases.
 - [X] TI, TJ, TK, canonical programs, interpolants for TK
 - [X] use TI etc. to find interpolants for loaded sub-tableaux, iterate!
-- [ ] fillIPs: end notes due to extra condition 4 ??
+- (irrelevant, n-formulas are gone) fillIPs: end notes due to extra condition 4 ??
 
 Bonus Information:
 
@@ -118,16 +124,19 @@ Semantics:
 - [X] generate random arbitrary models
 - [X] build counter model from open tableaux - following Theorem 3
 
-Nice to have:
+Nice to have UX/UI:
 
-- [ ] option to start with a given set/partition instead of a single (to be proven and thus negated) formula 
-- [ ] use exact same syntax as Borzechowski (A for atomic programs etc.)
-- [ ] add applicable extra conditions to rule annotation
 - [X] web interface
-- [ ] use Graphviz HTML labels for better readability, e.g. highlight the active formula.
-- [ ] color the loading part of formulas/nodes
+- [X] use Graphviz HTML labels for better readability, e.g. highlight the active formula.
+- [ ] option to start with a given set/partition instead of a single (to be proven and thus negated) formula 
+- [ ] add applicable extra conditions to rule annotation
 - [ ] store current/submitted formula in (base64?) URL hash, provide perma-link for sharing
-- [ ] Use better data structures, [zipper](https://en.wikipedia.org/wiki/Zipper_(data_structure)) instead of `(TableauIP, Path)` pairs?
+
+Rejected ideas:
+
+- color the loading part of formulas/nodes
+- Use better data structures, [zipper](https://en.wikipedia.org/wiki/Zipper_(data_structure)) instead of `(TableauIP, Path)` pairs?
+- use exact same syntax as Borzechowski (A for atomic programs etc.)
 
 ## See also
 

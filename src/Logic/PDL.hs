@@ -31,9 +31,9 @@ instance Stringable Form where
   toString (Neg (Con (Neg f) (Neg g)))  = "(" ++ toString f ++ " ∨ " ++ toString g ++ ")"
   toString (Neg f)    = "¬" ++ toString f
   toString (Con f g)  = "(" ++ toString f ++ " ∧ " ++ toString g ++ ")"
-  toString (Box (Cup p1 p2) f) = "[" ++ toString p1 ++ " ∪ " ++ toString p2 ++ "]" ++ toString f ++ ""
-  toString (Box (p1 :- p2) f)  = "[" ++ toString p1 ++ " ; " ++ toString p2 ++ "]" ++ toString f ++ ""
-  toString (Box pr f) = "[" ++ toString pr ++ "]" ++ toString f ++ ""
+  toString (Box (Cup p1 p2) f) = "[" ++ toString p1 ++ " ∪ " ++ toString p2 ++ "]" ++ toString f
+  toString (Box (p1 :- p2) f)  = "[" ++ toString p1 ++ " ; " ++ toString p2 ++ "]" ++ toString f
+  toString (Box pr f) = "[" ++ toString pr ++ "]" ++ toString f
 
 instance Stringable Prog where
   toString (Ap ap)     = ap

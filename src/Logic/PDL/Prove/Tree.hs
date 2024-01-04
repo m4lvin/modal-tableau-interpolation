@@ -38,11 +38,13 @@ type History = [([WForm],RuleName)]
 
 type RuleName = String -- TODO: data RuleName = Con | NegCon | ...  and "¬" etc. with OverloadedStrings
 
--- We can mark formulas with other formulas
-type Marked a = (a, Maybe a)
+-- | A loaded formula is prefixed by a negation and a non-empty sequence of boxes.
+-- Example: (Neg f, [a,b]) stands for ¬[a][b]f with [a][b] underlined.
+type Marked f = (f, [Prog]) -- where f starts with "Neg"
+-- TODO: rename to Loaded, and flip around the order?
 
 -- A WForm is weighted (Left/Right) and may have a marking.
-type WForm = (Either Form Form, Maybe Form)
+type WForm = (Either Form Form, [Prog])
 
 collapse :: WForm -> Marked Form
 collapse (Left f,m)  = (f,m)
@@ -53,14 +55,16 @@ isLeft (Left  _, _) = True
 isLeft (Right _, _) = False
 
 isLoadedNode :: [WForm] -> Bool
-isLoadedNode = any (isJust . snd)
+isLoadedNode = not . all (null . snd)
 
 ppWForms :: [WForm] -> [WForm] -> String
 ppWForms wfs actives = intercalate ", " (map ppFormA (filter isLeft wfs)) ++ "   |   " ++ intercalate ", " (map ppFormA (filter (not . isLeft) wfs)) where
   ppFormA wf = [ '»' |  wf `elem` actives ] ++ ppLoadForm (collapse wf) ++ [ '«' |  wf `elem` actives ]
-  ppLoadForm :: Marked Form -> String
-  ppLoadForm (x, Just  y) = "__" ++ take (length (toString x) - length (toString y)) (toString x) ++ "__" ++ toString y
-  ppLoadForm (x, Nothing) = toString x
+
+ppLoadForm :: Marked Form -> String
+ppLoadForm (x, []) = toString x
+ppLoadForm (Neg f, ps) = "~__[" ++ intercalate "][ " (map toString ps) ++ "]__" ++ toString f
+ppLoadForm bad = error $ "bad: " ++ show bad
 
 htmlWForms :: [WForm] -> [WForm] -> HTML.Text
 htmlWForms wfs actives = intercalate [sp ", "] (map ppFormA (filter isLeft wfs)) ++ [sp "   |   "] ++ intercalate [sp ", "] (map ppFormA (filter (not . isLeft) wfs)) where
@@ -68,8 +72,9 @@ htmlWForms wfs actives = intercalate [sp ", "] (map ppFormA (filter isLeft wfs))
   ppFormA :: WForm -> HTML.Text
   ppFormA wf = (if wf `elem` actives then \ts -> [HTML.Format HTML.Bold ts] else id) $ htmlLoadForm (collapse wf)
   htmlLoadForm :: Marked Form -> HTML.Text
-  htmlLoadForm (x, Just  y) = [ HTML.Format HTML.Underline [sp $ take (length (toString x) - length (toString y)) (toString x)], sp $ toString y ]
-  htmlLoadForm (x, Nothing) = [ sp $ toString x ]
+  htmlLoadForm (x, []) = [ sp $ toString x ]
+  htmlLoadForm (Neg f, ps) = [ sp "¬[", HTML.Format HTML.Underline [sp $ intercalate "][" (map toString ps)], sp "]", sp $ toString f ]
+  htmlLoadForm bad = error $ "bad: " ++ show bad
 
 instance DispAble Tableaux where
   toGraph = toGraph' "" where
@@ -91,22 +96,18 @@ type RuleApplication = (RuleName, RulePriority, [[Marked Form]], Form -> Maybe F
 noChange :: Form -> Maybe Form
 noChange = Just
 
-without :: Marked Form -> Form -> Marked Form
-without (f,Nothing     ) _           = (f, Nothing)
-without (f,Just current) toBeRemoved = (f, if current == toBeRemoved then Nothing else Just current)
+isMarked :: (a, [Prog]) -> Bool
+isMarked (_, []) = False
+isMarked (_, _:_ ) = True
 
-isMarked :: (a, Maybe Form) -> Bool
-isMarked (_,Nothing) = False
-isMarked (_,Just _ ) = True
-
--- | The (M+) rule, marking ¬[a_1]...[a_n]g  with g.
+-- | The (M+) rule, marking ¬[a_1]...[a_n]g  by loading the sequence of boxes.
 -- This rule has priority 4.
 markRulesFor :: Marked Form -> [RuleApplication]
-markRulesFor (Neg f, Nothing) = case boxesOf f of
+markRulesFor (Neg f, []) = case boxesOf f of
   ([] , _)         -> []
-  (_:_, g) -> [ ("M+", 4, [ [ (Neg f, Just g) ] ], noChange) ]
-markRulesFor (_, Nothing) = []
-markRulesFor (_, Just _)  = [] -- TODO add M- rule here, but not immediately after M+
+  (ps@(_:_), g) -> [ ("M+", 4, [ [ (Neg g, ps) ] ], noChange) ]
+markRulesFor (_, []) = []
+markRulesFor (_, _:_)  = [] -- TODO add M- rule here, but avoid immediately after M+
 
 boxesOf :: Form -> ([Prog], Form)
 boxesOf (Box prog nextf) = let (rest,endf) = boxesOf nextf in (prog:rest, endf)
@@ -151,6 +152,23 @@ unravel f0 nform = -- trace ("unravelled " ++ toString f0 ++ " with nforms " ++ 
   g f@(At _) = [[ f ]]
   g f@(Con _ _) = [[ f ]]
 
+unravelLoaded :: Marked Form -> Maybe (Marked Form) -> [[Marked Form]]
+unravelLoaded f0@(Neg _, _) nform = -- trace ("unravelled " ++ toString f0 ++ " with nforms " ++ toStrings nforms ++ " to " ++ intercalate " ; " (map (intercalate "," . map toString) (g f0))) $
+  g f0 where
+  -- diamonds:
+  g (f, []) = [[(f, [])]]
+  g (Neg f, (Ap ap)     :rest) = [[(Neg f , Ap ap:rest)]]
+  g (Neg f, (Cup p1 p2) :rest) = g (Neg f, p1:rest) ++ g (Neg f, p2:rest)
+  g (Neg f, (pa :- pb)  :rest) = g (Neg f, pa:pb:rest)
+  g (Neg f, (Test tf)   :rest) = [ (tf,[]) : next | next <- g (Neg f, rest) ] -- diamond test is not branching.
+  g (Neg f, (Star pr)   :rest) =
+    if Just (Neg f, Star pr:rest) == nform
+    then [ ] -- new way to do condition 4, never create a branch with ~[a^n]P
+    else g (Neg f, rest) ++ unravelLoaded (Neg f, pr : Star pr : rest)
+                                          (Just (Neg f, Star pr : rest))
+  g f = error $ "will not happen:" ++ show f
+unravelLoaded  _ _ = error "bad form"
+
 -- | Set of pairwise unions of elements of two sets of sets.
 -- Helper function for `unravel`.
 (+.+) :: [[a]] -> [[a]] -> [[a]]
@@ -158,46 +176,53 @@ unravel f0 nform = -- trace ("unravelled " ++ toString f0 ++ " with nforms " ++ 
 
 -- | Eleven local rules (pages 15, 18, 19) and the atomic rule (page 24).
 ruleFor :: Marked Form -> Maybe RuleApplication
--- Nothing to do:
-ruleFor (At _       ,_) = Nothing
-ruleFor (Neg (At _) ,_) = Nothing
-ruleFor (Bot        ,_) = Nothing
-ruleFor (Neg Bot    ,_) = Nothing
--- Single-branch rules:
--- Note: page 19 says that (only) the local rules ¬u, ¬; ¬n and ¬? should be applied to marked formulas.
-ruleFor (Neg (Neg f)     ,Nothing) = Just ("¬",  1, [ [(f,Nothing)]                            ], noChange)
-ruleFor (Neg (Neg _)     ,Just _ ) = Nothing
-ruleFor (Con f g         ,Nothing) = Just ("∧" , 1, [ [(f,Nothing), (g,Nothing)]               ], noChange)
-ruleFor (Con _ _         ,Just _ ) = Nothing
-ruleFor (Neg (Box (Test f) g)  ,m) = Just ("¬?", 1, [ [(f,Nothing), (Neg g,m) `without` g ]    ], noChange)
-ruleFor (Neg (Box (x:-y) f)    ,m) = Just ("¬;", 1, [ [(Neg $ Box x (Box y f),m)]              ], noChange)
-ruleFor (Box (Ap _) _          ,_) = Nothing
-ruleFor (Box (Cup x y) f ,Nothing) = Just ("∪",  1, [ [(Box x f, Nothing), (Box y f, Nothing)] ], noChange)
-ruleFor (Box (Cup _ _) _ ,Just _ ) = Nothing
-ruleFor (Box (x :- y) f  ,Nothing) = Just (";",  1, [ [(Box x (Box y f),Nothing)]              ], noChange)
-ruleFor (Box (_ :- _) _  ,Just _ ) = Nothing
--- The (*) rule, using unravel:
-ruleFor (Box (Star x) f  ,Nothing) = Just ("*", 2, [ [ (newF, Nothing) | newF <- fs ]
-                                                   | fs <- unravel (Box (Star x) f) Nothing    ], noChange)
-ruleFor (Box (Star _) _  ,Just _ ) = Nothing -- (*) maye not be applied to marked formulas (before Def 13)
--- Splitting rules:
-ruleFor (Neg (Con f g)   ,Nothing) = Just ("¬∧", 3, [ [(Neg f,Nothing)]
-                                                    , [(Neg g,Nothing)]                    ], noChange)
-ruleFor (Neg (Con _ _)   ,Just _ ) = Nothing
-ruleFor (Box (Test f) g  ,Nothing) = Just ("?",  3, [ [(Neg f,Nothing)]
-                                                    , [(g,Nothing)]                        ], noChange)
-ruleFor (Box (Test _) _  ,Just _ ) = Nothing
-ruleFor (Neg (Box (Cup x y) f),m ) = Just ("¬∪", 3, [ [(Neg $ Box x f,m)]
-                                                    , [(Neg $ Box y f,m)]                  ], noChange)
--- The (¬*) rule, also using unravel:
-ruleFor (Neg (Box (Star x) f) ,m ) = Just ("¬*", 3, [ [ case m of
-                                                          Just g -> if newF == Neg g then (newF, Nothing) else (newF, m)
-                                                          Nothing -> (newF, m)
-                                                      | newF <- fs ]
-                                                    | fs <- unravel (Neg (Box (Star x) f)) Nothing ], noChange)
 -- The critical rule:
-ruleFor (Neg (Box (Ap x) f), Just mf) = Just ("At", 4, [ [(Neg f, Just mf) `without` f]   ], projection x)
-ruleFor (Neg (Box (Ap _) _), Nothing) = Nothing
+ruleFor (Neg f, Ap x:rest) = Just ("At", 4, [ [(Neg f, rest)]  ], projection x)
+
+-- Nothing to do:
+ruleFor (At _       ,[]) = Nothing
+ruleFor (Neg (At _) ,[]) = Nothing
+ruleFor (Bot        ,[]) = Nothing
+ruleFor (Neg Bot    ,[]) = Nothing
+-- Single-branch rules without markings:
+ruleFor (Neg (Neg f)          , []) = Just ("¬",  1, [ [(f,[])]                         ], noChange)
+ruleFor (Con f g              , []) = Just ("∧" , 1, [ [(f,[]), (g,[])]                 ], noChange)
+ruleFor (Neg (Box (x:-y)    f), []) = Just ("¬;", 1, [ [(Neg $ Box x (Box y f), [])] ], noChange)
+ruleFor (Neg (Box (Test tf) f), []) = Just ("¬?", 1, [ [(tf,[]), (Neg f,[]) ]    ], noChange)
+ruleFor (Box (Cup x y) f      , []) = Just ("∪",  1, [ [(Box x f, []), (Box y f, [])]  ], noChange)
+ruleFor (Box (x :- y) f       , []) = Just (";",  1, [ [(Box x (Box y f),[])]          ], noChange)
+ruleFor (Box (Ap _) _         , []) = Nothing
+-- loaded formulas without negation at top are badly formed:
+ruleFor (At _       ,_:_) = error "bad form"
+ruleFor (Bot        ,_:_) = error "bad form"
+ruleFor (Con _ _         , _:_ ) = error "bad form"
+ruleFor (Box _ _ , _:_) = error "bad form"
+-- Splitting rules without markings:
+ruleFor (Neg (Con f g)   ,[]) = Just ("¬∧", 3, [ [(Neg f,[])]
+                                               , [(Neg g,[])]                    ], noChange)
+ruleFor (Box (Test f) g  ,[]) = Just ("?",  3, [ [(Neg f,[])]
+                                               , [(g,[])]                        ], noChange)
+ruleFor (Neg (Box (Cup x y) f), []) = Just ("¬∪", 3, [ [(Neg $ Box x f,[])]
+                                                     , [(Neg $ Box y f,[])]      ], noChange)
+
+-- Only the local rules ¬u, ¬; ¬n and ¬? may be applied to marked formulas (page 19):
+ruleFor (Neg f, Cup x y:rest) = Just ("¬∪", 3, [ [(Neg f, x:rest)]
+                                               , [(Neg f, y:rest)]       ], noChange)
+ruleFor (Neg f, (x:-y) :rest) = Just ("¬;", 1, [ [(Neg f, x:y:rest)]     ], noChange)
+ruleFor (Neg f, Test tf:rest) = Just ("¬?", 1, [ [(tf,[]), (Neg f,rest)] ], noChange)
+ruleFor (Neg f, Star x :rest) = Just ("¬*", 3, unravelLoaded (Neg f, Star x:rest) Nothing, noChange)
+
+-- The (*) rule, using unravel:
+ruleFor (Box (Star x) f  ,[]) = Just ("*", 2, [ [ (newF, []) | newF <- fs ]
+                                              | fs <- unravel (Box (Star x) f) Nothing    ], noChange)
+-- The (¬*) rule without markings, also using unravel:
+ruleFor (Neg (Box (Star x) f) , [] ) = Just ("¬*", 3, [ [ (newF, [])
+                                                        | newF <- fs ]
+                                                      | fs <- unravel (Neg (Box (Star x) f)) Nothing ], noChange)
+-- The loading rule should be here?
+ruleFor (Neg (Box (Ap _) _), []) = Nothing
+
+-- ruleFor _ = error "Nothing" -- TODO: DELETE ME!
 
 -- | Apply change function from a rule to a weighted formulas.
 applyW :: (Form -> Maybe Form) -> WForm -> Maybe WForm
@@ -208,15 +233,21 @@ weightOf :: WForm -> (Marked Form -> WForm)
 weightOf (Left  _, _) = first Left
 weightOf (Right _, _) = first Right
 
+unload :: Marked Form -> Form
+unload (f, []) = f
+unload (Neg f, ps) = Neg $ boxes ps f
+unload bad = error $ "bad marked form: " ++ show bad
+
+wUnload :: WForm -> Either Form Form
+wUnload (Left f, ps) = Left $ unload (f, ps)
+wUnload (Right f, ps) = Right $ unload (f, ps)
+
 isClosedBy :: [WForm] -> [WForm]
 isClosedBy wfs
-  -- REMOVE? -- | not (all (isNormal . fst . collapse) wfs) = [] -- Never close n-nodes (note after Definition 12)
-  | Bot `elem` map (fst . collapse) wfs = take 1 [ wf | wf <- wfs, fst (collapse wf) == Bot ]
-  | otherwise = [ wf | wf <- wfs, Neg (fst (collapse wf)) `elem` map (fst . collapse) wfs ]
+  | Bot `elem` map (unload . collapse) wfs = take 1 [ wf | wf <- wfs, unload (collapse wf) == Bot ]
+  | otherwise = [ wf | wf <- wfs, Neg (unload (collapse wf)) `elem` map (unload . collapse) wfs ]
                 ++
-                [ wf | wf@(Left (Neg f), _) <- wfs, f `elem` map (fst . collapse) wfs ]
-                ++
-                [ wf | wf@(Right (Neg f), _) <- wfs, f `elem` map (fst . collapse) wfs ]
+                [ wf | wf <- wfs, Neg f <- [unload (collapse wf)], f `elem` map (unload . collapse) wfs ]
 
 -- | End nodes due to to extra condition 6 (page 25).
 isEndNodeBy :: [WForm] -> History -> [String]
@@ -306,8 +337,8 @@ globalSearchLimit = 200 -- TODO: remove or adjust depending on formula size, see
 -- To prove f, start with  ¬f.
 prove :: Form -> Tableaux
 prove frm = head $ filterOneIfAny isClosedTab $ extensionsUpTo globalSearchLimit $ case frm of
-  (Neg (Con f (Neg g))) -> Node [(Left       f, Nothing), (Right (Neg g), Nothing)] [] "" [] []
-  f                     -> Node [(Left $ Neg f, Nothing)                          ] [] "" [] []
+  (Neg (Con f (Neg g))) -> Node [(Left       f, []), (Right (Neg g), [])] [] "" [] []
+  f                     -> Node [(Left $ Neg f, [])                          ] [] "" [] []
 
 provable :: Form -> Bool
 provable = isClosedTab . prove
@@ -321,8 +352,8 @@ proveSlideshow f = do
 
 tableauFor :: [Form] -> Tableaux
 tableauFor fs = head $ filterOneIfAny isClosedTab $ extensionsUpTo globalSearchLimit $ case fs of
-  [ Neg (Neg (Con f (Neg g))) ] -> Node [(Left f, Nothing), (Right (Neg g), Nothing)] [] "" [] []
-  _anyOtherFormula              -> Node (map (\f -> (Left f, Nothing)) fs)            [] "" [] []
+  [ Neg (Neg (Con f (Neg g))) ] -> Node [(Left f, []), (Right (Neg g), [])] [] "" [] []
+  _anyOtherFormula              -> Node (map (\f -> (Left f, [])) fs)            [] "" [] []
 
 inconsistent :: [Form] -> Bool
 inconsistent = isClosedTab . tableauFor

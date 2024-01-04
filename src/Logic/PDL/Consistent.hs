@@ -28,7 +28,7 @@ allDiamondTableauxFor fs =
   | isSimple fs
   , dmf@(Neg (Box (Ap aprog) f)) <- fs
   ] where
-  weightify nfs = [(Left f, Nothing) | f <- nfs]
+  weightify nfs = [(Left f, []) | f <- nfs]
 
 -- | Set of S_{X,Y} for a given T from M_0.
 -- Instead of finding the root and end node and everything in between,
@@ -39,7 +39,7 @@ pathSetsOf n@(Node _ _ _ _ []) = [ localForms n ]
 -- local end node because condition 6
 pathSetsOf n@(Node _ _ ('6':_) _ [End]) = [ localForms n ]
 -- local end node because atomic rule is used:
-pathSetsOf n@(Node _ _ "M+" _ ts) = [ localForms n | not (null (concatMap pathSetsOf ts)) ]
+pathSetsOf n@(Node _ _ "M+" _ ts) = [ localForms n | not (all (null . pathSetsOf) ts) ]
 -- anywhere else, recurse until we get an open end node:
 pathSetsOf (Node _ _ _ _ ts@(_:_)) = concatMap pathSetsOf ts
 pathSetsOf End = []

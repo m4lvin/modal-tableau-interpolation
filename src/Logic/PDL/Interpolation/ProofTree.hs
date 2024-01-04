@@ -24,7 +24,7 @@ type Interpolant = Maybe Form
 
 -- | A Tableau with interpolants.
 data TableauxIP = Node
-                  { wfsOf :: [WForm]           -- ^ A list of (left/right) weighted (posisbly marked) formulas.
+                  { wfsOf :: [WForm]           -- ^ A list of (left/right) weighted (possibly loaded) formulas.
                   , mipOf :: Interpolant       -- ^ Maybe a formula that is an interpolant for this node.
                   , mtypOf :: Maybe TypeTK     -- ^ Type marker for \(T^K\).
                   , ruleOf :: RuleName         -- ^ Rule that is applied at this node.
@@ -64,7 +64,7 @@ ppWFormsTyp mtyp wfs actives = concat
   , intercalate ", " (map ppFormA (filter (not . isLeft) wfs)) ]
   where
     ppFormA wf = [ '»' |  wf `elem` actives ]
-              ++ removePars (toString (collapse wf))
+              ++ removePars (ppLoadForm (collapse wf))
               ++ [ '«' |  wf `elem` actives ]
     removePars ('(':rest) | last rest == ')' = init rest
     removePars str = str
@@ -124,10 +124,10 @@ ipOf :: TableauxIP -> Form
 ipOf (Node _ (Just f ) _ _ _ _) = f
 ipOf n@(Node _ Nothing   _ _ _ _) = error $ "No interpolant here (yet):" ++ ppTabStr n
 
--- | Get left or right formulas, and ignore markings!
+-- | Get left or right formulas, and undo the loading.
 leftsOf, rightsOf :: [WForm] -> [Form]
-leftsOf  wfs = [f | (Left  f,_) <- wfs]
-rightsOf wfs = [f | (Right f,_) <- wfs]
+leftsOf  wfs = [unload (collapse wf) | wf@(Left  _,_) <- wfs]
+rightsOf wfs = [unload (collapse wf) | wf@(Right _,_) <- wfs]
 
 -- * The easy part
 
@@ -154,7 +154,7 @@ fillIPs :: TableauxIP -> TableauxIP
 fillIPs t@(Node _ (Just _) _ _ _ _) = t
 -- Lemma 14: Closed end nodes: use the active formulas or a constant as interpolant:
 fillIPs (Node wfs Nothing mtyp "✘" actives []) = Node wfs mip mtyp "✘" actives [] where -- QUESTION: Why [] and not [End] here?
-  candidates = map fst actives -- NOTE: ignore markings
+  candidates = map wUnload actives -- NOTE: ignore markings
   mip = listToMaybe $ lrIp candidates
   lrIp fs = [ Bot | Left  Bot `elem` fs ]
          ++ [ top | Right Bot `elem` fs ]
@@ -174,11 +174,16 @@ fillIPs n@(Node wfs Nothing _ rule actives ts)
       newMIP = case (rule,actives,ts) of
         -- critical rule: prefix previous interpolant with diamond or Box, depending on active side
         -- if the other side is empty, use ⊥ or T, because <a>T and T have different voc (page 44)
-        ("At",[(Left  (Neg (Box (Ap x) _)),_)],[t]) ->
+        ("At",[(Left  (Neg _), (Ap x):_)],[t]) ->
           Just $ if null $ catMaybes [ projection x g | (Right g, _) <- wfs ] then Bot else dia (Ap x) (ipOf t)
-        ("At",[(Right (Neg (Box (Ap x) _)),_)],[t]) ->
+        ("At",[(Right (Neg _), (Ap x):_)],[t]) ->
           Just $ if null $ catMaybes [ projection x g | (Left g, _) <- wfs ] then top else Box (Ap x) (ipOf t)
+
+
+        -- ERROR here!
         ("At", _, _) -> error $ "Critical rule applied to " ++ ppWForms wfs actives ++ "\n  Unable to interpolate: " ++ show n
+
+
         -- end nodes due to extra condition 6:
         ('6':_,_, []) -> Nothing -- end node due to condition 6, deal with it later!
         -- There should not be any empty cases:
@@ -330,14 +335,14 @@ tkOf n@(Node _ (Just _) _ _ _ _) = error $ "Already have an interpolant, why bot
 tkOf n@(Node t_wfs Nothing _ _ _ _) = tk where
   tk =
     Node
-      ((Left (dtyOf n y2), Nothing) : yWithMarkings) -- D(T(Y2)) / Y2
+      ((Left (dtyOf n y2), []) : yWithMarkings) -- D(T(Y2)) / Y2
       Nothing -- no interpolant yet at root
       (Just One)
       "" -- anarchy, no rule!?
       [] -- PROBLEM: no actives but needed in Def 32 later?!
       (tkSuccessorsAt n tk []) -- empty path to point to root
   y2 = rightsOf t_wfs
-  yWithMarkings = filter (isRight . fst) t_wfs
+  yWithMarkings = filter (isRight . wUnload) t_wfs
 
 -- | Successors in \(T^K\), three cases as in Definition 31.
 tkSuccessorsAt :: TableauxIP -> TableauxIP -> Path -> [TableauxIP]
@@ -346,7 +351,7 @@ tkSuccessorsAt tj tk pth =
 -- 1 to 2 has one or no successors:
   Just One ->
       [ Node
-        ((Left (dOf (map (wfsOf . at tj) $ tOf tj y)), Nothing) : yWithMarkings)
+        ((Left (dOf (map (wfsOf . at tj) $ tOf tj y)), []) : yWithMarkings)
         Nothing -- no interpolants in TK??
         (Just Two)
         "" -- anarchy, no rule!?
@@ -357,7 +362,7 @@ tkSuccessorsAt tj tk pth =
 -- 2 to 3 has one or no successors:
   Just Two ->
       [ Node
-        ((Left (dOf (map (wfsOf . at tj) $ tOfTriangle tj y)), Nothing) : yWithMarkings)
+        ((Left (dOf (map (wfsOf . at tj) $ tOfTriangle tj y)), []) : yWithMarkings)
         Nothing -- no interpolants in TK??
         (Just Three)
         (ruleOf witness)
@@ -368,8 +373,8 @@ tkSuccessorsAt tj tk pth =
 -- 3 to 1 has n many successors:
   Just Three ->
       [ Node
-        ( (Left (dOf (map (wfsOf . at tj) $ tOf tj z)), Nothing)
-          : [ mf | mf <- wfsOf childT, isRight (fst mf) ] )
+        ( (Left (dOf (map (wfsOf . at tj) $ tOf tj z)), [])
+          : [ mf | mf <- wfsOf childT, isRight (wUnload mf) ] )
         Nothing -- no interpolants in TK??
         (Just One)
         "" -- anarchy, no rule!?
@@ -382,7 +387,7 @@ tkSuccessorsAt tj tk pth =
   where
     n@(Node wfs _ mtyp _ _ _) = tk `at` pth
     y = rightsOf wfs
-    yWithMarkings = filter (isRight . fst) wfs
+    yWithMarkings = filter (isRight . wUnload) wfs
 
 -- | All successors of a node in a TK tableau, with the paths to them.
 -- This is <, transitive closure of ◁.
@@ -428,7 +433,7 @@ canonProgStep tj tk (Node si_wfs _ (Just itype) si_rule si_actives tks) =
       if "At" `isInfixOf` si_rule
       -- NOTE: But what if there are multiple rules in one step?
       -- No worries, multiple (At) steps will never be merged, see condition 3. -- CHECKME
-        then let [(Neg (Box (Ap x) _), _)] = map collapse si_actives
+        then let [Neg (Box (Ap x) _)] = map (unload . collapse) si_actives
              in Ap x -- Get program from active formula.
         else Test top
     ij -> error $ "Impossible transition in TK: " ++ show ij
