@@ -75,3 +75,8 @@ filterOneIfAny p ts = if any p ts then take 1 (filter p ts) else ts
 -- | Add spaces to `str` to make if of length n.
 pad :: Int -> String -> String
 pad n str = str ++ replicate (n - length str) ' '
+
+-- | Remove the outermost pair of parentheses.
+removePars :: String -> String
+removePars ('(':rest) | last rest == ')' = init rest
+removePars str = str

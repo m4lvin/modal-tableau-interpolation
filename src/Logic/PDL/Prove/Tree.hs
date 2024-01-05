@@ -67,14 +67,17 @@ ppLoadForm (Neg f, ps) = "~__[" ++ intercalate "][" (map toString ps) ++ "]__" +
 ppLoadForm bad = error $ "bad: " ++ show bad
 
 htmlWForms :: [WForm] -> [WForm] -> HTML.Text
-htmlWForms wfs actives = intercalate [sp ", "] (map ppFormA (filter isLeft wfs)) ++ [sp "   |   "] ++ intercalate [sp ", "] (map ppFormA (filter (not . isLeft) wfs)) where
-  sp = HTML.Str . T.pack
+htmlWForms wfs actives = intercalate [strp ", "] (map ppFormA (filter isLeft wfs)) ++ [strp "   |   "] ++ intercalate [strp ", "] (map ppFormA (filter (not . isLeft) wfs)) where
   ppFormA :: WForm -> HTML.Text
   ppFormA wf = (if wf `elem` actives then \ts -> [HTML.Format HTML.Bold ts] else id) $ htmlLoadForm (collapse wf)
-  htmlLoadForm :: Marked Form -> HTML.Text
-  htmlLoadForm (x, []) = [ sp $ toString x ]
-  htmlLoadForm (Neg f, ps) = [ HTML.Format HTML.Underline [sp "¬[", sp $ intercalate "][" (map toString ps)], sp "]", sp $ toString f ]
-  htmlLoadForm bad = error $ "bad: " ++ show bad
+
+strp :: String -> HTML.TextItem
+strp = HTML.Str . T.pack
+
+htmlLoadForm :: Marked Form -> HTML.Text
+htmlLoadForm (x, []) = [ strp $ removePars (toString x) ]
+htmlLoadForm (Neg f, ps) = [ HTML.Format HTML.Underline [strp "¬[", strp $ intercalate "][" (map toString ps)], strp "]", strp $ toString f ]
+htmlLoadForm bad = error $ "bad: " ++ show bad
 
 instance DispAble Tableaux where
   toGraph = toGraph' "" where

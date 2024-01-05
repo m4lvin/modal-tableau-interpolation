@@ -6,7 +6,7 @@ import Data.Either (isRight)
 import Data.GraphViz (shape, toLabel) -- TODO: Shape(PlainText)
 import Data.GraphViz.Types.Monadic (edge, node)
 import Data.GraphViz.Attributes.Complete hiding (Box, Star)
-import qualified Data.GraphViz.Attributes.HTML as GVHTML
+import qualified Data.GraphViz.Attributes.HTML as HTML
 import Data.Maybe (listToMaybe, catMaybes, mapMaybe)
 import Data.List ((\\), intercalate, isInfixOf, isPrefixOf, sort)
 import Data.Text.Lazy (pack)
@@ -66,17 +66,26 @@ ppWFormsTyp mtyp wfs actives = concat
     ppFormA wf = [ '»' |  wf `elem` actives ]
               ++ removePars (ppLoadForm (collapse wf))
               ++ [ '«' |  wf `elem` actives ]
-    removePars ('(':rest) | last rest == ')' = init rest
-    removePars str = str
 
--- TODO: use colors to highlight loaded formulas in HTML output?
+-- | GraphViz-HTML-prettify a list of WForms, optionall with a 1/2/3-type.
+htmlWFormsTyp :: Maybe TypeTK -> [WForm] -> [WForm] -> HTML.Text
+htmlWFormsTyp mtyp wfs actives = concat
+  [ intercalate [strp ", "] (map ppFormA (filter isLeft wfs))
+  , [strp "   |"]
+  , [strp $ maybe "" showTyp mtyp]
+  , [strp "   "]
+  , intercalate [strp ", "] (map ppFormA (filter (not . isLeft) wfs)) ]
+  where
+    ppFormA :: WForm -> HTML.Text
+    ppFormA wf = (if wf `elem` actives then \ts -> [HTML.Format HTML.Bold ts] else id) $ htmlLoadForm (collapse wf)
+
 instance DispAble TableauxIP where
   toGraph = toGraph' "" where
     toGraph' pref (Node wfs mip mtyp rule actives ts) = do
-      node pref [shape PlainText, Label $ HtmlLabel $ GVHTML.Text
-                  [ GVHTML.Str $ pack $ ppWFormsTyp mtyp wfs actives
-                  , GVHTML.Format GVHTML.Bold [GVHTML.Str $ pack "  ::  "]
-                  , GVHTML.Str $ pack $ ppIP mip] ]
+      node pref [shape PlainText, Label $ HtmlLabel $ HTML.Text $
+                  htmlWFormsTyp mtyp wfs actives ++
+                  [ HTML.Format HTML.Bold [HTML.Str $ pack "  ::  "]
+                  , HTML.Str $ pack $ ppIP mip ] ]
       mapM_ (\(t,y') -> do
         toGraph' (pref ++ show y' ++ ":") t
         edge pref (pref ++ show y' ++ ":") [toLabel rule]
