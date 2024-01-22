@@ -22,6 +22,7 @@ someValidities =
   , "[?p*]⊤"
   , "[(?q u b)*]p <-> [b*]p"
   , "[(b u ?q)*]p <-> [b*]p"
+  , "[a*](p v [a*]p)-> [a*]p" -- nice example to trigger a proper I(Y)
   ]
 
 someValidImplications :: [Form]
