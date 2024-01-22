@@ -480,7 +480,8 @@ jSetOf tj tk pth_s = sort $ nubOrd $
   [ if pth_s == pth_t' then formulaP else Box prog formulaP
   | pth_t <- allPathsIn tk, let t = tk `at` pth_t
   , pth_t' <- allPathsIn tk, let t' = tk `at` pth_t'
-  , wfsOf t == wfsOf t' -- same pair -- FIXME: strict enough? do we have 1/2/3 types here?
+  , wfsOf t == wfsOf t'
+  , mtypOf t == mtypOf t'
   , pth_t `isProperPrefixOf` pth_s && pth_s `isPrefixOf` pth_t'
   , let pth_s_to_t' = drop (length pth_s) pth_t'
   , let prog = canonProg tj tk (tk `at` pth_s) pth_s_to_t'
