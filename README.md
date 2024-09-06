@@ -81,7 +81,11 @@ Prover:
 - Our deviations from Borzechowski:
     - [X] Avoid n-formulas, use `unravel` instead.
     - [X] Loading with underlined boxes instead of superscripts.
-    - [ ] Merge (M+) into (At) rule?
+    - Merge (M+) into (At) rule? No.
+- New changes done in article:
+    - [ ] nub the results of unfolding
+    - [ ] use unfolding for all non-atomic programs, remove other rules
+    - [ ] define Q instead of 
 
 Technical debt:
 - [ ] check priorities / preferences of all rules.
