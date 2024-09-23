@@ -20,11 +20,11 @@ jobs:
     - name: Compile all tests
       run: stack --system-ghc test --no-run-tests
     - name: "Run tests: propositional"
-      run: stack --system-ghc test Logic:test:propositional
+      run: stack --system-ghc test :propositional
     - name: "Run tests: basicmodal"
-      run: stack --system-ghc test Logic:test:basicmodal
+      run: stack --system-ghc test :basicmodal
     - name: "Run tests: pdl"
-      run: stack --system-ghc test Logic:test:pdl
+      run: stack --system-ghc test :pdl
     - name: "Run example"
       run: stack --system-ghc exec example
   build-web:

@@ -36,8 +36,8 @@ allDiamondTableauxFor fs =
 pathSetsOf :: Tableaux -> [[Form]]
 -- local end node because open / no children:
 pathSetsOf n@(Node _ _ _ _ []) = [ localForms n ]
--- local end node because condition 6
-pathSetsOf n@(Node _ _ ('6':_) _ [End]) = [ localForms n ]
+-- local end node because loaded-path-repeat
+pathSetsOf n@(Node _ _ ('l':'p':'r':_) _ [End]) = [ localForms n ]
 -- local end node because atomic rule is used:
 pathSetsOf n@(Node _ _ "M+" _ ts) = [ localForms n | not (all (null . pathSetsOf) ts) ]
 -- anywhere else, recurse until we get an open end node:

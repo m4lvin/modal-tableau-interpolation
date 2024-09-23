@@ -121,11 +121,11 @@ projection :: Atom -> Form -> Maybe Form
 projection x (Box (Ap y) g) | x == y = Just g
 projection _ _                       = Nothing
 
--- | Unravel the program in the top level modality. Assuming "at least one step".
--- This will be the even newer Definition 10.
+-- | Unfold the program in the top level modality. Assuming "at least one step".
 -- The two levels of lists are: branches, formulas.
-unravel :: Form -> Maybe Form -> [[Form]]
-unravel f0 nform = -- trace ("unravelled " ++ toString f0 ++ " with nforms " ++ toStrings nforms ++ " to " ++ intercalate " ; " (map (intercalate "," . map toString) (g f0))) $
+-- TODO: rewrite this to use the "H" and "P" definition instead of f0 and nform.
+unfold :: Form -> Maybe Form -> [[Form]]
+unfold f0 nform = -- trace ("unfoldled " ++ toString f0 ++ " with nforms " ++ toStrings nforms ++ " to " ++ intercalate " ; " (map (intercalate "," . map toString) (g f0))) $
   g f0 where
   -- diamonds:
   g (Neg (Box (Ap ap)     f)) = [[Neg (Box (Ap ap) f)]]
@@ -135,7 +135,7 @@ unravel f0 nform = -- trace ("unravelled " ++ toString f0 ++ " with nforms " ++ 
   g (Neg (Box (Star pr)   f)) =
     if Just (Box (Star pr)   f) == nform
     then [ ] -- new way to do condition 4, never create a branch with ~[a^n]P
-    else g (Neg f) ++ unravel (Neg (Box pr (Box (Star pr) f)))
+    else g (Neg f) ++ unfold (Neg (Box pr (Box (Star pr) f)))
                               (Just $ Box (Star pr ) f)
   -- boxes:
   g (Box (Ap ap)     f) = [[Box (Ap ap) f]]
@@ -145,8 +145,8 @@ unravel f0 nform = -- trace ("unravelled " ++ toString f0 ++ " with nforms " ++ 
   g (Box (Star pr)   f) =
     if Just (Box (Star pr) f) == nform
     then [ [] ] -- new way to do condition 2, avoid loops.
-    else g f +.+ unravel (Box pr (Box (Star pr) f)) (Just $ Box (Star pr) f)
-  -- other formulas, no unraveling:
+    else g f +.+ unfold (Box pr (Box (Star pr) f)) (Just $ Box (Star pr) f)
+  -- other formulas, no unfolding:
   g f@(Neg Bot) = [[ f ]]
   g f@(Neg (At _)) = [[ f ]]
   g f@(Neg (Neg _)) = [[ f ]]
@@ -155,8 +155,8 @@ unravel f0 nform = -- trace ("unravelled " ++ toString f0 ++ " with nforms " ++ 
   g f@(At _) = [[ f ]]
   g f@(Con _ _) = [[ f ]]
 
-unravelLoaded :: Marked Form -> Maybe (Marked Form) -> [[Marked Form]]
-unravelLoaded f0@(Neg _, _) nform = -- trace ("unravelled " ++ toString f0 ++ " with nforms " ++ toStrings nforms ++ " to " ++ intercalate " ; " (map (intercalate "," . map toString) (g f0))) $
+unfoldLoaded :: Marked Form -> Maybe (Marked Form) -> [[Marked Form]]
+unfoldLoaded f0@(Neg _, _) nform = -- trace ("unfoldled " ++ toString f0 ++ " with nforms " ++ toStrings nforms ++ " to " ++ intercalate " ; " (map (intercalate "," . map toString) (g f0))) $
   g f0 where
   -- diamonds:
   g (f, []) = [[(f, [])]]
@@ -167,17 +167,18 @@ unravelLoaded f0@(Neg _, _) nform = -- trace ("unravelled " ++ toString f0 ++ " 
   g (Neg f, (Star pr)   :rest) =
     if Just (Neg f, Star pr:rest) == nform
     then [ ] -- new way to do condition 4, never create a branch with ~[a^n]P
-    else g (Neg f, rest) ++ unravelLoaded (Neg f, pr : Star pr : rest)
+    else g (Neg f, rest) ++ unfoldLoaded (Neg f, pr : Star pr : rest)
                                           (Just (Neg f, Star pr : rest))
   g f = error $ "will not happen:" ++ show f
-unravelLoaded  _ _ = error "bad form"
+unfoldLoaded  _ _ = error "bad form"
 
 -- | Set of pairwise unions of elements of two sets of sets.
--- Helper function for `unravel`.
+-- Helper function for `unfold`.
 (+.+) :: [[a]] -> [[a]] -> [[a]]
 (+.+) ls ks = [ l ++ k | l <- ls, k <- ks ]
 
 -- | Eleven local rules (pages 15, 18, 19) and the atomic rule (page 24).
+-- TODO: replace local rules with general unfold rules.
 ruleFor :: Marked Form -> Maybe RuleApplication
 -- The critical rule:
 ruleFor (Neg f, Ap x:rest) = Just ("At", 4, [ [(Neg f, rest)]  ], projection x)
@@ -213,15 +214,15 @@ ruleFor (Neg f, Cup x y:rest) = Just ("¬∪", 3, [ [(Neg f, x:rest)]
                                                , [(Neg f, y:rest)]       ], noChange)
 ruleFor (Neg f, (x:-y) :rest) = Just ("¬;", 1, [ [(Neg f, x:y:rest)]     ], noChange)
 ruleFor (Neg f, Test tf:rest) = Just ("¬?", 1, [ [(tf,[]), (Neg f,rest)] ], noChange)
-ruleFor (Neg f, Star x :rest) = Just ("¬*", 3, unravelLoaded (Neg f, Star x:rest) Nothing, noChange)
+ruleFor (Neg f, Star x :rest) = Just ("¬*", 3, unfoldLoaded (Neg f, Star x:rest) Nothing, noChange)
 
--- The (*) rule, using unravel:
+-- The (*) rule, using unfold:
 ruleFor (Box (Star x) f  ,[]) = Just ("*", 2, [ [ (newF, []) | newF <- fs ]
-                                              | fs <- unravel (Box (Star x) f) Nothing    ], noChange)
--- The (¬*) rule without markings, also using unravel:
+                                              | fs <- unfold (Box (Star x) f) Nothing    ], noChange)
+-- The (¬*) rule without markings, also using unfold:
 ruleFor (Neg (Box (Star x) f) , [] ) = Just ("¬*", 3, [ [ (newF, [])
                                                         | newF <- fs ]
-                                                      | fs <- unravel (Neg (Box (Star x) f)) Nothing ], noChange)
+                                                      | fs <- unfold (Neg (Box (Star x) f)) Nothing ], noChange)
 -- The loading rule should be here?
 ruleFor (Neg (Box (Ap _) _), []) = Nothing
 
@@ -270,8 +271,8 @@ isEndNodeBy wfsNow history =
 extensions :: Tableaux -> [Tableaux]
 extensions End             = [End]
 extensions (Node wfs oldHistory "" [] [])
-  | not (null (isClosedBy wfs))             = [ Node wfs oldHistory "✘"                                          (isClosedBy wfs)   [End] ]
-  | not (null (isEndNodeBy wfs oldHistory)) = [ Node wfs oldHistory ("6: " ++ show (isEndNodeBy wfs oldHistory)) []                 [End] ]
+  | not (null (isClosedBy wfs))             = [ Node wfs oldHistory "✘" (isClosedBy wfs) [End] ]
+  | not (null (isEndNodeBy wfs oldHistory)) = [ Node wfs oldHistory ("lpr: " ++ show (isEndNodeBy wfs oldHistory)) [] [End] ]
   | null (whatshallwedo wfs)                = [ Node wfs oldHistory "" [] [] ] -- we are stuck!
   | otherwise =
       map (\ (wf,(ruleName,_,results,change)) ->
@@ -328,7 +329,7 @@ isClosedTab End = False -- check must succeed above the End!
 isClosedTab (Node wfs _ _       _ [End]) | isLoadedNode wfs = True
 isClosedTab (Node _   _ "✘"     _ [End]) = True
 isClosedTab (Node _   _ "4"     _ [End]) = False -- end node, see page 15
-isClosedTab (Node _   _ ('6':_) _ [End]) = False -- normal and free, but might be not closed
+isClosedTab (Node _   _ ('l':'p':'r':_) _ [End]) = False -- loaded path repeat
 isClosedTab (Node _   _ rule    _ [End]) = error $ "rule " ++ rule ++ " should not create an End node!"
 isClosedTab (Node _   _ _       _ []   ) = False
 isClosedTab (Node _   _ _       _ ts   ) = all isClosedTab ts

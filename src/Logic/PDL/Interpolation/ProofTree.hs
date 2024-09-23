@@ -193,8 +193,7 @@ fillIPs n@(Node wfs Nothing _ rule actives ts)
         ("At", _, _) -> error $ "Critical rule applied to " ++ ppWForms wfs actives ++ "\n  Unable to interpolate: " ++ show n
 
 
-        -- end nodes due to extra condition 6:
-        ('6':_,_, []) -> Nothing -- end node due to condition 6, deal with it later!
+        ('l':'p':'r':_,_, []) -> Nothing -- loaded-path repeat, deal with it later!
         -- There should not be any empty cases:
         (rl  ,_, []) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms wfs actives ++ "\n  Unable to interpolate: " ++ show n
         -- Default case is to use branchIP (Lemma 15):
@@ -205,7 +204,7 @@ fillIPs n@(Node wfs Nothing _ rule actives ts)
 fillAllIPs :: TableauxIP -> TableauxIP
 fillAllIPs = fixpoint fillIPs
 
--- * The hard part: condition 6 end nodes
+-- * The hard part: loaded-path repeats
 
 -- ** Find lowest \(M+\) to get \(T^J\)
 

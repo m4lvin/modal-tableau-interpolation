@@ -78,10 +78,10 @@ someNonValidities =
   , dia (Cup a b) p --> dia a p
   , Box (a :- Star a) p --> dia (a :- Star a) p
   , Con (Box a p) (Box b q) --> Box (Cup a b) (Con p q)
-  , Box (Star a) (dia a p) -- depends on reading of condition 6
-  , Neg $ Box (Star a) (dia a p) -- depends on reading of condition 6
+  , Box (Star a) (dia a p) -- depends on reading of MB condition 6
+  , Neg $ Box (Star a) (dia a p) -- depends on reading of MB condition 6
   , Box (Star a) (dia a top)
-  , Neg $ Box (Star a) (dia a top) -- depends on reading of condition 6
+  , Neg $ Box (Star a) (dia a top) -- depends on reading of MB condition 6
   , "<(?p;a)*>q -> q" -- matters for unraveling
   , "<(?p;a)*>q -> (p -> q)"
   , "q -> [(?p;a)*]q"

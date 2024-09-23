@@ -72,9 +72,9 @@ main = hspec $ do
       (fTest $ \ f -> withMaxSuccess 50000 $ label ("measure " ++ show (measure f)) $
         measure (simplify f) <= measure f)
 
-  describe "unravel" $ do
-    modifyMaxSuccess (const 1000) $ prop "f <--> \\//\\ unravel f" $
-      fTest $ \f -> provable (f <--> disSet [ conSet fs | fs <- unravel f Nothing ])
+  describe "unfold" $ do
+    modifyMaxSuccess (const 1000) $ prop "f <--> \\//\\ unfold f" $
+      fTest $ \f -> provable (f <--> disSet [ conSet fs | fs <- unfold f Nothing ])
 
   describe "Fischer-Ladner closure" $ do
     prop "length invariant under single negation" $
