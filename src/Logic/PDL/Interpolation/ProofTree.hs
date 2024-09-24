@@ -181,17 +181,15 @@ fillIPs n@(Node wfs Nothing _ rule actives ts)
 -- Lemma 15: Non-end nodes where children already have IPs: distinguish rules
   | otherwise = let
       newMIP = case (rule,actives,ts) of
-        -- critical rule: prefix previous interpolant with diamond or Box, depending on active side
+        -- Modal rule: prefix previous interpolant with diamond or Box, depending on active side
         -- if the other side is empty, use ⊥ or T, because <a>T and T have different voc (page 44)
-        ("At",[(Left  (Neg _), (Ap x):_)],[t]) ->
+        ("M",[(Left  (Neg _), (Ap x):_)],[t]) ->
           Just $ if null $ catMaybes [ projection x g | (Right g, _) <- wfs ] then Bot else dia (Ap x) (ipOf t)
-        ("At",[(Right (Neg _), (Ap x):_)],[t]) ->
+        ("M",[(Right (Neg _), (Ap x):_)],[t]) ->
           Just $ if null $ catMaybes [ projection x g | (Left g, _) <- wfs ] then top else Box (Ap x) (ipOf t)
 
-
         -- ERROR here!
-        ("At", _, _) -> error $ "Critical rule applied to " ++ ppWForms wfs actives ++ "\n  Unable to interpolate: " ++ show n
-
+        ("M", _, _) -> error $ "Modal rule applied to " ++ ppWForms wfs actives ++ "\n  Unable to interpolate: " ++ show n
 
         ('l':'p':'r':_,_, []) -> Nothing -- loaded-path repeat, deal with it later!
         -- There should not be any empty cases:
@@ -206,22 +204,22 @@ fillAllIPs = fixpoint fillIPs
 
 -- * The hard part: loaded-path repeats
 
--- ** Find lowest \(M+\) to get \(T^J\)
+-- ** Find lowest \(L+\) to get \(T^J\)
 
--- | Find a lowest \(M+\) application without interpolant.
+-- | Find a lowest \(L+\) application without interpolant.
 lowestMplusWithoutIP :: TableauxIP -> Maybe TableauxIP
-lowestMplusWithoutIP n@(Node _ Nothing _ rule _ _) | "M+" `isInfixOf` rule =
+lowestMplusWithoutIP n@(Node _ Nothing _ rule _ _) | "L+" `isInfixOf` rule =
   case mapMaybe lowestMplusWithoutIP (childrenOf n) of
     [] -> Just n
     _  -> listToMaybe $ mapMaybe lowestMplusWithoutIP (childrenOf n)
 lowestMplusWithoutIP n = listToMaybe $ mapMaybe lowestMplusWithoutIP (childrenOf n)
 
--- | Find a lowest \(M+\) application without interpolant and fill it via \(T^J\) and \(T^K\).
+-- | Find a lowest \(L+\) application without interpolant and fill it via \(T^J\) and \(T^K\).
 fillLowestMplus :: TableauxIP -> TableauxIP
 fillLowestMplus n@(Node _ Nothing _ rule _ _)
-  | "M+" `isInfixOf` rule && null (mapMaybe lowestMplusWithoutIP (childrenOf n)) =
+  | "L+" `isInfixOf` rule && null (mapMaybe lowestMplusWithoutIP (childrenOf n)) =
       let
-        -- NOTE: The remark before Defintiion 27 wlog assumes M+ is applied in Y2 (Right).
+        -- NOTE: The remark before Defintiion 27 wlog assumes L+ is applied in Y2 (Right).
         -- If instead it is in Y1 (Left) then we flip the tableau (which also negates all
         -- interpolants already found) ...
         isOnRight = or [ True | (Right _, _) <- activesOf n ]
@@ -337,7 +335,7 @@ iOf tj y = case tOfI tj y of
 
 -- | Definition 31: \(T^K\)
 -- Idea: Nodes in \(T^K\) correspond to \(Y\)-regions in \(T^J\).
--- Input should be the node Y1/Y2 obtained using M+ (page 35).
+-- Input should be the node Y1/Y2 obtained using L+ (page 35).
 tkOf :: TableauxIP -> TableauxIP
 tkOf n@(Node _ (Just _) _ _ _ _) = error $ "Already have an interpolant, why bother with T^K?\n" ++ ppTabStr n
 tkOf n@(Node t_wfs Nothing _ _ _ _) = tk where
@@ -438,7 +436,7 @@ canonProgStep tj tk (Node si_wfs _ (Just itype) si_rule si_actives tks) =
             | (sj_to_tl , Node tl_wfs _ (Just One) _ _ _) <- allSuccsOf sj
             , tl_wfs == si_wfs ]
     (Three, One) ->
-      if "At" `isInfixOf` si_rule
+      if "M" `isInfixOf` si_rule
       -- NOTE: But what if there are multiple rules in one step?
       -- No worries, multiple (At) steps will never be merged, see condition 3. -- CHECKME
         then let [Neg (Box (Ap x) _)] = map (unload . collapse) si_actives

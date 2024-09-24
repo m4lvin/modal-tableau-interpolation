@@ -1,25 +1,25 @@
 cradle:
   stack:
     - path: "./src"
-      component: "Logic:lib"
+      component: "modal-tableau-interpolation:lib"
 
     - path: "./exec/example.hs"
-      component: "Logic:exe:example"
+      component: "modal-tableau-interpolation:exe:example"
 
-    - path: "./exec/Paths_Logic.hs"
-      component: "Logic:exe:example"
+    - path: "./exec/Paths_modal-tableau-interpolation.hs"
+      component: "modal-tableau-interpolation:exe:example"
 
     - path: "./exec/tapdleau.hs"
-      component: "Logic:exe:tapdleau"
+      component: "modal-tableau-interpolation:exe:tapdleau"
 
-    - path: "./exec/Paths_Logic.hs"
-      component: "Logic:exe:tapdleau"
-
-    - path: "./test"
-      component: "Logic:test:basicmodal"
+    - path: "./exec/Paths_modal-tableau-interpolation.hs"
+      component: "modal-tableau-interpolation:exe:tapdleau"
 
     - path: "./test"
-      component: "Logic:test:pdl"
+      component: "modal-tableau-interpolation:test:basicmodal"
 
     - path: "./test"
-      component: "Logic:test:propositional"
+      component: "modal-tableau-interpolation:test:pdl"
+
+    - path: "./test"
+      component: "modal-tableau-interpolation:test:propositional"

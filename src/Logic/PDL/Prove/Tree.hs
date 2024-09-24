@@ -103,14 +103,14 @@ isMarked :: (a, [Prog]) -> Bool
 isMarked (_, []) = False
 isMarked (_, _:_ ) = True
 
--- | The (M+) rule, marking ¬[a_1]...[a_n]g  by loading the sequence of boxes.
+-- | The (L+) rule, marking ¬[a_1]...[a_n]g  by loading the sequence of boxes.
 -- This rule has priority 4.
 markRulesFor :: Marked Form -> [RuleApplication]
 markRulesFor (Neg f, []) = case boxesOf f of
   ([] , _)         -> []
-  (ps@(_:_), g) -> [ ("M+", 4, [ [ (Neg g, ps) ] ], noChange) ]
+  (ps@(_:_), g) -> [ ("L+", 4, [ [ (Neg g, ps) ] ], noChange) ]
 markRulesFor (_, []) = []
-markRulesFor (_, _:_)  = [] -- TODO add M- rule here, but avoid immediately after M+
+markRulesFor (_, _:_)  = [] -- TODO add L- rule here, but avoid immediately after L+
 
 boxesOf :: Form -> ([Prog], Form)
 boxesOf (Box prog nextf) = let (rest,endf) = boxesOf nextf in (prog:rest, endf)
@@ -126,7 +126,7 @@ projection _ _                       = Nothing
 -- TODO: rewrite this to use the "H" and "P" definition instead of f0 and nform.
 unfold :: Form -> Maybe Form -> [[Form]]
 unfold f0 nform = -- trace ("unfoldled " ++ toString f0 ++ " with nforms " ++ toStrings nforms ++ " to " ++ intercalate " ; " (map (intercalate "," . map toString) (g f0))) $
-  g f0 where
+  nub $ g f0 where
   -- diamonds:
   g (Neg (Box (Ap ap)     f)) = [[Neg (Box (Ap ap) f)]]
   g (Neg (Box (Cup p1 p2) f)) = g (Neg (Box p1 f)) ++ g (Neg (Box p2 f))
@@ -157,7 +157,7 @@ unfold f0 nform = -- trace ("unfoldled " ++ toString f0 ++ " with nforms " ++ to
 
 unfoldLoaded :: Marked Form -> Maybe (Marked Form) -> [[Marked Form]]
 unfoldLoaded f0@(Neg _, _) nform = -- trace ("unfoldled " ++ toString f0 ++ " with nforms " ++ toStrings nforms ++ " to " ++ intercalate " ; " (map (intercalate "," . map toString) (g f0))) $
-  g f0 where
+  nub $ g f0 where
   -- diamonds:
   g (f, []) = [[(f, [])]]
   g (Neg f, (Ap ap)     :rest) = [[(Neg f , Ap ap:rest)]]
@@ -180,8 +180,8 @@ unfoldLoaded  _ _ = error "bad form"
 -- | Eleven local rules (pages 15, 18, 19) and the atomic rule (page 24).
 -- TODO: replace local rules with general unfold rules.
 ruleFor :: Marked Form -> Maybe RuleApplication
--- The critical rule:
-ruleFor (Neg f, Ap x:rest) = Just ("At", 4, [ [(Neg f, rest)]  ], projection x)
+-- The modal rule:
+ruleFor (Neg f, Ap x:rest) = Just ("M", 4, [ [(Neg f, rest)]  ], projection x)
 
 -- Nothing to do:
 ruleFor (At _       ,[]) = Nothing
@@ -191,42 +191,40 @@ ruleFor (Neg Bot    ,[]) = Nothing
 -- Single-branch rules without markings:
 ruleFor (Neg (Neg f)          , []) = Just ("¬",  1, [ [(f,[])]                         ], noChange)
 ruleFor (Con f g              , []) = Just ("∧" , 1, [ [(f,[]), (g,[])]                 ], noChange)
-ruleFor (Neg (Box (x:-y)    f), []) = Just ("¬;", 1, [ [(Neg $ Box x (Box y f), [])] ], noChange)
-ruleFor (Neg (Box (Test tf) f), []) = Just ("¬?", 1, [ [(tf,[]), (Neg f,[]) ]    ], noChange)
-ruleFor (Box (Cup x y) f      , []) = Just ("∪",  1, [ [(Box x f, []), (Box y f, [])]  ], noChange)
-ruleFor (Box (x :- y) f       , []) = Just (";",  1, [ [(Box x (Box y f),[])]          ], noChange)
-ruleFor (Box (Ap _) _         , []) = Nothing
--- loaded formulas without negation at top are badly formed:
-ruleFor (At _       ,_:_) = error "bad form"
-ruleFor (Bot        ,_:_) = error "bad form"
-ruleFor (Con _ _         , _:_ ) = error "bad form"
+
+ruleFor (Neg (Box (x:-y)    f), []) = Just ("¬;", 1, [ [(Neg $ Box x (Box y f), [])] ], noChange) -- DELETE ME
+ruleFor (Neg (Box (Test tf) f), []) = Just ("¬?", 1, [ [(tf,[]), (Neg f,[]) ]    ], noChange) -- DELETE ME
+
+-- ruleFor (Box (Cup x y) f      , []) = Just ("∪",  1, [ [(Box x f, []), (Box y f, [])]  ], noChange) -- DELETE ME
+-- ruleFor (Box (x :- y) f       , []) = Just (";",  1, [ [(Box x (Box y f),[])]          ], noChange) -- DELETE ME
+
+-- Do nothing with unloaded atomic programs, modal rule may only be used on loaded formulas.
+ruleFor (Box (Ap _) _      , []) = Nothing
+ruleFor (Neg (Box (Ap _) _), []) = Nothing
+
+-- The unfold rule for boxes, used for (*) and other non-atomic programs:
+ruleFor (Box alpha f  ,[]) = Just ("□", 2, [ [ (newF, []) | newF <- fs ]
+                                           | fs <- unfold (Box alpha f) Nothing    ], noChange)
+
+-- The unfold rule for diamonds, used for (*) and other non-atomic programs:
+ruleFor (Neg (Box alpha f) , [] ) = Just ("♢", 3, [ [ (newF, [])
+                                                    | newF <- fs ]
+                                                  | fs <- unfold (Neg (Box alpha f)) Nothing ], noChange)
+
+-- Loaded formulas without negation at top are badly formed:
+ruleFor (At _    , _:_) = error "bad form"
+ruleFor (Bot     , _:_) = error "bad form"
+ruleFor (Con _ _ , _:_) = error "bad form"
 ruleFor (Box _ _ , _:_) = error "bad form"
+
 -- Splitting rules without markings:
 ruleFor (Neg (Con f g)   ,[]) = Just ("¬∧", 3, [ [(Neg f,[])]
                                                , [(Neg g,[])]                    ], noChange)
-ruleFor (Box (Test f) g  ,[]) = Just ("?",  3, [ [(Neg f,[])]
-                                               , [(g,[])]                        ], noChange)
-ruleFor (Neg (Box (Cup x y) f), []) = Just ("¬∪", 3, [ [(Neg $ Box x f,[])]
-                                                     , [(Neg $ Box y f,[])]      ], noChange)
 
--- Only the local rules ¬u, ¬; ¬n and ¬? may be applied to marked formulas (page 19):
-ruleFor (Neg f, Cup x y:rest) = Just ("¬∪", 3, [ [(Neg f, x:rest)]
-                                               , [(Neg f, y:rest)]       ], noChange)
-ruleFor (Neg f, (x:-y) :rest) = Just ("¬;", 1, [ [(Neg f, x:y:rest)]     ], noChange)
-ruleFor (Neg f, Test tf:rest) = Just ("¬?", 1, [ [(tf,[]), (Neg f,rest)] ], noChange)
-ruleFor (Neg f, Star x :rest) = Just ("¬*", 3, unfoldLoaded (Neg f, Star x:rest) Nothing, noChange)
+-- The loaded unfold rule for diamonds (will only match when alpha is non-atomic):
+ruleFor (Neg f, alpha:rest) = Just ("¬*", 3, unfoldLoaded (Neg f, alpha:rest) Nothing, noChange)
 
--- The (*) rule, using unfold:
-ruleFor (Box (Star x) f  ,[]) = Just ("*", 2, [ [ (newF, []) | newF <- fs ]
-                                              | fs <- unfold (Box (Star x) f) Nothing    ], noChange)
--- The (¬*) rule without markings, also using unfold:
-ruleFor (Neg (Box (Star x) f) , [] ) = Just ("¬*", 3, [ [ (newF, [])
-                                                        | newF <- fs ]
-                                                      | fs <- unfold (Neg (Box (Star x) f)) Nothing ], noChange)
 -- The loading rule should be here?
-ruleFor (Neg (Box (Ap _) _), []) = Nothing
-
--- ruleFor _ = error "Nothing" -- TODO: DELETE ME!
 
 -- | Apply change function from a rule to a weighted formulas.
 applyW :: (Form -> Maybe Form) -> WForm -> Maybe WForm
@@ -253,7 +251,8 @@ isClosedBy wfs
                 ++
                 [ wf | wf <- wfs, Neg f <- [unload (collapse wf)], f `elem` map (unload . collapse) wfs ]
 
--- | End nodes due to to extra condition 6 (page 25).
+-- | Loaded-path repeats are end nodes.
+-- In MB this is extra condition 6 (page 25).
 isEndNodeBy :: [WForm] -> History -> [String]
 isEndNodeBy wfsNow history =
   [ show k
@@ -262,8 +261,8 @@ isEndNodeBy wfsNow history =
   (k, (wfsBefore, _)) <- zip [(1 :: Int) ..] history
   -- with the same set of formulas:
   , wfsNow == wfsBefore -- Note: nodes are always sorted, and partitions must match (page 40).
-  -- and the path since then is critical, i.e. (At) has been used: -- TODO: but ignore whether At is used for first node of path (= last list element) (Def 13)
-  , "At" `elem` map snd (take k history)
+  -- and the path since then is critical, i.e. (M) has been used: -- TODO: but ignore whether At is used for first node of path (= last list element) (Def 13)
+  , "M" `elem` map snd (take k history)
   -- and if X is loaded, then the path from s to t is loaded:
   , isLoadedNode wfsNow  `implies` all (isLoadedNode . fst) (take k history)
   ]
@@ -272,7 +271,7 @@ extensions :: Tableaux -> [Tableaux]
 extensions End             = [End]
 extensions (Node wfs oldHistory "" [] [])
   | not (null (isClosedBy wfs))             = [ Node wfs oldHistory "✘" (isClosedBy wfs) [End] ]
-  | not (null (isEndNodeBy wfs oldHistory)) = [ Node wfs oldHistory ("lpr: " ++ show (isEndNodeBy wfs oldHistory)) [] [End] ]
+  | not (null (isEndNodeBy wfs oldHistory)) = [ Node wfs oldHistory ("lpr: " ++ concat (isEndNodeBy wfs oldHistory)) [] [End] ]
   | null (whatshallwedo wfs)                = [ Node wfs oldHistory "" [] [] ] -- we are stuck!
   | otherwise =
       map (\ (wf,(ruleName,_,results,change)) ->
@@ -306,7 +305,7 @@ whatshallwedo wfs = chooseRule $ pairWithList (availableRules . collapse) wfs wh
 -- | Choosing a rule. This is reduces the search space for efficiency.
 -- We sort and group all possible rule applications by their priority.
 -- Within each priority we pick one and postpone all others, with an
--- exception for priority 4 (i.e. (At) and (M+) rules) where always
+-- exception for priority 4 (i.e. (M) and (L+) rules) where always
 -- all possible applications must be considered.
 chooseRule :: [(WForm,RuleApplication)] -> [(WForm,RuleApplication)]
 chooseRule moves
@@ -322,13 +321,12 @@ chooseRule moves
   where
      wOf (_,(_,priority,_,_))= priority
 
--- Definition 16, page 29
+-- MB Definition 16, page 29
 -- "A tableau T is called closed iff all normal free end nodes of T are closed."
 isClosedTab :: Tableaux -> Bool
 isClosedTab End = False -- check must succeed above the End!
 isClosedTab (Node wfs _ _       _ [End]) | isLoadedNode wfs = True
 isClosedTab (Node _   _ "✘"     _ [End]) = True
-isClosedTab (Node _   _ "4"     _ [End]) = False -- end node, see page 15
 isClosedTab (Node _   _ ('l':'p':'r':_) _ [End]) = False -- loaded path repeat
 isClosedTab (Node _   _ rule    _ [End]) = error $ "rule " ++ rule ++ " should not create an End node!"
 isClosedTab (Node _   _ _       _ []   ) = False

@@ -39,7 +39,7 @@ pathSetsOf n@(Node _ _ _ _ []) = [ localForms n ]
 -- local end node because loaded-path-repeat
 pathSetsOf n@(Node _ _ ('l':'p':'r':_) _ [End]) = [ localForms n ]
 -- local end node because atomic rule is used:
-pathSetsOf n@(Node _ _ "M+" _ ts) = [ localForms n | not (all (null . pathSetsOf) ts) ]
+pathSetsOf n@(Node _ _ "L+" _ ts) = [ localForms n | not (all (null . pathSetsOf) ts) ]
 -- anywhere else, recurse until we get an open end node:
 pathSetsOf (Node _ _ _ _ ts@(_:_)) = concatMap pathSetsOf ts
 pathSetsOf End = []
@@ -47,7 +47,7 @@ pathSetsOf End = []
 -- | Local part of a history, i.e. until the last application of the atomic rule.
 localPartOf :: History -> History
 localPartOf [] = []
-localPartOf ((_,"M+"):_) = []
+localPartOf ((_,"L+"):_) = []
 localPartOf ((wfs,rule):rest) = (wfs,rule) : localPartOf rest
 
 -- | All formulas true on the local path.
