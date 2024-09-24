@@ -86,7 +86,7 @@ Prover:
     - [X] nub the results of unfolding
     - [X] use unfolding for all non-atomic programs, remove other rules
     - [ ] define Q instead of T^K etc.
-    - [ ] use out terminology instead of MB (e.g. (M) instead of (At) etc.)
+    - [ ] use our terminology instead of MB (e.g. (M) instead of (At) etc.)
 
 Technical debt:
 - [ ] check priorities / preferences of all rules.

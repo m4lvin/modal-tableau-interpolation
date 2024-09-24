@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Logic.PDL.Interpolation.ProofTree where
 
 import Control.Monad (when)
@@ -8,7 +10,7 @@ import Data.GraphViz.Types.Monadic (edge, node)
 import Data.GraphViz.Attributes.Complete hiding (Box, Star)
 import qualified Data.GraphViz.Attributes.HTML as HTML
 import Data.Maybe (listToMaybe, catMaybes, mapMaybe)
-import Data.List ((\\), intercalate, isInfixOf, isPrefixOf, sort)
+import Data.List ((\\), intercalate, isPrefixOf, sort)
 import Data.Text.Lazy (pack)
 
 import Logic.PDL
@@ -88,11 +90,11 @@ instance DispAble TableauxIP where
                   , HTML.Str $ pack $ ppIP mip ] ]
       mapM_ (\(t,y') -> do
         toGraph' (pref ++ show y' ++ ":") t
-        edge pref (pref ++ show y' ++ ":") [toLabel rule]
+        edge pref (pref ++ show y' ++ ":") [toLabel (toString rule)]
         ) (zip ts [(0::Integer)..])
       when (null ts) $ do
-        node (pref ++ "end") [shape PlainText, toLabel "."]
-        edge pref (pref ++ "end") [toLabel rule]
+        node (pref ++ "end") [shape PlainText, toLabel ("." :: String)]
+        edge pref (pref ++ "end") [toLabel (toString rule)]
 
 ppTab :: TableauxIP -> IO ()
 ppTab = putStr . ppTabStr
@@ -103,7 +105,7 @@ ppTabStr = ppTab' "" where
     let mipstr = maybe "" (("I = " ++) . toString) mip
     in pref ++ ppWFormsTyp mtyp wfs actives ++ "      " ++ mipstr ++ "\n"
        ++
-       pref ++ "(" ++ rule ++ ")"  ++ "\n"
+       pref ++ "(" ++ toString rule ++ ")"  ++ "\n"
        ++
        concatMap (\t -> (if length ts > 1 then pref ++ ".\n" else "") ++ ppTab' (pref ++ if length ts > 1 then "   " else "") t) ts
 
@@ -191,9 +193,9 @@ fillIPs n@(Node wfs Nothing _ rule actives ts)
         -- ERROR here!
         ("M", _, _) -> error $ "Modal rule applied to " ++ ppWForms wfs actives ++ "\n  Unable to interpolate: " ++ show n
 
-        ('l':'p':'r':_,_, []) -> Nothing -- loaded-path repeat, deal with it later!
+        ("lpr",_, []) -> Nothing -- loaded-path repeat, deal with it later!
         -- There should not be any empty cases:
-        (rl  ,_, []) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms wfs actives ++ "\n  Unable to interpolate: " ++ show n
+        (rl  ,_, []) -> error $ "Rule " ++ toString rl ++ " applied to " ++ ppWForms wfs actives ++ "\n  Unable to interpolate: " ++ show n
         -- Default case is to use branchIP (Lemma 15):
         (_, _, _) -> branchIP wfs ts
       in Node wfs newMIP Nothing rule actives ts
@@ -208,7 +210,7 @@ fillAllIPs = fixpoint fillIPs
 
 -- | Find a lowest \(L+\) application without interpolant.
 lowestMplusWithoutIP :: TableauxIP -> Maybe TableauxIP
-lowestMplusWithoutIP n@(Node _ Nothing _ rule _ _) | "L+" `isInfixOf` rule =
+lowestMplusWithoutIP n@(Node _ Nothing _ rule _ _) | "L+" == rule =
   case mapMaybe lowestMplusWithoutIP (childrenOf n) of
     [] -> Just n
     _  -> listToMaybe $ mapMaybe lowestMplusWithoutIP (childrenOf n)
@@ -217,7 +219,7 @@ lowestMplusWithoutIP n = listToMaybe $ mapMaybe lowestMplusWithoutIP (childrenOf
 -- | Find a lowest \(L+\) application without interpolant and fill it via \(T^J\) and \(T^K\).
 fillLowestMplus :: TableauxIP -> TableauxIP
 fillLowestMplus n@(Node _ Nothing _ rule _ _)
-  | "L+" `isInfixOf` rule && null (mapMaybe lowestMplusWithoutIP (childrenOf n)) =
+  | "L+" == rule && null (mapMaybe lowestMplusWithoutIP (childrenOf n)) =
       let
         -- NOTE: The remark before Defintiion 27 wlog assumes L+ is applied in Y2 (Right).
         -- If instead it is in Y1 (Left) then we flip the tableau (which also negates all
@@ -248,7 +250,7 @@ tjOf = tjOf' [] where
   tjOf' history (Node wfs ip _ rule actives ts) =
     Node wfs ip Nothing rule actives (if stop then [] else map (tjOf' (wfs:history)) ts) where
     stop = or
-      [ rule == "M-" -- Stop when the rule (M-) is applied.
+      [ toString rule == "L-" -- CURRENTLY UNUSED: Stop when the rule (L-) is applied.
       , (not . isLoadedNode) wfs -- Stop at free nodes.
       , length ts == 1 && null (leftsOf (wfsOf (head ts))) -- Stop when first component of (unique!?) successor is empty.
       , wfs `elem` history -- Stop when there is a predecessor with same pair.
@@ -436,7 +438,7 @@ canonProgStep tj tk (Node si_wfs _ (Just itype) si_rule si_actives tks) =
             | (sj_to_tl , Node tl_wfs _ (Just One) _ _ _) <- allSuccsOf sj
             , tl_wfs == si_wfs ]
     (Three, One) ->
-      if "M" `isInfixOf` si_rule
+      if "M" == si_rule
       -- NOTE: But what if there are multiple rules in one step?
       -- No worries, multiple (At) steps will never be merged, see condition 3. -- CHECKME
         then let [Neg (Box (Ap x) _)] = map (unload . collapse) si_actives
@@ -465,7 +467,7 @@ annotateTk tj tk = annotateInside [] where
   annotateInside pth =
     let n = tk `at` pth
     in n { mipOf = Just (ipFor tj tk pth)
-         , ruleOf = intercalate " // " $ map (toString . fst) (canonProgStep tj tk n)
+         , ruleOf = "" -- UGLY HACK --- intercalate " // " $ map (toString . fst) (canonProgStep tj tk n)
          , childrenOf = [ annotateInside (pth ++ [k]) | (k,_) <- zip [0,1] (childrenOf n) ]  }
 
 -- ** Tools for the interpolant-is-an-interpolant proof

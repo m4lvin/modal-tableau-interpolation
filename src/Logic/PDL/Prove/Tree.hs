@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, OverloadedStrings #-}
 
 module Logic.PDL.Prove.Tree where
 
@@ -11,6 +11,7 @@ import Data.GraphViz hiding (Shape(Star))
 import Data.GraphViz.Types.Monadic hiding ((-->))
 import Data.List
 import Data.Maybe
+import Data.String( IsString(..) )
 -- import Debug.Trace
 
 import Logic.Internal
@@ -36,7 +37,32 @@ allNodesOf End = []
 -- Note: head of this list is the immediate predecessor, last element is the root!
 type History = [([WForm],RuleName)]
 
-type RuleName = String -- TODO: data RuleName = Con | NegCon | ...  and "¬" etc. with OverloadedStrings
+data RuleName = NoR | CloseR | NegR | ConR | NConR | LoadR | ModR | BoxR | DiaR | LpR
+  deriving (Eq,Ord,Show)
+
+ruleNames :: [(String, RuleName)]
+ruleNames =
+  [ (""   , NoR)
+  , ("✘" , CloseR)
+  , ("¬"  , NegR)
+  , ("∧"  , ConR)
+  , ("¬∧" , NConR)
+  , ("L+" , LoadR)
+  , ("M"  , ModR)
+  , ("□"  , BoxR)
+  , ("♢"  , DiaR)
+  , ("lpr", LpR)
+  ]
+
+instance Stringable RuleName where
+  toString rln = case lookup rln (map (\(x,y) -> (y,x)) ruleNames) of
+    Nothing -> error $ "unknown rule: " ++ show rln
+    Just str -> str
+
+instance IsString RuleName where
+  fromString str = case lookup str ruleNames of
+    Nothing -> error $ "unknown rule: " ++ str
+    Just rln -> rln
 
 -- | A loaded formula is prefixed by a negation and a non-empty sequence of boxes.
 -- Example: (Neg f, [a,b]) stands for ¬[a][b]f with [a][b] underlined.
@@ -82,12 +108,12 @@ htmlLoadForm bad = error $ "bad: " ++ show bad
 instance DispAble Tableaux where
   toGraph = toGraph' "" where
     toGraph' pref End =
-      node pref [shape PlainText, toLabel "."]
+      node pref [shape PlainText, toLabel ("." :: String)]
     toGraph' pref (Node wfs _ rule actives ts) = do
       node pref [shape PlainText, C.Label $ C.HtmlLabel $ HTML.Text $ htmlWForms wfs actives]
       mapM_ (\(t,y') -> do
         toGraph' (pref ++ show y' ++ ":") t
-        edge pref (pref ++ show y' ++ ":") [toLabel rule]
+        edge pref (pref ++ show y' ++ ":") [toLabel ("(" ++ toString rule ++ ")")]
         ) (zip ts [(0::Integer)..])
 
 type RulePriority = Int -- TODO: use a finite data RuleType = Local | Critical | Marking  or similar?
@@ -192,12 +218,6 @@ ruleFor (Neg Bot    ,[]) = Nothing
 ruleFor (Neg (Neg f)          , []) = Just ("¬",  1, [ [(f,[])]                         ], noChange)
 ruleFor (Con f g              , []) = Just ("∧" , 1, [ [(f,[]), (g,[])]                 ], noChange)
 
-ruleFor (Neg (Box (x:-y)    f), []) = Just ("¬;", 1, [ [(Neg $ Box x (Box y f), [])] ], noChange) -- DELETE ME
-ruleFor (Neg (Box (Test tf) f), []) = Just ("¬?", 1, [ [(tf,[]), (Neg f,[]) ]    ], noChange) -- DELETE ME
-
--- ruleFor (Box (Cup x y) f      , []) = Just ("∪",  1, [ [(Box x f, []), (Box y f, [])]  ], noChange) -- DELETE ME
--- ruleFor (Box (x :- y) f       , []) = Just (";",  1, [ [(Box x (Box y f),[])]          ], noChange) -- DELETE ME
-
 -- Do nothing with unloaded atomic programs, modal rule may only be used on loaded formulas.
 ruleFor (Box (Ap _) _      , []) = Nothing
 ruleFor (Neg (Box (Ap _) _), []) = Nothing
@@ -222,7 +242,7 @@ ruleFor (Neg (Con f g)   ,[]) = Just ("¬∧", 3, [ [(Neg f,[])]
                                                , [(Neg g,[])]                    ], noChange)
 
 -- The loaded unfold rule for diamonds (will only match when alpha is non-atomic):
-ruleFor (Neg f, alpha:rest) = Just ("¬*", 3, unfoldLoaded (Neg f, alpha:rest) Nothing, noChange)
+ruleFor (Neg f, alpha:rest) = Just ("♢", 3, unfoldLoaded (Neg f, alpha:rest) Nothing, noChange)
 
 -- The loading rule should be here?
 
@@ -270,8 +290,8 @@ isEndNodeBy wfsNow history =
 extensions :: Tableaux -> [Tableaux]
 extensions End             = [End]
 extensions (Node wfs oldHistory "" [] [])
-  | not (null (isClosedBy wfs))             = [ Node wfs oldHistory "✘" (isClosedBy wfs) [End] ]
-  | not (null (isEndNodeBy wfs oldHistory)) = [ Node wfs oldHistory ("lpr: " ++ concat (isEndNodeBy wfs oldHistory)) [] [End] ]
+  | not (null (isClosedBy wfs))             = [ Node wfs oldHistory CloseR (isClosedBy wfs) [End] ]
+  | not (null (isEndNodeBy wfs oldHistory)) = [ Node wfs oldHistory ("lpr") [] [End] ] -- TODO: show number of steps again for lpr ++ concat (isEndNodeBy wfs oldHistory)
   | null (whatshallwedo wfs)                = [ Node wfs oldHistory "" [] [] ] -- we are stuck!
   | otherwise =
       map (\ (wf,(ruleName,_,results,change)) ->
@@ -285,8 +305,7 @@ extensions (Node wfs oldHistory "" [] [])
           (whatshallwedo wfs)
 extensions (Node wfs history rule actives ts@(_:_)) =
   [ Node wfs history rule actives ts' | ts' <- pickOneOfEach $ map (filterOneIfAny isClosedTab . extensions) ts ]
-extensions (Node _  _ []         (_:_) []) = error "Cannot have active formulas without a rule!"
-extensions (Node _  _ rule@(_:_) _     []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"
+-- extensions (Node _  _ rule _     []) = error $ "Rule '" ++ toString rule ++ "' applied but no successors!"
 
 extensionsUpTo :: Int -> Tableaux -> [Tableaux]
 extensionsUpTo 0 _ = error "Tableau is too long, giving up!"
@@ -327,8 +346,8 @@ isClosedTab :: Tableaux -> Bool
 isClosedTab End = False -- check must succeed above the End!
 isClosedTab (Node wfs _ _       _ [End]) | isLoadedNode wfs = True
 isClosedTab (Node _   _ "✘"     _ [End]) = True
-isClosedTab (Node _   _ ('l':'p':'r':_) _ [End]) = False -- loaded path repeat
-isClosedTab (Node _   _ rule    _ [End]) = error $ "rule " ++ rule ++ " should not create an End node!"
+isClosedTab (Node _   _ "lpr"   _ [End]) = False -- loaded path repeat
+isClosedTab (Node _   _ rule    _ [End]) = error $ "rule " ++ toString rule ++ " should not create an End node!"
 isClosedTab (Node _   _ _       _ []   ) = False
 isClosedTab (Node _   _ _       _ ts   ) = all isClosedTab ts
 
@@ -340,7 +359,7 @@ globalSearchLimit = 200 -- TODO: remove or adjust depending on formula size, see
 prove :: Form -> Tableaux
 prove frm = head $ filterOneIfAny isClosedTab $ extensionsUpTo globalSearchLimit $ case frm of
   (Neg (Con f (Neg g))) -> Node [(Left       f, []), (Right (Neg g), [])] [] "" [] []
-  f                     -> Node [(Left $ Neg f, [])                          ] [] "" [] []
+  f                     -> Node [(Left $ Neg f, [])                     ] [] "" [] []
 
 provable :: Form -> Bool
 provable = isClosedTab . prove

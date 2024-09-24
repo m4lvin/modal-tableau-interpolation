@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Logic.PDL.Consistent where
 
 import Data.Maybe
@@ -24,7 +26,7 @@ m0 t0 = closeWith closure [t0] where
 -- | Generate tableaux with given root for all possible choice of diamonds.
 allDiamondTableauxFor :: [Form] -> [Tableaux]
 allDiamondTableauxFor fs =
-  [ Node (weightify fs) [] "At" (weightify [dmf]) [tableauFor $ Neg f : mapMaybe (projection aprog) fs]
+  [ Node (weightify fs) [] "M" (weightify [dmf]) [tableauFor $ Neg f : mapMaybe (projection aprog) fs]
   | isSimple fs
   , dmf@(Neg (Box (Ap aprog) f)) <- fs
   ] where
@@ -37,7 +39,7 @@ pathSetsOf :: Tableaux -> [[Form]]
 -- local end node because open / no children:
 pathSetsOf n@(Node _ _ _ _ []) = [ localForms n ]
 -- local end node because loaded-path-repeat
-pathSetsOf n@(Node _ _ ('l':'p':'r':_) _ [End]) = [ localForms n ]
+pathSetsOf n@(Node _ _ "lpr" _ [End]) = [ localForms n ]
 -- local end node because atomic rule is used:
 pathSetsOf n@(Node _ _ "L+" _ ts) = [ localForms n | not (all (null . pathSetsOf) ts) ]
 -- anywhere else, recurse until we get an open end node:
