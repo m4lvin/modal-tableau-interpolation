@@ -40,4 +40,4 @@ jobs:
           ~/.stack-work
     - uses: actions/checkout@v4
     - name: Compile web interface
-      run: stack --system-ghc build Logic:exe:tapdleau
+      run: stack --system-ghc build :tapdleau
