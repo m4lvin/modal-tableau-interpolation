@@ -166,7 +166,7 @@ class HasMeasure a where
 
 instance HasMeasure Prog where
   measure (Ap _)    = 0
-  measure (Test f)   = maximum [measure f, measure (Neg f)] + 1
+  measure (Test f)   = max (measure f) (measure (Neg f)) + 1
   measure (p1 :- p2) = measure p1 + measure p2 + 1
   measure (Cup p1 p2) = measure p1 + measure p2 + 1
   measure (Star pr)  = 1 + measure pr
@@ -206,6 +206,8 @@ instance CanBeSimple Form where
   isSimple _ = False
 
 -- | Simplify a formula by removing double negations etc.
+-- Note that this can reduce the vocabulary used in a formula.
+-- It also may change the top-level program and thus local measure.
 simplify :: Form -> Form
 simplify = fixpoint simstep where
   simstep Bot           = Bot
@@ -216,9 +218,15 @@ simplify = fixpoint simstep where
   simstep (Con Bot _)   = Bot
   simstep (Con _ Bot)   = Bot
   simstep (Con (Neg Bot) f) = simstep f
+  -- p ∧ [a][a*]p  becomes [a*]p here:
+  simstep (Con f (Box p1 (Box (Star p2) g))) | f == g && p1 == p2 = simstep (Box (Star p1) f)
+  simstep (Con (Box p1 (Box (Star p2) f)) g) | f == g && p1 == p2 = simstep (Box (Star p1) f)
+  simstep (Con f (Box (Star p1) (Box p2 g))) | f == g && p1 == p2 = simstep (Box (Star p1) f)
+  simstep (Con (Box (Star p1) (Box p2 f)) g) | f == g && p1 == p2 = simstep (Box (Star p1) f)
   simstep (Con f (Neg Bot)) = simstep f
   simstep (Con f g) | f == g = simstep f
   simstep (Con f g)     = Con (simstep f) (simstep g)
+  simstep (Box _ (Neg Bot)) = Neg Bot -- reduces vocabulary!
   simstep (Box (Test (Neg Bot)) f) = simstep f
   simstep (Box pr f)    = Box (simplifyProg pr) $ simstep f
 
@@ -230,7 +238,7 @@ simplifyProg = fixpoint simstep where
   simstep (Test (Neg Bot) :- pr2)  = simstep pr2
   simstep (pr1 :- Test (Neg Bot))  = simstep pr1
   simstep (pr1 :- pr2)  = simstep pr1 :- simstep pr2
-  simstep (Star (Star pr)) = Star(simstep pr)
+  simstep (Star (Star pr)) = Star (simstep pr)
   simstep (Star  pr)    = Star (simstep pr)
   simstep (Test   f)    = Test (simplify f)
 
@@ -343,7 +351,7 @@ lfp f x = if f x == x then x else lfp f (f x)
 lfpList :: Eq a => (a -> [a]) -> [a] -> [a]
 lfpList _ []  = []
 lfpList f set = set ++ rest where
-  rest | all (`elem` set) (concatMap f set) = set
+  rest | all (all (`elem` set) . f) set = set
        | otherwise = lfpList f (set ++ (concatMap f set \\ set))
 
 globeval :: (Show a, Eq a) => Model a -> Form -> Bool

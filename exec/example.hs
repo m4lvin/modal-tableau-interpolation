@@ -30,7 +30,7 @@ main = do
   ppTab ti
 
   putStrLn "\nLowest M+ rule without interpolant:"
-  let Just mstart = lowestMplusWithoutIP ti
+  let Just mstart = lowestLplusWithoutIP ti
   ppTab mstart
 
   -- T^J

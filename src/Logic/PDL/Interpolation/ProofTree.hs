@@ -209,24 +209,26 @@ fillAllIPs = fixpoint fillIPs
 -- ** Find lowest \(L+\) to get \(T^J\)
 
 -- | Find a lowest \(L+\) application without interpolant.
-lowestMplusWithoutIP :: TableauxIP -> Maybe TableauxIP
-lowestMplusWithoutIP n@(Node _ Nothing _ rule _ _) | "L+" == rule =
-  case mapMaybe lowestMplusWithoutIP (childrenOf n) of
+lowestLplusWithoutIP :: TableauxIP -> Maybe TableauxIP
+lowestLplusWithoutIP n@(Node _ Nothing _ rule _ _) | "L+" == rule =
+  case mapMaybe lowestLplusWithoutIP (childrenOf n) of
     [] -> Just n
-    _  -> listToMaybe $ mapMaybe lowestMplusWithoutIP (childrenOf n)
-lowestMplusWithoutIP n = listToMaybe $ mapMaybe lowestMplusWithoutIP (childrenOf n)
+    _  -> listToMaybe $ mapMaybe lowestLplusWithoutIP (childrenOf n)
+lowestLplusWithoutIP n = listToMaybe $ mapMaybe lowestLplusWithoutIP (childrenOf n)
 
 -- | Find a lowest \(L+\) application without interpolant and fill it via \(T^J\) and \(T^K\).
 fillLowestMplus :: TableauxIP -> TableauxIP
 fillLowestMplus n@(Node _ Nothing _ rule _ _)
-  | "L+" == rule && null (mapMaybe lowestMplusWithoutIP (childrenOf n)) =
+  | "L+" == rule && null (mapMaybe lowestLplusWithoutIP (childrenOf n)) =
       let
         -- NOTE: The remark before Defintiion 27 wlog assumes L+ is applied in Y2 (Right).
         -- If instead it is in Y1 (Left) then we flip the tableau (which also negates all
         -- interpolants already found) ...
         isOnRight = or [ True | (Right _, _) <- activesOf n ]
         ti = if isOnRight then n else flipTab n
-        tj = let (x:_) = childrenOf ti in tjOf x
+        tj = tjOf $ case childrenOf ti of
+          [] -> error "empty childrenOf ti"
+          (x:_) -> x
         tk = tkOf tj
       in
         -- ... and negate the TK interpolant to get our interpolant for the root of n.
@@ -438,11 +440,12 @@ canonProgStep tj tk (Node si_wfs _ (Just itype) si_rule si_actives tks) =
             | (sj_to_tl , Node tl_wfs _ (Just One) _ _ _) <- allSuccsOf sj
             , tl_wfs == si_wfs ]
     (Three, One) ->
-      if "M" == si_rule
+      if si_rule == ModR
       -- NOTE: But what if there are multiple rules in one step?
-      -- No worries, multiple (At) steps will never be merged, see condition 3. -- CHECKME
-        then let [Neg (Box (Ap x) _)] = map (unload . collapse) si_actives
-             in Ap x -- Get program from active formula.
+      -- No worries, multiple (M) steps will never be merged, see condition 3. -- CHECKME
+        then Ap $ case map (unload . collapse) si_actives -- Get program from active formula.
+                  of [Neg (Box (Ap x) _)] -> x
+                     _ -> error "multiple (M) steps have been merged"
         else Test top
     ij -> error $ "Impossible transition in TK: " ++ show ij
 
