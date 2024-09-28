@@ -22,7 +22,7 @@ someValidities =
   , "[?p*]⊤"
   , "[(?q u b)*]p <-> [b*]p"
   , "[(b u ?q)*]p <-> [b*]p"
-  , "[a*](p v [a*]p)-> [a*]p" -- nice example to trigger a proper I(Y)
+  , "[a*](p v [a*]p)-> [a*]p" -- to get a proper I(Y)
   ]
 
 someValidImplications :: [Form]
@@ -69,6 +69,7 @@ someValidImplications =
   , "q -> <(?p;a)*>q"
   , "[(b*;c)*]r -> [c]r" -- relevant for unraveling
   , "[(b**;c)*]r -> [c]r"
+  , "[a*; (a u b*)]p -> [a][a*][b*]p" -- to trigger wrong interpolant bug
   ]
 
 -- | Formulas that should *not* be provable.
