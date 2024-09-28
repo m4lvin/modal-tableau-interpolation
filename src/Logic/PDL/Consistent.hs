@@ -39,7 +39,7 @@ pathSetsOf :: Tableaux -> [[Form]]
 -- local end node because open / no children:
 pathSetsOf n@(Node _ _ _ _ []) = [ localForms n ]
 -- local end node because loaded-path-repeat
-pathSetsOf n@(Node _ _ "lpr" _ [End]) = [ localForms n ]
+pathSetsOf n@(Node _ _ (LpR _) _ [End]) = [ localForms n ]
 -- local end node because atomic rule is used:
 pathSetsOf n@(Node _ _ "L+" _ ts) = [ localForms n | not (all (null . pathSetsOf) ts) ]
 -- anywhere else, recurse until we get an open end node:

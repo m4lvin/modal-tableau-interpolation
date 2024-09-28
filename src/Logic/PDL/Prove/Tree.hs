@@ -62,10 +62,10 @@ instance Stringable RuleName where
     Just str -> str
 
 instance IsString RuleName where
-  fromString ('l':'p':'r':rest) | isJust (readMaybe rest :: Maybe Int) = LpR (read rest)
-                                | otherwise = error $ "LpR without number? " ++ show rest
+  fromString ('l':'p':'r':' ':rest) | isJust (readMaybe rest :: Maybe Int) = LpR (read rest)
+                                    | otherwise = error $ "LpR without number? " ++ show rest
   fromString str = case lookup str ruleNames of
-    Nothing -> error $ "unknown rule: " ++ str
+    Nothing -> error $ "cannot convert string to rule: " ++ str
     Just rln -> rln
 
 -- | A loaded formula is prefixed by a negation and a non-empty sequence of boxes.
