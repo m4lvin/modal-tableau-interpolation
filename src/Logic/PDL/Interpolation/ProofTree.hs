@@ -70,7 +70,7 @@ ppWFormsTyp mtyp wfs actives = concat
               ++ removePars (ppLoadForm (collapse wf))
               ++ [ '«' |  wf `elem` actives ]
 
--- | GraphViz-HTML-prettify a list of WForms, optionall with a 1/2/3-type.
+-- | GraphViz-HTML-prettify a list of WForms, optionally with a 1/2/3-type.
 htmlWFormsTyp :: Maybe TypeTK -> [WForm] -> [WForm] -> HTML.Text
 htmlWFormsTyp mtyp wfs actives = concat
   [ intercalate [strp ", "] (map ppFormA (filter isLeft wfs))
@@ -95,9 +95,14 @@ instance DispAble TableauxIP where
           [toLabel $ let rs = toString rule
                      in rs ++ (if null rs || null prg then "" else " :: ") ++ if null prg then "" else prg !! y']
         ) (zip ts [(0::Int)..])
-      when (null ts) $ do
-        node (pref ++ "end") [shape PlainText, toLabel ("." :: String)]
-        edge pref (pref ++ "end") [toLabel (toString rule)]
+      case rule of
+        LpR k -> do
+          -- draw "back" edge for loaded path repeats:
+          edge pref (take (length pref - 2 * k) pref) [toLabel ("♡" :: String)]
+        _ -> when (null ts) $ do
+          -- draw edges to a "." for leafs:
+          node (pref ++ "end") [shape PlainText, toLabel ("." :: String)]
+          edge pref (pref ++ "end") [toLabel (toString rule)]
 
 ppTab :: TableauxIP -> IO ()
 ppTab = putStr . ppTabStr
@@ -196,7 +201,7 @@ fillIPs n@(Node wfs Nothing _ rule prg actives ts)
         -- ERROR here!
         ("M", _, _) -> error $ "Modal rule applied to " ++ ppWForms wfs actives ++ "\n  Unable to interpolate: " ++ show n
 
-        ("lpr",_, []) -> Nothing -- loaded-path repeat, deal with it later!
+        (LpR _,_, []) -> Nothing -- loaded-path repeat, deal with it later!
         -- There should not be any empty cases:
         (rl  ,_, []) -> error $ "Rule " ++ toString rl ++ " applied to " ++ ppWForms wfs actives ++ "\n  Unable to interpolate: " ++ show n
         -- Default case is to use branchIP (Lemma 15):

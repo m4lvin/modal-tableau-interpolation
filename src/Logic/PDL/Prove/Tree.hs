@@ -12,6 +12,7 @@ import Data.GraphViz.Types.Monadic hiding ((-->))
 import Data.List
 import Data.Maybe
 import Data.String( IsString(..) )
+import Text.Read (readMaybe)
 -- import Debug.Trace
 
 import Logic.Internal
@@ -37,9 +38,10 @@ allNodesOf End = []
 -- Note: head of this list is the immediate predecessor, last element is the root!
 type History = [([WForm],RuleName)]
 
-data RuleName = NoR | CloseR | NegR | ConR | NConR | LoadR | ModR | BoxR | DiaR | LpR
+data RuleName = NoR | CloseR | NegR | ConR | NConR | LoadR | ModR | BoxR | DiaR | LpR Int
   deriving (Eq,Ord,Show)
 
+-- | A *partial* list of the rule names.
 ruleNames :: [(String, RuleName)]
 ruleNames =
   [ (""   , NoR)
@@ -51,15 +53,17 @@ ruleNames =
   , ("M"  , ModR)
   , ("□"  , BoxR)
   , ("♢"  , DiaR)
-  , ("lpr", LpR)
   ]
 
 instance Stringable RuleName where
+  toString (LpR n) = "lpr " ++ show n
   toString rln = case lookup rln (map (\(x,y) -> (y,x)) ruleNames) of
     Nothing -> error $ "unknown rule: " ++ show rln
     Just str -> str
 
 instance IsString RuleName where
+  fromString ('l':'p':'r':rest) | isJust (readMaybe rest :: Maybe Int) = LpR (read rest)
+                                | otherwise = error $ "LpR without number? " ++ show rest
   fromString str = case lookup str ruleNames of
     Nothing -> error $ "unknown rule: " ++ str
     Just rln -> rln
@@ -273,9 +277,9 @@ isClosedBy wfs
 
 -- | Loaded-path repeats are end nodes.
 -- In MB this is extra condition 6 (page 25).
-isEndNodeBy :: [WForm] -> History -> [String]
-isEndNodeBy wfsNow history =
-  [ show k
+isLoadedPathRep :: [WForm] -> History -> [Int]
+isLoadedPathRep wfsNow history =
+  [ k
   |
   -- There is a predecessor
   (k, (wfsBefore, _)) <- zip [(1 :: Int) ..] history
@@ -289,9 +293,9 @@ isEndNodeBy wfsNow history =
 
 extensions :: Tableaux -> [Tableaux]
 extensions End             = [End]
-extensions (Node wfs oldHistory "" [] [])
+extensions (Node wfs oldHistory NoR [] [])
   | not (null (isClosedBy wfs))             = [ Node wfs oldHistory CloseR (isClosedBy wfs) [End] ]
-  | not (null (isEndNodeBy wfs oldHistory)) = [ Node wfs oldHistory ("lpr") [] [End] ] -- TODO: show number of steps again for lpr ++ concat (isEndNodeBy wfs oldHistory)
+  | not (null (isLoadedPathRep wfs oldHistory)) = [ Node wfs oldHistory (LpR (head (isLoadedPathRep wfs oldHistory))) [] [End] ]
   | null (whatshallwedo wfs)                = [ Node wfs oldHistory "" [] [] ] -- we are stuck!
   | otherwise =
       map (\ (wf,(ruleName,_,results,change)) ->
@@ -305,7 +309,7 @@ extensions (Node wfs oldHistory "" [] [])
           (whatshallwedo wfs)
 extensions (Node wfs history rule actives ts@(_:_)) =
   [ Node wfs history rule actives ts' | ts' <- pickOneOfEach $ map (filterOneIfAny isClosedTab . extensions) ts ]
--- extensions (Node _  _ rule _     []) = error $ "Rule '" ++ toString rule ++ "' applied but no successors!"
+extensions (Node _  _ rule _     []) = error $ "Rule '" ++ toString rule ++ "' applied but no successors!"
 
 extensionsUpTo :: Int -> Tableaux -> [Tableaux]
 extensionsUpTo 0 _ = error "Tableau is too long, giving up!"
@@ -345,8 +349,8 @@ chooseRule moves
 isClosedTab :: Tableaux -> Bool
 isClosedTab End = False -- check must succeed above the End!
 isClosedTab (Node wfs _ _       _ [End]) | isLoadedNode wfs = True
-isClosedTab (Node _   _ "✘"     _ [End]) = True
-isClosedTab (Node _   _ "lpr"   _ [End]) = False -- loaded path repeat
+isClosedTab (Node _   _ "✘"    _ [End]) = True
+isClosedTab (Node _   _ (LpR _) _ [End]) = False -- loaded path repeat
 isClosedTab (Node _   _ rule    _ [End]) = error $ "rule " ++ toString rule ++ " should not create an End node!"
 isClosedTab (Node _   _ _       _ []   ) = False
 isClosedTab (Node _   _ _       _ ts   ) = all isClosedTab ts
