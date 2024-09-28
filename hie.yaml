@@ -15,11 +15,11 @@ cradle:
     - path: "./exec/Paths_modal-tableau-interpolation.hs"
       component: "modal-tableau-interpolation:exe:tapdleau"
 
-    - path: "./test"
+    - path: "./test/basicmodal.hs"
       component: "modal-tableau-interpolation:test:basicmodal"
 
-    - path: "./test"
+    - path: "./test/pdl.hs"
       component: "modal-tableau-interpolation:test:pdl"
 
-    - path: "./test"
+    - path: "./test/propositional.hs"
       component: "modal-tableau-interpolation:test:propositional"

@@ -22,7 +22,6 @@ someValidities =
   , "[?p*]⊤"
   , "[(?q u b)*]p <-> [b*]p"
   , "[(b u ?q)*]p <-> [b*]p"
-  , "[a*](p v [a*]p)-> [a*]p" -- to get a proper I(Y)
   ]
 
 someValidImplications :: [Form]
@@ -70,6 +69,7 @@ someValidImplications =
   , "[(b*;c)*]r -> [c]r" -- relevant for unraveling
   , "[(b**;c)*]r -> [c]r"
   , "[a*; (a u b*)]p -> [a][a*][b*]p" -- to trigger wrong interpolant bug
+  , "[a*](p v [a*]p) -> [a*]p" -- to get a proper I(Y)
   ]
 
 -- | Formulas that should *not* be provable.
@@ -93,6 +93,7 @@ someNonValidities =
   , "[a*]p"
   , "[a]~p v [b]~q"  -- needs multi-diamond counter model
   , "~(~p ^ ~[a]~p ^ ~[b]~q)"
+  , "p & [a][a]p -> [a*]p" -- broken while writing unfoldDiamondLoaded
   ]
 
 -- | Instances of the Segerberg axioms.

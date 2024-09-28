@@ -270,6 +270,14 @@ dropPartPrograms (p1 :- p2)  = [p1,p2] ++ [p1' :- p2  | p1' <- dropPartPrograms 
 dropPartPrograms (Star p1)   = map Star $ dropPartPrograms p1
 dropPartPrograms (Test f)    = map Test $ dropPartFormulas f
 
+-- | Tests(alpha) - not recursing into sub-tests.
+testsOfProgram :: Prog -> [Form]
+testsOfProgram (Ap _) = []
+testsOfProgram (Cup p1 p2) = nub $ testsOfProgram p1 ++ testsOfProgram p2
+testsOfProgram (p1 :- p2) = nub $ testsOfProgram p1 ++ testsOfProgram p2
+testsOfProgram (Star p1) = testsOfProgram p1
+testsOfProgram (Test tf) = [tf] -- no sub-tests needed
+
 -- | The Fischer-Ladner Closure.
 -- See for example BRV page
 flClosure :: [Form] -> [Form]

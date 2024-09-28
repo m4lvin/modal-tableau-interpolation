@@ -17,6 +17,8 @@ import Text.Read (readMaybe)
 
 import Logic.Internal
 import Logic.PDL
+import Logic.PDL.Loaded
+import Logic.PDL.Unfold
 
 -- | A Tableau is either a node or an end marker.
 -- TODO: rename type to singular!
@@ -38,7 +40,7 @@ allNodesOf End = []
 -- Note: head of this list is the immediate predecessor, last element is the root!
 type History = [([WForm],RuleName)]
 
-data RuleName = NoR | CloseR | NegR | ConR | NConR | LoadR | ModR | BoxR | DiaR | LpR Int
+data RuleName = NoR | CloseR | NegR | ConR | NConR | LoadR | ModR | BoxR | DiaR | LDiaR | LpR Int
   deriving (Eq,Ord,Show)
 
 -- | A *partial* list of the rule names.
@@ -52,7 +54,8 @@ ruleNames =
   , ("L+" , LoadR)
   , ("M"  , ModR)
   , ("□"  , BoxR)
-  , ("♢"  , DiaR)
+  , ("◇"  , DiaR)
+  , ("⬙"  , LDiaR)
   ]
 
 instance Stringable RuleName where
@@ -67,34 +70,6 @@ instance IsString RuleName where
   fromString str = case lookup str ruleNames of
     Nothing -> error $ "cannot convert string to rule: " ++ str
     Just rln -> rln
-
--- | A loaded formula is prefixed by a negation and a non-empty sequence of boxes.
--- Example: (Neg f, [a,b]) stands for ¬[a][b]f with [a][b] underlined.
-type Marked f = (f, [Prog]) -- where f starts with "Neg"
--- TODO: rename to Loaded, and flip around the order?
-
--- A WForm is weighted (Left/Right) and may have a marking.
-type WForm = (Either Form Form, [Prog])
-
-collapse :: WForm -> Marked Form
-collapse (Left f,m)  = (f,m)
-collapse (Right f,m) = (f,m)
-
-isLeft :: WForm -> Bool
-isLeft (Left  _, _) = True
-isLeft (Right _, _) = False
-
-isLoadedNode :: [WForm] -> Bool
-isLoadedNode = not . all (null . snd)
-
-ppWForms :: [WForm] -> [WForm] -> String
-ppWForms wfs actives = intercalate ", " (map ppFormA (filter isLeft wfs)) ++ "   |   " ++ intercalate ", " (map ppFormA (filter (not . isLeft) wfs)) where
-  ppFormA wf = [ '»' |  wf `elem` actives ] ++ ppLoadForm (collapse wf) ++ [ '«' |  wf `elem` actives ]
-
-ppLoadForm :: Marked Form -> String
-ppLoadForm (x, []) = toString x
-ppLoadForm (Neg f, ps) = "~__[" ++ intercalate "][" (map toString ps) ++ "]__" ++ toString f
-ppLoadForm bad = error $ "bad: " ++ show bad
 
 htmlWForms :: [WForm] -> [WForm] -> HTML.Text
 htmlWForms wfs actives = intercalate [strp ", "] (map ppFormA (filter isLeft wfs)) ++ [strp "   |   "] ++ intercalate [strp ", "] (map ppFormA (filter (not . isLeft) wfs)) where
@@ -151,57 +126,6 @@ projection :: Atom -> Form -> Maybe Form
 projection x (Box (Ap y) g) | x == y = Just g
 projection _ _                       = Nothing
 
--- | Unfold the program in the top level modality. Assuming "at least one step".
--- The two levels of lists are: branches, formulas.
--- TODO: rewrite this to use the "H" and "P" definition instead of f0 and nform.
-unfold :: Form -> Maybe Form -> [[Form]]
-unfold f0 nform = -- trace ("unfoldled " ++ toString f0 ++ " with nforms " ++ toStrings nforms ++ " to " ++ intercalate " ; " (map (intercalate "," . map toString) (g f0))) $
-  nub $ g f0 where
-  -- diamonds:
-  g (Neg (Box (Ap ap)     f)) = [[Neg (Box (Ap ap) f)]]
-  g (Neg (Box (Cup p1 p2) f)) = g (Neg (Box p1 f)) ++ g (Neg (Box p2 f))
-  g (Neg (Box (pa :- pb)  f)) = g (Neg (Box pa (Box pb f)))
-  g (Neg (Box (Test tf)   f)) = [ tf : rest | rest <- g (Neg f) ] -- diamond test is not branching.
-  g (Neg (Box (Star pr)   f)) =
-    if Just (Box (Star pr)   f) == nform
-    then [ ] -- new way to do condition 4, never create a branch with ~[a^n]P
-    else g (Neg f) ++ unfold (Neg (Box pr (Box (Star pr) f)))
-                              (Just $ Box (Star pr ) f)
-  -- boxes:
-  g (Box (Ap ap)     f) = [[Box (Ap ap) f]]
-  g (Box (Cup p1 p2) f) = g (Box p1 f) +.+ g (Box p2 f)
-  g (Box (pa :- pb)  f) = g (Box pa (Box pb f))
-  g (Box (Test tf)   f) = [Neg tf] : g f -- box test is branching.
-  g (Box (Star pr)   f) =
-    if Just (Box (Star pr) f) == nform
-    then [ [] ] -- new way to do condition 2, avoid loops.
-    else g f +.+ unfold (Box pr (Box (Star pr) f)) (Just $ Box (Star pr) f)
-  -- other formulas, no unfolding:
-  g f@(Neg Bot) = [[ f ]]
-  g f@(Neg (At _)) = [[ f ]]
-  g f@(Neg (Neg _)) = [[ f ]]
-  g f@(Neg (Con _ _)) = [[ f ]]
-  g f@Bot = [[ f ]]
-  g f@(At _) = [[ f ]]
-  g f@(Con _ _) = [[ f ]]
-
-unfoldLoaded :: Marked Form -> Maybe (Marked Form) -> [[Marked Form]]
-unfoldLoaded f0@(Neg _, _) nform = -- trace ("unfoldled " ++ toString f0 ++ " with nforms " ++ toStrings nforms ++ " to " ++ intercalate " ; " (map (intercalate "," . map toString) (g f0))) $
-  nub $ g f0 where
-  -- diamonds:
-  g (f, []) = [[(f, [])]]
-  g (Neg f, (Ap ap)     :rest) = [[(Neg f , Ap ap:rest)]]
-  g (Neg f, (Cup p1 p2) :rest) = g (Neg f, p1:rest) ++ g (Neg f, p2:rest)
-  g (Neg f, (pa :- pb)  :rest) = g (Neg f, pa:pb:rest)
-  g (Neg f, (Test tf)   :rest) = [ (tf,[]) : next | next <- g (Neg f, rest) ] -- diamond test is not branching.
-  g (Neg f, (Star pr)   :rest) =
-    if Just (Neg f, Star pr:rest) == nform
-    then [ ] -- new way to do condition 4, never create a branch with ~[a^n]P
-    else g (Neg f, rest) ++ unfoldLoaded (Neg f, pr : Star pr : rest)
-                                          (Just (Neg f, Star pr : rest))
-  g f = error $ "will not happen:" ++ show f
-unfoldLoaded  _ _ = error "bad form"
-
 -- | Set of pairwise unions of elements of two sets of sets.
 -- Helper function for `unfold`.
 (+.+) :: [[a]] -> [[a]] -> [[a]]
@@ -228,12 +152,12 @@ ruleFor (Neg (Box (Ap _) _), []) = Nothing
 
 -- The unfold rule for boxes, used for (*) and other non-atomic programs:
 ruleFor (Box alpha f  ,[]) = Just ("□", 2, [ [ (newF, []) | newF <- fs ]
-                                           | fs <- unfold (Box alpha f) Nothing    ], noChange)
+                                           | fs <- unfoldBox alpha f ], noChange)
 
 -- The unfold rule for diamonds, used for (*) and other non-atomic programs:
-ruleFor (Neg (Box alpha f) , [] ) = Just ("♢", 3, [ [ (newF, [])
-                                                    | newF <- fs ]
-                                                  | fs <- unfold (Neg (Box alpha f)) Nothing ], noChange)
+ruleFor (Neg (Box alpha f) , [] ) = Just (DiaR, 3, [ [ (newF, [])
+                                                     | newF <- fs ]
+                                                   | fs <- unfoldDiamond alpha f ], noChange)
 
 -- Loaded formulas without negation at top are badly formed:
 ruleFor (At _    , _:_) = error "bad form"
@@ -246,9 +170,7 @@ ruleFor (Neg (Con f g)   ,[]) = Just ("¬∧", 3, [ [(Neg f,[])]
                                                , [(Neg g,[])]                    ], noChange)
 
 -- The loaded unfold rule for diamonds (will only match when alpha is non-atomic):
-ruleFor (Neg f, alpha:rest) = Just ("♢", 3, unfoldLoaded (Neg f, alpha:rest) Nothing, noChange)
-
--- The loading rule should be here?
+ruleFor (Neg f, alpha:rest) = Just (LDiaR, 3, unfoldDiamondLoaded alpha (Neg f, rest), noChange)
 
 -- | Apply change function from a rule to a weighted formulas.
 applyW :: (Form -> Maybe Form) -> WForm -> Maybe WForm

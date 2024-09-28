@@ -10,10 +10,11 @@ import Data.GraphViz.Types.Monadic (edge, node)
 import Data.GraphViz.Attributes.Complete hiding (Box, Star)
 import qualified Data.GraphViz.Attributes.HTML as HTML
 import Data.Maybe (listToMaybe, catMaybes, mapMaybe)
-import Data.List ((\\), intercalate, isPrefixOf, sort)
+import Data.List ((\\), intercalate, nub, isPrefixOf, sort)
 import Data.Text.Lazy (pack)
 
 import Logic.PDL
+import Logic.PDL.Loaded
 import Logic.PDL.Prove.Tree hiding (Node,End)
 import qualified Logic.PDL.Prove.Tree as T (Tableaux(Node,End))
 import Logic.Internal
@@ -270,7 +271,7 @@ tjOf = tjOf' [] where
 
 -- | \(D(T)\): disjunction of conjunctions of each of the given nodes (of \(T^J\))
 dOf :: [[WForm]] -> Form
-dOf tjNodes = multidis [ multicon (leftsOf wfs) | wfs <- tjNodes ]
+dOf tjNodes = multidis $ nub [ multicon (leftsOf wfs) | wfs <- tjNodes ]
 -- | \(T(Y)\): all nodes where the right side is Y
 tOf :: TableauxIP -> [Form] -> [Path]
 tOf tj y = filter (seteq y . rightsOf . wfsOf . at tj) (allPathsIn tj)
@@ -450,7 +451,7 @@ canonProgStep tj tk (Node si_wfs _ (Just itype) si_rule _ si_actives tks) =
       -- because per Definition 31 (One->Two case) s^i only has one immediate successor, namely s^j.
       prs = [ canonProg tj tk sj sj_to_tl -- FIXME ???
             | (sj_to_tl , Node tl_wfs _ (Just One) _ _ _ _) <- allSuccsOf sj
-            , tl_wfs == si_wfs ]
+            , tl_wfs `seteq` si_wfs ]
     (Three, One) ->
       if si_rule == ModR
       -- NOTE: But what if there are multiple rules in one step?
@@ -465,7 +466,7 @@ canonProgStep tj tk (Node si_wfs _ (Just itype) si_rule _ si_actives tks) =
 ipFor :: TableauxIP -> TableauxIP -> Path -> Form
 -- end nodes of T^K:
 ipFor tj tk pth
-  | null s1_sn && not (or [ t_wfs == otherWfs && t_mtyp == otherMtyp -- QUESTION: "same pair" here seems to imply same type!?
+  | null s1_sn && not (or [ t_wfs == otherWfs && t_mtyp == otherMtyp -- we want same pair of same type
                           | (Node otherWfs _ otherMtyp _ _ _ _) <- historyTo tk pth ]) =
       iOf tj (rightsOf t_wfs) -- end node with no same-pair predecessor, use I(t) := I(Y).
   | null s1_sn = top -- all other end nodes get I(t):=1.
@@ -494,7 +495,7 @@ jSetOf tj tk pth_s = sort $ nubOrd $
   [ if pth_s == pth_t' then formulaP else Box prog formulaP
   | pth_t <- allPathsIn tk, let t = tk `at` pth_t
   , pth_t' <- allPathsIn tk, let t' = tk `at` pth_t'
-  , wfsOf t == wfsOf t'
+  , wfsOf t `seteq` wfsOf t'
   , mtypOf t == mtypOf t'
   , pth_t `isProperPrefixOf` pth_s && pth_s `isPrefixOf` pth_t'
   , let pth_s_to_t' = drop (length pth_s) pth_t'

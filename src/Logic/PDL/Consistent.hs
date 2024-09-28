@@ -6,6 +6,7 @@ import Data.Maybe
 import Data.Containers.ListUtils (nubOrd)
 
 import Logic.PDL
+import Logic.PDL.Loaded
 import Logic.PDL.Prove.Tree
 
 -- | M_0 from Proof of Theorem 3, sort of.

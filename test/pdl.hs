@@ -16,6 +16,7 @@ import Logic.PDL.Interpolation
 import Logic.PDL.Interpolation.ProofTree
 import Logic.PDL.Parse ()
 import Logic.PDL.Prove.Tree
+import Logic.PDL.Unfold
 
 main :: IO ()
 main = hspec $ do
@@ -73,8 +74,10 @@ main = hspec $ do
         measure (simplify f) <= measure f)
 
   describe "unfold" $ do
-    modifyMaxSuccess (const 1000) $ prop "f <--> \\//\\ unfold f" $
-      fTest $ \f -> provable (f <--> disSet [ conSet fs | fs <- unfold f Nothing ])
+    prop "Box pa f <--> \\//\\ unfoldBox pa f" $
+      \pa f -> provable (Box pa f <--> disSet [ conSet fs | fs <- unfoldBox pa f ])
+    prop "dia pa f <--> \\//\\ unfoldDiamond pa (Neg f)" $
+      \pa f -> provable (dia pa f <--> disSet [ conSet fs | fs <- unfoldDiamond pa (Neg f) ])
 
   describe "Fischer-Ladner closure" $ do
     prop "length invariant under single negation" $
