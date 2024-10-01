@@ -38,6 +38,7 @@ library:
     - random
     - temporary
     - text
+    - time
 
 executables:
   tapdleau:
