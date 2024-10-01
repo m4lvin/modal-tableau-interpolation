@@ -90,10 +90,15 @@ instance DispAble Tableaux where
       node pref [shape PlainText, toLabel ("." :: String)]
     toGraph' pref (Node wfs _ rule actives ts) = do
       node pref [shape PlainText, C.Label $ C.HtmlLabel $ HTML.Text $ htmlWForms wfs actives]
-      mapM_ (\(t,y') -> do
-        toGraph' (pref ++ show y' ++ ":") t
-        edge pref (pref ++ show y' ++ ":") [toLabel ("(" ++ toString rule ++ ")")]
-        ) (zip ts [(0::Integer)..])
+      case rule of
+        LpR k -> do
+          -- draw "back" edge for loaded path repeats:
+          edge pref (take (length pref - 2 * k) pref) [toLabel ("♡" :: String)]
+        _ -> do
+          mapM_ (\(t,y') -> do
+                    toGraph' (pref ++ show y' ++ ":") t
+                    edge pref (pref ++ show y' ++ ":") [toLabel ("(" ++ toString rule ++ ")")]
+                ) (zip ts [(0::Integer)..])
 
 type RulePriority = Int -- TODO: use a finite data RuleType = Local | Critical | Marking  or similar?
 
