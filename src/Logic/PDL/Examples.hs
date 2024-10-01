@@ -68,8 +68,13 @@ someValidImplications =
   , "q -> <(?p;a)*>q"
   , "[(b*;c)*]r -> [c]r" -- relevant for unraveling
   , "[(b**;c)*]r -> [c]r"
-  , "[a*; (a u b*)]p -> [a][a*][b*]p" -- to trigger wrong interpolant bug
   , "[a*](p v [a*]p) -> [a*]p" -- to get a proper I(Y)
+  -- to trigger wrong interpolant bug:
+  , "[a*; (a u b*)]p -> [a][a*][b*]p"
+  -- to trigger wrong interpolant problem:
+  , "[(a u b)*]p -> [(a u b*)*]p"
+  , "[(a u b)*]p -> [(a* u b)*]p"
+  , "p & [a][(a ∪ b)*]p & [b][(a ∪ b)*]p -> [b][b*][(a ∪ b*)*]p"
   ]
 
 -- | Formulas that should *not* be provable.
