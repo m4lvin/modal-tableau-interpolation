@@ -47,6 +47,16 @@
       summary h3 {
           display:inline;
       }
+      .linker {
+          color:gray;
+          float:right;
+          cursor:pointer;
+      }
+      .linker:active {
+          color: black;
+          text-shadow: 1px 2px #666;
+          transform: translateY(2px) translateX(2px);
+      }
     </style>
     <link rel="icon" href="data:,">
   </head>
@@ -125,6 +135,13 @@
           $('input:radio[name="logic"]').val([ $('#examples option:selected').val() ]);
           prove();
       });
+      const hash = window.location.hash.substring(1);
+      if (hash) {
+          $('#textinput').val(decodeURIComponent(hash));
+          $('#runbutton').click();
+          // remove hash?
+          // history.pushState("", document.title, window.location.pathname + window.location.search);
+      }
       </script>
   </body>
 </html>

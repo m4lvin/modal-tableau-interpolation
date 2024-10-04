@@ -19,6 +19,7 @@ import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort)
 import System.Environment (lookupEnv)
 import System.IO.Unsafe
 import Text.Read (readMaybe)
+import Network.URI.Encode
 
 import qualified Logic.BasicModal as BM
 import qualified Logic.BasicModal.Prove.Tree
@@ -87,6 +88,7 @@ main = do
                 (True ,Just ip,True ) -> "PROVED and CORRECT interpolant: " ++ toString (simplify ip) ++ " <style> #output { border-color: green; } </style>\n"
           in
           [ "<pre>Parsed input: " ++ toString pdlF  ++ "</pre>"
+          , linkto (toString pdlF)
           , message
           , if closed then "<details><summary><h3>Proof (without interpolants)</h3></summary>" else ""
           , "<div align='center'>" ++ svg t ++ "</div>"
@@ -95,6 +97,9 @@ main = do
             then interpolateInfo ti
             else counterModelInfo pdlF t
           ]
+
+linkto :: String -> String
+linkto st = "<a class='linker' onclick='navigator.clipboard.writeText($(this).prop(\"href\"))' href='#" ++ encode st ++ "'>(copy link)</a>"
 
 embeddedFile :: String -> T.Text
 embeddedFile str = case str of

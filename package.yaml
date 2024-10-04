@@ -53,6 +53,7 @@ executables:
       - scotty
       - modal-tableau-interpolation
       - text
+      - uri-encode
       - warp
       - js-jquery >= 3
       - template-haskell
