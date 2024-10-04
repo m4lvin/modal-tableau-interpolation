@@ -361,7 +361,7 @@ tkOf n@(Node t_wfs Nothing _ _ _ _) = tk where
 tkSuccessorsAt :: TableauxIP -> TableauxIP -> Path -> [TableauxIP]
 tkSuccessorsAt tj tk pth =
   case mtyp of
--- 1 to 2 has one or no successors:
+-- 1 has one or no successors:
   Just One ->
       [ Node
         ((Left (dOf (map (wfsOf . at tj) $ tOf tj y)), Nothing) : yWithMarkings)
@@ -372,7 +372,7 @@ tkSuccessorsAt tj tk pth =
         (tkSuccessorsAt tj tk (pth ++ [0]))
       | not $ or [ otherWfs == wfs -- end node if there is a predecessor t with same pair and k(t)=1
                  | (Node otherWfs _ (Just One) _ _ _)  <- historyTo tk pth ] ]
--- 2 to 3 has one or no successors:
+-- 2 has one or no successors:
   Just Two ->
       [ Node
         ((Left (dOf (map (wfsOf . at tj) $ tOfTriangle tj y)), Nothing) : yWithMarkings)
@@ -383,7 +383,7 @@ tkSuccessorsAt tj tk pth =
         (tkSuccessorsAt tj tk (pth ++ [0]))
       | not (null (tOfTriangle tj y))  -- end node when T(Y)◁ is empty
       , let witness = at tj $ head $ tOfTriangle tj y ] -- CHOICE! -- should only matter for Three-to-One, why is this here?
--- 3 to 1 has n many successors:
+-- 3 has n many successors:
   Just Three ->
       [ Node
         ( (Left (dOf (map (wfsOf . at tj) $ tOf tj z)), Nothing)

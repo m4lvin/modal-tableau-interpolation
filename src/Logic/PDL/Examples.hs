@@ -20,21 +20,22 @@ someValidities =
   , "[a*]T v [a*]p"
   , "[a*]p v [a*]T"
   ]
-
 someValidImplications :: [Form]
 someValidImplications =
-  [ Box (Cup a b) p --> Box a p
-  , dia a p -->  dia (Cup a b) p
-  , Box (Cup a b) p --> Box a p
-  , dia (Cup a b) p --> dis (dia a p) (dia b p)
-  , Box (Star a) p --> Box a (Box a (Box a p))
-  , Box (Star b) p --> Box (Star (b :- b)) p
-  , Box (Star (Cup a b)) (Con p q) --> Box (b :- b) (dis q (Box c r))
-  , Box (Star (Cup a b)) (Con p q) --> Box (Star (b :- b)) (dis q (Box c r))
-  , Con (Box a p) (Box b (Con p q)) --> Box (Cup a b) p
-  , Con (Box (Star a) p) (Box b (Con p q)) --> Box (Cup (Star a) b) p
-  , Box (Star a) p --> dia (Star a) p
-  , "[a* u ?p]q -> [a u ?r]q"
+  [ "⊥ -> T"
+  , "[a ∪ b]p -> [a]p"
+  , "<a>p ->  <a u b> p"
+  , "[a ∪ b]p -> [a]p"
+  , "[a ∪ b]p -> [b]p"
+  , "<a ∪ b>p -> <a>p ∨ <b>p"
+  , "[a*]p -> [a][a][a]p"
+  , "[b*]p -> [(b ; b)*]p"
+  , "[(a ∪ b)*](p ∧ q) -> [b ; b](q ∨ [c]r)"
+  , "[(a ∪ b)*](p ∧ q) -> [(b ; b)*](q ∨ [c]r)"
+  , "([a]p ∧ [b](p ∧ q)) -> [a ∪ b]p"
+  , "([a*]p ∧ [b](p ∧ q)) -> [a* ∪ b]p"
+  , "[a*]p -> <a*>p"
+  , "[a* ∪ ?p]q -> [a ∪ ?r]q"
   , "q -> [a]T"
   , "[?p u ?¬p](r & ¬r) -> q"
   , "[?p u ?¬p]F -> q"
@@ -48,12 +49,28 @@ someValidImplications =
   , "(q ∧ ¬[?([?⊤*]s)*]⊤) -> q"
   , "(q ∧ ¬[?([?⊤*]s)*]⊤) -> (q ^ q)"
   , "[?⊤]s -> [?([(?⊥)*]⊤)]s"
+  , "[(a u b)*]p -> [a*]p"
+  , "[(a u b)*]p -> [b*]p"
+  , "[(a u b)*]p -> [a**]p"
+  , "[(a u b)*]p -> [b**]p"
+  , "[(a u b)*]p -> [a***]p"
+  , "[(a u b)*]p -> [b***]p"
+  , "[(a u b)*]p -> [a****]p"
+  , "[(a u b)*]p -> [b****]p"
   , "[(a u b)*]p -> [a*****]p"
-  , "[(a u b)*]p -> [b******]p"
-  , "[(a u b)*]p -> [a*******]p"
-  , "[(a u b)*]p -> [b********]p"
+  , "[(a u b)*]p -> [b*****]p"
   , "¬[c][(c ; d)**]⊤ -> p"
   , "s -> [?(¬q)*]⊤"
+  , "q -> <(?p;a)*>q"
+  , "[(b*;c)*]r -> [c]r" -- relevant for unraveling
+  , "[(b**;c)*]r -> [c]r"
+  , "[a*](p v [a*]p) -> [a*]p" -- to get a proper I(Y)
+  -- to trigger wrong interpolant bug:
+  , "[a*; (a u b*)]p -> [a][a*][b*]p"
+  -- to trigger wrong interpolant problem:
+  , "[(a u b)*]p -> [(a u b*)*]p"
+  , "[(a u b)*]p -> [(a* u b)*]p"
+  , "p & [a][(a ∪ b)*]p & [b][(a ∪ b)*]p -> [b][b*][(a ∪ b*)*]p"
   ]
 
 -- | Formulas that should *not* be provable.
