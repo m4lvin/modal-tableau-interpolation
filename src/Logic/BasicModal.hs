@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric, FlexibleInstances #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Logic.BasicModal where
 

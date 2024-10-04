@@ -6,10 +6,11 @@
 
 module Logic.Propositional.Prove.Tree where
 
+import Data.Either (lefts, rights)
 import Data.GraphViz
 import Data.GraphViz.Types.Monadic
 import Data.List
-import Data.Maybe (isJust)
+import Data.Maybe (fromJust, isJust)
 
 import Logic.Internal
 import Logic.Propositional
@@ -28,12 +29,8 @@ collapse (Right f) = f
 collapseList :: [Either Form Form] -> [Form]
 collapseList = map collapse
 
-leftsOf, rightsOf :: [WForm] -> [Form]
-leftsOf  wfs = [f | Left f <- wfs]
-rightsOf wfs = [f | Right f <- wfs]
-
 ppWForms :: [WForm] -> String
-ppWForms wfs = show (leftsOf wfs) ++ "  ;  " ++ show (rightsOf wfs)
+ppWForms wfs = show (lefts wfs) ++ "  ;  " ++ show (rights wfs)
 
 instance DispAble Tableaux where
   toGraph = toGraph' "" where
@@ -79,7 +76,7 @@ extend (Node wfs "" []) = case (isClosedNode (collapseList wfs), filter usable w
   (_   ,[]  ) -> Node wfs ""     []
   (_   ,wf:_) -> Node wfs therule ts where
     rest = delete wf wfs
-    Just (therule,results) = simpleRule (collapse wf)
+    (therule,results) = fromJust $ simpleRule (collapse wf)
     ts = [ extend $ Node (nub . sort $ rest++newwfs) "" [] | newwfs <- map (map $ weightOf wf) results ]
 extend (Node fs rule ts@(_:_)) = Node fs rule (map extend ts)
 extend (Node _  rule@(_:_) []) = error $ "Rule '" ++ rule ++ "' applied but no successors!"

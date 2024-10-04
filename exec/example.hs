@@ -1,6 +1,7 @@
 module Main where
 
 import Data.List
+import Data.Maybe (fromJust)
 import Data.String( IsString(..) )
 
 import Logic.PDL
@@ -30,7 +31,7 @@ main = do
   ppTab ti
 
   putStrLn "\nLowest M+ rule without interpolant:"
-  let Just mstart = lowestMplusWithoutIP ti
+  let mstart = fromJust $ lowestMplusWithoutIP ti
   ppTab mstart
 
   -- T^J

@@ -146,7 +146,7 @@ tiOf t = if null (tiOfRec t)
                                in [ ("", n { ruleOf = combine (ruleOf n : map fst childs)
                                            , childrenOf = map snd childs } ) ]
     | otherwise = -- delete n itself!
-        map (\(childRule, t) -> (combine [ruleOf n, childRule], t)) $ concatMap tiOfRec (childrenOf n)
+        map (\(childRule, ct) -> (combine [ruleOf n, childRule], ct)) $ concatMap tiOfRec (childrenOf n)
   -- Combine rules without inserting too many commas.
   combine :: [RuleName] -> RuleName
   combine [] = ""
@@ -231,7 +231,7 @@ fillLowestMplus n@(Node _ Nothing _ rule _ _)
         -- interpolants already found) ...
         isOnRight = or [ True | (Right _, _) <- activesOf n ]
         ti = if isOnRight then n else flipTab n
-        tj = let (x:_) = childrenOf ti in tjOf x
+        tj = tjOf (head $ childrenOf ti)
         tk = tkOf tj
       in
         -- ... and negate the TK interpolant to get our interpolant for the root of n.
@@ -446,8 +446,9 @@ canonProgStep tj tk (Node si_wfs _ (Just itype) si_rule si_actives tks) =
       if "At" `isInfixOf` si_rule
       -- NOTE: But what if there are multiple rules in one step?
       -- No worries, multiple (At) steps will never be merged, see condition 3. -- CHECKME
-        then let [(Neg (Box (Ap x) _), _)] = map collapse si_actives
-             in Ap x -- Get program from active formula.
+        then case map collapse si_actives of
+                [(Neg (Box (Ap x) _), _)] -> Ap x -- Get program from active formula.
+                l -> error $ "Could not find program for (At) application):" ++ show l
         else Test top
     ij -> error $ "Impossible transition in TK: " ++ show ij
 
@@ -464,7 +465,7 @@ ipFor tj tk pth
                            | (k,_) <- zip [0,1] (childrenOf (tk `at` pth)) ]
   where
     n@(Node t_wfs _ t_mtyp _ _ s1_sn) = tk `at` pth -- NOTE: n≤2
-    ((a_prog, _):_) = canonProgStep tj tk n
+    (a_prog, _) = head $ canonProgStep tj tk n
 
 -- | Annotate \(T^K\) with canonical programs (as rules) and interpolants.
 annotateTk :: TableauxIP -> TableauxIP -> TableauxIP

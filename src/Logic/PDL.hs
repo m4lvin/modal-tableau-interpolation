@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances, DeriveGeneric #-}
+{-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
 
 module Logic.PDL where
 
@@ -30,9 +31,9 @@ instance Stringable Form where
   toString (Neg (Con (Neg f) (Neg g)))  = "(" ++ toString f ++ " ∨ " ++ toString g ++ ")"
   toString (Neg f)    = "¬" ++ toString f
   toString (Con f g)  = "(" ++ toString f ++ " ∧ " ++ toString g ++ ")"
-  toString (Box (Cup p1 p2) f) = "[" ++ toString p1 ++ " ∪ " ++ toString p2 ++ "]" ++ toString f ++ ""
-  toString (Box (p1 :- p2) f)  = "[" ++ toString p1 ++ " ; " ++ toString p2 ++ "]" ++ toString f ++ ""
-  toString (Box pr f) = "[" ++ toString pr ++ "]" ++ toString f ++ ""
+  toString (Box (Cup p1 p2) f) = "[" ++ toString p1 ++ " ∪ " ++ toString p2 ++ "]" ++ toString f
+  toString (Box (p1 :- p2) f)  = "[" ++ toString p1 ++ " ; " ++ toString p2 ++ "]" ++ toString f
+  toString (Box pr f) = "[" ++ toString pr ++ "]" ++ toString f
 
 instance Stringable Prog where
   toString (Ap ap)     = ap
@@ -219,7 +220,7 @@ simplifyProg = fixpoint simstep where
   simstep (Test (Neg Bot) :- pr2)  = simstep pr2
   simstep (pr1 :- Test (Neg Bot))  = simstep pr1
   simstep (pr1 :- pr2)  = simstep pr1 :- simstep pr2
-  simstep (Star (Star pr)) = Star(simstep pr)
+  simstep (Star (Star pr)) = Star (simstep pr)
   simstep (Star  pr)    = Star (simstep pr)
   simstep (NStar pr)    = NStar (simstep pr)
   simstep (Test   f)    = Test (simplify f)
@@ -275,7 +276,7 @@ instance (Eq a, Show a) => DispAble (Model a) where
   toGraph m =
     mapM_ (\(w,props) -> do
                         node (show w) [shape Circle, toLabel $ show w ++ ":" ++ ppAts props]
-                        mapM_(\(ap,_) -> mapM_ (\w' -> edge (show w) (show w') [ toLabel ap ]) (rel m ap w)) (progsOf m)
+                        mapM_ (\(ap,_) -> mapM_ (\w' -> edge (show w) (show w') [ toLabel ap ]) (rel m ap w)) (progsOf m)
           ) (worldsOf m)
 
 instance (Eq a, Show a) => DispAble (Model a, a) where
@@ -283,7 +284,7 @@ instance (Eq a, Show a) => DispAble (Model a, a) where
     mapM_ (\(w,props) -> do
                         node (show w) [shape $ if w == actual then DoubleCircle else Circle
                                       , toLabel $ show w ++ ":" ++ ppAts props]
-                        mapM_(\(ap,_) -> mapM_ (\w' -> edge (show w) (show w') [ toLabel ap ]) (rel m ap w)) (progsOf m)
+                        mapM_ (\(ap,_) -> mapM_ (\w' -> edge (show w) (show w') [ toLabel ap ]) (rel m ap w)) (progsOf m)
           ) (worldsOf m)
 
 -- | Evaluate formula on a pointed model
@@ -315,7 +316,7 @@ lfp f x = if f x == x then x else lfp f (f x)
 lfpList :: Eq a => (a -> [a]) -> [a] -> [a]
 lfpList _ []  = []
 lfpList f set = set ++ rest where
-  rest | all (`elem` set) (concatMap f set) = set
+  rest | all (all (`elem` set) . f) set = set
        | otherwise = lfpList f (set ++ (concatMap f set \\ set))
 
 globeval :: (Show a, Eq a) => Model a -> Form -> Bool

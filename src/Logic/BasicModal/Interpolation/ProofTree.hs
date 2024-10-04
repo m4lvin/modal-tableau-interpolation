@@ -62,14 +62,13 @@ fillIPs n@(Node (wfs,Nothing) rule actives ts)
   | not (all hasIP ts) = fillIPs $ Node (wfs, Nothing) rule actives (map fillIPs ts)
 -- Non-end nodes where children already have IPs: distinguish rules
   | otherwise = Node (wfs, Just newIP) rule actives ts where
-      newIP = case (rule,actives) of
+      newIP = case (rule, actives, ts) of
         -- single-child rules are easy, the interpolant stays the same:
-        ("¬",_) -> ipOf t where [t] = ts
-        ("∧",_) -> ipOf t where [t] = ts
+        ("¬", _, [t]) -> ipOf t
+        ("∧", _, [t]) -> ipOf t
         -- for the branching rule we combine the two previous interpolants
         -- with a connective depending on the side of the active formula:
-        ("¬∧",_) -> connective (ipOf t1) (ipOf t2) where
-          [t1,t2] = ts
+        ("¬∧", _, [t1,t2]) -> connective (ipOf t1) (ipOf t2) where
           connective = case actives of
             [Left  _] -> dis -- left side is active
             [Right _] -> Con -- right side is active
@@ -78,9 +77,9 @@ fillIPs n@(Node (wfs,Nothing) rule actives ts)
         -- moroever, if one of the sides is empty we should use Bot or Top as interpolants, but for basic modal logic we do not need that
         -- (it will matter for PDL, because <a>T and T have different vocabulary!)
         -- (see Borzechowski page 44)
-        ("¬☐",[Left  _]) -> let [t] = ts in dia (ipOf t)
-        ("¬☐",[Right _]) -> let [t] = ts in Box (ipOf t)
-        (rl,_) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms wfs actives ++ " Unable to interpolate!:\n" ++ show n
+        ("¬☐",[Left  _], [t]) -> dia (ipOf t)
+        ("¬☐",[Right _], [t]) -> Box (ipOf t)
+        (rl, _, _) -> error $ "Rule " ++ rl ++ " applied to " ++ ppWForms wfs actives ++ "\nUnable to interpolate!:\n" ++ show n
 
 fillAllIPs :: TableauxIP -> TableauxIP
 fillAllIPs = fixpoint fillIPs -- TODO is this necessary?

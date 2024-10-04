@@ -2,6 +2,7 @@
 
 module Logic.Propositional.Interpolation.ProofTree where
 
+import Data.Either (lefts, rights)
 import Data.GraphViz (shape,toLabel,Shape(..))
 import Data.GraphViz.Types.Monadic (edge,node)
 import Test.QuickCheck
@@ -43,9 +44,9 @@ ipOf (Node (_,Just f ) _ _) = f
 ipOf (Node (_,Nothing) _ _) = error "No interpolant here."
 
 interpolateClosedNode :: [WForm] -> [Form]
-interpolateClosedNode wfs = filter evil (leftsOf wfs) where
-  evil (Neg f) = f `elem` rightsOf wfs || Neg (Neg f) `elem` rightsOf wfs
-  evil f       = Neg f `elem` rightsOf wfs
+interpolateClosedNode wfs = filter evil (lefts wfs) where
+  evil (Neg f) = f `elem` rights wfs || Neg (Neg f) `elem` rights wfs
+  evil f       = Neg f `elem` rights wfs
 
 fillIPs :: TableauxIP -> TableauxIP
 -- Ends and already interpolated nodes: nothing to do
@@ -54,10 +55,10 @@ fillIPs t@(Node (_, Just _) _ _) = t
 -- Closed end nodes:
 fillIPs (Node (wfs, Nothing) "✘" [End]) = Node (wfs, Just ip) "✘" [End] where
   ip
-    | isClosedNode (leftsOf wfs)  = bot -- inconsistency implies bot
-    | isClosedNode (rightsOf wfs) = Top -- Top implies Neg inconsistency
+    | isClosedNode (lefts wfs)  = bot -- inconsistency implies bot
+    | isClosedNode (rights wfs) = Top -- Top implies Neg inconsistency
     | isClosedNode (collapseList wfs) =
-        case filter (`elem` leftsOf wfs) (interpolateClosedNode wfs) of
+        case filter (`elem` lefts wfs) (interpolateClosedNode wfs) of
           []    -> error $ "fillIPs failed, no interpolant found at this closed node: " ++ ppWForms wfs
           (x:_) -> x
     | otherwise = error $ "fillIPs failed, this node should not have been closed: " ++ ppWForms wfs
@@ -66,27 +67,24 @@ fillIPs (Node (wfs,Nothing) rule ts)
   | any (not . hasIP) ts = fillIPs $ Node (wfs, Nothing) rule (map fillIPs ts)
 -- Non-end nodes where childs already have IPs: distinguish rules
   | otherwise = Node (wfs, Just $ simplify newIP) rule ts where
-      newIP = case rule of
+      newIP = case (rule, ts) of
         -- probably correct and easy, because single-child:
-        "¬¬" -> ipOf t where [t] = ts
-        "¬→" -> ipOf t where [t] = ts
-        "&"  -> ipOf t where [t] = ts
+        ("¬¬", [t]) -> ipOf t
+        ("¬→", [t]) -> ipOf t
+        ("&" , [t]) -> ipOf t
         -- the tricky ones, check them again and again!
         -- also, should they depend on weightOf the active formula!? -- that should be the active side!
-        "→" -> connective (ipOf t1) (ipOf t2) where
-          [t1@(Node (newwfs,_) _ _),t2] = ts
+        ("→", [t1@(Node (newwfs,_) _ _),t2]) -> connective (ipOf t1) (ipOf t2) where
           connective
-            | leftsOf  wfs /= leftsOf newwfs = dis -- left side is active
-            | rightsOf wfs /= rightsOf newwfs = Con -- right side is active
+            | lefts  wfs /= lefts newwfs = dis -- left side is active
+            | rights wfs /= rights newwfs = Con -- right side is active
             | otherwise = error "Could not find the active side."
-        "¬&" -> connective (ipOf t1) (ipOf t2) where
-          [t1@(Node (newwfs,_) _ _),t2] = ts
+        ("¬&", [t1@(Node (newwfs,_) _ _),t2]) -> connective (ipOf t1) (ipOf t2) where
           connective
-            | leftsOf  wfs /= leftsOf newwfs = dis -- left side is active
-            | rightsOf wfs /= rightsOf newwfs = Con -- right side is active
+            | lefts  wfs /= lefts newwfs = dis -- left side is active
+            | rights wfs /= rights newwfs = Con -- right side is active
             | otherwise = error "Could not find the active side."
-
-        ruleStr -> error $ "Unknown rule '" ++ ruleStr ++ "' applied. Can not interpolate!"
+        (ruleStr, _) -> error $ "Unknown rule application '" ++ ruleStr ++ "'. Cannot interpolate!"
 
 fillAllIPs :: TableauxIP -> TableauxIP
 fillAllIPs = fixpoint fillIPs -- TODO is this necessary?

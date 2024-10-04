@@ -15,11 +15,11 @@ cradle:
     - path: "./exec/Paths_Logic.hs"
       component: "Logic:exe:tapdleau"
 
-    - path: "./test"
+    - path: "./test/basicmodal.hs"
       component: "Logic:test:basicmodal"
 
-    - path: "./test"
+    - path: "./test/pdl.hs"
       component: "Logic:test:pdl"
 
-    - path: "./test"
+    - path: "./test/propositional.hs"
       component: "Logic:test:propositional"

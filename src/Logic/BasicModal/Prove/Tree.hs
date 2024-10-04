@@ -5,7 +5,7 @@ module Logic.BasicModal.Prove.Tree where
 import Data.GraphViz
 import Data.GraphViz.Types.Monadic hiding ((-->))
 import Data.List
-import Data.Maybe (mapMaybe,isJust)
+import Data.Maybe (mapMaybe,isJust,fromJust)
 
 import Logic.Internal
 import Logic.BasicModal
@@ -26,10 +26,6 @@ type WForm = Either Form Form
 collapse :: WForm -> Form
 collapse (Left  f) = f
 collapse (Right f) = f
-
-leftsOf, rightsOf :: [WForm] -> [Form]
-leftsOf  wfs = [f | Left  f <- wfs]
-rightsOf wfs = [f | Right f <- wfs]
 
 ppWForms :: [WForm] -> [WForm] -> String
 ppWForms wfs actives = intercalate ", " (map ppFormA (filter isLeft wfs)) ++ "   |   " ++ intercalate ", " (map ppFormA (filter (not . isLeft) wfs)) where
@@ -114,12 +110,12 @@ extensions (Node wfs "" _ [])
   | otherwise = case (filter simplyUsable wfs, filter advancedlyUsable wfs) of
     ([],[])  -> [ Node wfs "" [] [] ] -- We're stuck here.
     ([],usablewfs)  -> concatMap (\wf -> let
-        Just (therule,results,change) = advancedRule (collapse wf)
+        (therule,results,change) = fromJust $ advancedRule (collapse wf)
         rest = delete wf wfs
         tss = [ Node (nub . sort $ mapMaybe (applyW change) rest ++ newwfs) "" [] [] | newwfs <- map (map $ weightOf wf) results ]
       in extensions (Node wfs therule [wf] tss)) usablewfs
     (usablewfs,_) -> concatMap (\wf -> let
-        Just (therule,results,change) = simpleRule (collapse wf)
+        (therule,results,change) = fromJust $ simpleRule (collapse wf)
         rest = delete wf wfs
         tss = [ Node (nub . sort $ mapMaybe (applyW change) rest ++ newwfs) "" [] [] | newwfs <- map (map $ weightOf wf) results ]
       in extensions (Node wfs therule [wf] tss)) usablewfs

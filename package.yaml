@@ -1,4 +1,4 @@
-name:                Logic
+name:                modal-tableau-interpolation
 version:             0.1.0.1
 synopsis:            Propositional, Modal and Propositional Dynamic Logic.
 description:         n/a
@@ -50,7 +50,7 @@ executables:
       - deepseq
       - file-embed
       - scotty
-      - Logic
+      - modal-tableau-interpolation
       - text
       - warp
       - js-jquery >= 3
@@ -60,7 +60,7 @@ executables:
     main: example.hs
     dependencies:
       - base >= 4.8 && < 5
-      - Logic
+      - modal-tableau-interpolation
 
 tests:
   propositional:
@@ -71,7 +71,7 @@ tests:
       - base >= 4.7 && < 5
       - hspec
       - QuickCheck
-      - Logic
+      - modal-tableau-interpolation
   basicmodal:
     source-dirs:
       - test
@@ -80,7 +80,7 @@ tests:
       - base >= 4.7 && < 5
       - hspec
       - QuickCheck
-      - Logic
+      - modal-tableau-interpolation
   pdl:
     source-dirs:
       - test
@@ -89,4 +89,4 @@ tests:
       - base >= 4.7 && < 5
       - hspec
       - QuickCheck
-      - Logic
+      - modal-tableau-interpolation
