@@ -404,7 +404,7 @@ tkSuccessorsAt tj tk pth =
         [] -- no actives??
         (tkSuccessorsAt tj tk (pth ++ [k]))
       | let (Node _ _ _ _ _ _ z1_zn) = at tj $ head $ tOfTriangle tj y -- CHOICE!
-      , (k, childT) <- zip [0,1] z1_zn
+      , (k, childT) <- zip [0..] z1_zn
       , let z = rightsOf (wfsOf childT) ]
   Nothing -> error $ "No type given in TK" ++ ppTabStr n
   where
@@ -416,7 +416,7 @@ tkSuccessorsAt tj tk pth =
 -- This is <, transitive closure of ◁.
 allSuccsOf :: TableauxIP -> [(Path, TableauxIP)]
 allSuccsOf (Node _ _ _ _ _ _ tks) = nexts ++ laters where
-  nexts = zip [[0],[1]] tks
+  nexts = zip (map return [0..]) tks
   laters = [ (i:path,suc)
            | ([i],tk) <- nexts
            , (path,suc) <- allSuccsOf tk ]
@@ -472,7 +472,7 @@ ipFor tj tk pth
   | null s1_sn = top -- all other end nodes get I(t):=1.
   | length s1_sn == 1 && a_prog /= Test top = Box a_prog (ipFor tj tk (pth ++ [0])) -- QUESTION: a_prog might not be in vocab!?
   | otherwise = multicon $ [ ipFor tj tk $ pth ++ [k]
-                           | (k,_) <- zip [0,1] (childrenOf (tk `at` pth)) ]
+                           | (k,_) <- zip [0..] (childrenOf (tk `at` pth)) ]
   where
     n@(Node t_wfs _ t_mtyp _ _ _ s1_sn) = tk `at` pth -- NOTE: n≤2
     ((a_prog, _):_) = canonProgStep tj tk n
@@ -484,7 +484,7 @@ annotateTk tj tk = annotateInside [] where
     let n = tk `at` pth
     in n { mipOf = Just (ipFor tj tk pth)
          , cpOf = map (toString . fst) (canonProgStep tj tk n)
-         , childrenOf = [ annotateInside (pth ++ [k]) | (k,_) <- zip [0,1] (childrenOf n) ]  }
+         , childrenOf = [ annotateInside (pth ++ [k]) | (k,_) <- zip [0..] (childrenOf n) ]  }
 
 -- ** Tools for the interpolant-is-an-interpolant proof
 
