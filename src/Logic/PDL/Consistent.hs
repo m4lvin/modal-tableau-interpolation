@@ -2,9 +2,11 @@
 
 module Logic.PDL.Consistent where
 
+import Data.List
 import Data.Maybe
 import Data.Containers.ListUtils (nubOrd)
 
+import Logic.Internal
 import Logic.PDL
 import Logic.PDL.Loaded
 import Logic.PDL.Prove.Tree
@@ -75,10 +77,10 @@ tabToMod t@(Node wfs _ _ _ _) = Just (KrM ws rl, actual) where
   connectionsFor prg = [ (fs,gs) | fs <- map fst ws
                                  , gs <- map fst ws
                                  , all (`elem` gs) (mapMaybe (projection prg) fs)
-                                 -- We only add outgoing arrows if `fs` contains some `prg` diamond.
+                                 -- We only add outgoing arrows if `fs` contains some diamond.
                                  -- This is not needed for correctness but makes the model nicer.
-                                 , not . null $ [ () | Neg (Box (Ap prg') _) <- fs
-                                                     , prg == prg' ]
+                                 , not . null $ [ () | Neg (Box (Ap _prg) _) <- fs ]
+                                 -- QUESTION: adding `prg == _prg` here should be sound, but breaks?
                                  ]
   actual :: [Form]
   actual = case filter consistent (filter containsRoot $ pathSetsOf t) of
@@ -98,3 +100,16 @@ toIntModel (KrM ws rl, oldActual) =
     myMapPair (w, w') = (myMap w, myMap w')
     mapping = zip ws [0..]
     worldMap = zip (map fst ws) [0..]
+
+-- | Convert a model by mapping a function over the worlds.
+-- May yield wrong/silly results if the function is not injective.
+convertModel :: (a -> b) -> (Model a, a) -> (Model b, b)
+convertModel f (KrM ws rl, oldActual) = (KrM newWs newRl, f oldActual)
+  where
+    newWs = [ (f w, prps) | (w,prps) <- ws ]
+    newRl = [ (prg, map myMapPair prel) | (prg, prel) <- rl ]
+    myMapPair (w, w') = (f w, f w')
+
+-- | Convert a model from lists of formulas to strings as worlds.
+toStringModel :: (Model [Form], [Form]) -> (Model String, String)
+toStringModel = convertModel (intercalate "," . map toString)

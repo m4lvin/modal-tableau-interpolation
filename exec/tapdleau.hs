@@ -31,7 +31,7 @@ import Logic.Internal
 import Logic.PDL.Parse
 import Logic.PDL.Prove.Tree
 import Logic.PDL.Interpolation.ProofTree
-import Logic.PDL.Consistent as PDLCOns
+import Logic.PDL.Consistent as PDLCons
 
 main :: IO ()
 main = do
@@ -250,7 +250,7 @@ drawLimit = 100
 counterModelInfo :: Form -> Tableaux -> String
 counterModelInfo pdlF t =
   let (msg, state, cm) =
-        case PDLCOns.tabToMod t of
+        case PDLCons.tabToMod t of
           Nothing                -> ("could not be found!", "error", Nothing)
           Just m | m |= pdlF     -> ("found but does NOT falsify the given formula!", "error", Just m)
                  | generatedSubmodel m |= pdlF -> ("found but generated submodel is wrong!", "error", Just m)
@@ -262,7 +262,7 @@ counterModelInfo pdlF t =
       , "<summary class='" ++ state ++ "'>Counter model " ++ msg ++ "</summary>"
       , maybe "" ((\m -> if length (worldsOf (fst m)) > drawLimit
                         then "This model has " ++ show (length (worldsOf (fst m))) ++ " worlds, will not draw more than " ++ show drawLimit ++"."
-                        else (svg . PDLCOns.toIntModel) m) . generatedSubmodel) cm
+                        else (svg . PDLCons.toIntModel) m) . generatedSubmodel) cm
       , "<p>Figure above shows the generated submodel. Code below shows the original with integer-worlds and formula-set-worlds.</p>"
       , "<pre style='white-space: pre-wrap;'>", show (fmap toIntModel cm), "</pre>"
       , "<pre style='white-space: pre-wrap;'>", show cm, "</pre>"

@@ -305,7 +305,7 @@ val m w = case lookup w (worldsOf m) of
   Just truths -> truths
   Nothing     -> error $ "Could not find world " ++ show w ++ " in this model:\n" ++ show m
 
-rel :: (Show a, Eq a) => Model a -> Atom -> a -> [a]
+rel :: Eq a => Model a -> Atom -> a -> [a]
 rel m pr w = case lookup pr (progsOf m) of
   Just rl -> map snd $ filter ((== w) . fst ) rl
   Nothing -> [] -- assume that non-mentioned program has an empty relation!
@@ -321,15 +321,15 @@ instance (Eq a, Ord a, Show a) => DispAble (Model a) where
                                         (rel m ap w)) (progsOf m)
           ) (worldsOf m)
 
-instance (Eq a, Ord a, Show a) => DispAble (Model a, a) where
+instance (Eq a, Ord a, Stringable a) => DispAble (Model a, a) where
   toGraph (m, actual) =
     mapM_ (\(w,props) -> do
-                        node (show w) [shape $ if w == actual then DoubleCircle else Circle
-                                      , toLabel $ show w ++ ":" ++ ppAts props]
+                        node (toString w) [shape $ if w == actual then DoubleCircle else Circle
+                                      , toLabel $ toString w ++ ":" ++ ppAts props]
                         mapM_ (\(ap,_) -> mapM_ (\w' -> if w `elem` rel m ap w'
-                                                      then do when (w < w') (edge (show w) (show w') [ edgeEnds Both, toLabel ap ])
-                                                              when (w == w') (edge (show w) (show w') [ toLabel ap ])
-                                                      else edge (show w) (show w') [ toLabel ap ] )
+                                                      then do when (w < w') (edge (toString w) (toString w') [ edgeEnds Both, toLabel ap ])
+                                                              when (w == w') (edge (toString w) (toString w') [ toLabel ap ])
+                                                      else edge (toString w) (toString w') [ toLabel ap ] )
                                         (rel m ap w)) (progsOf m)          ) (worldsOf m)
 
 -- | Evaluate formula on a pointed model

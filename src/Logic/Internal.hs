@@ -43,6 +43,12 @@ class Stringable a where
   pp :: a -> IO ()
   pp = putStrLn . toString
 
+instance Stringable Int where
+  toString = show
+
+instance Stringable String where
+  toString = id
+
 instance (Stringable a, Stringable b) => Stringable (a, Maybe b) where
   toString (x, Just  y) = toString x ++ " ^ " ++ toString y
   toString (x, Nothing) = toString x
