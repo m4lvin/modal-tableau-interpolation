@@ -251,22 +251,22 @@ counterModelInfo :: Form -> Tableaux -> String
 counterModelInfo pdlF t =
   let (msg, state, cm) =
         case PDLCOns.tabToMod t of
-          Nothing                                   -> ("Could not find a countermodel!", "error", Nothing)
-          Just m | PDLCOns.toIntModel m |= Neg pdlF -> ("This model falsifies the given formula.", "success", Just m)
-                 | otherwise                        -> ("Wrong countermodel &mdash; does not falsify given formula", "error", Just m)
+          Nothing                -> ("could not be found!", "error", Nothing)
+          Just m | m |= pdlF     -> ("found but does NOT falsify the given formula!", "error", Just m)
+                 | generatedSubmodel m |= pdlF -> ("found but generated submodel is wrong!", "error", Just m)
+                 | otherwise     -> ("found and it falsifies the given formula.", "success", Just m)
   in
     unlines $ map strOrErr
       [ "<br />"
-      , "<div align='center'>counter model:<br />"
-      , maybe "" (\m -> if length (worldsOf (fst m)) > drawLimit
+      , "<details>"
+      , "<summary class='" ++ state ++ "'>Counter model " ++ msg ++ "</summary>"
+      , maybe "" ((\m -> if length (worldsOf (fst m)) > drawLimit
                         then "This model has " ++ show (length (worldsOf (fst m))) ++ " worlds, will not draw more than " ++ show drawLimit ++"."
-                        else (svg . PDLCOns.toIntModel) m) cm
-      , "<pre>", show cm, "</pre>"
-      , "<pre>", show (fmap toIntModel cm), "</pre>"
-      , "<p style='align:center;' class='" ++ state ++ "'>"
-      , msg
-      , "</p>"
-      , "</div>" ]
+                        else (svg . PDLCOns.toIntModel) m) . generatedSubmodel) cm
+      , "<p>Figure above shows the generated submodel. Code below shows the original with integer-worlds and formula-set-worlds.</p>"
+      , "<pre style='white-space: pre-wrap;'>", show (fmap toIntModel cm), "</pre>"
+      , "<pre style='white-space: pre-wrap;'>", show cm, "</pre>"
+      , "</details>" ]
 
 strOrErr :: String -> String
 strOrErr str =

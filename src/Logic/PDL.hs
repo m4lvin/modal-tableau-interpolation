@@ -2,6 +2,7 @@
 
 module Logic.PDL where
 
+import Control.Arrow
 import Control.DeepSeq(NFData)
 import Control.Monad (when)
 import Data.List
@@ -279,7 +280,7 @@ testsOfProgram (Star p1) = testsOfProgram p1
 testsOfProgram (Test tf) = [tf] -- no sub-tests needed
 
 -- | The Fischer-Ladner Closure.
--- See for example BRV page
+-- See MB page 10 or Definition 4.79 in BRV.
 flClosure :: [Form] -> [Form]
 flClosure = fixpoint (\fs -> nub $ fs ++ concatMap extend fs) where
   extend Bot       = [Neg Bot]
@@ -364,6 +365,21 @@ lfpList f set = set ++ rest where
 
 globeval :: (Show a, Eq a) => Model a -> Form -> Bool
 globeval m f = all (\(w,_) -> eval (m,w) f) (worldsOf m)
+
+-- * Minimization
+
+generatedSubmodel :: (Ord a, Eq a) => (Model a, a) -> (Model a, a)
+generatedSubmodel (KrM oldWorlds oldProgs, cur) =
+  if cur `notElem` map fst oldWorlds
+    then error "Actual world is not in the model!"
+    else (KrM newWorlds newProgs, cur) where
+      newW = lfpList follow [cur] where
+        follow x = [ z
+                   | (_, links) <- oldProgs
+                   , (y,z) <- links
+                   , x == y ]
+      newProgs = map (second $ filter (\ (y,z) -> y `elem` newW && z `elem` newW)) oldProgs
+      newWorlds = filter ((`elem` newW) . fst) oldWorlds
 
 -- * Random generation
 

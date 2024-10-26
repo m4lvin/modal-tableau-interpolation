@@ -74,7 +74,12 @@ tabToMod t@(Node wfs _ _ _ _) = Just (KrM ws rl, actual) where
   connectionsFor :: Atom -> [([Form],[Form])]
   connectionsFor prg = [ (fs,gs) | fs <- map fst ws
                                  , gs <- map fst ws
-                                 , all (`elem` gs) (mapMaybe (projection prg) fs)]
+                                 , all (`elem` gs) (mapMaybe (projection prg) fs)
+                                 -- We only add outgoing arrows if `fs` contains some `prg` diamond.
+                                 -- This is not needed for correctness but makes the model nicer.
+                                 , not . null $ [ () | Neg (Box (Ap prg') _) <- fs
+                                                     , prg == prg' ]
+                                 ]
   actual :: [Form]
   actual = case filter consistent (filter containsRoot $ pathSetsOf t) of
     [] -> error "No pathSet for given tableau?"
