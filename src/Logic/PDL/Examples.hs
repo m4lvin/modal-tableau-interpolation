@@ -75,6 +75,7 @@ someValidImplications =
   , "[(a u b)*]p -> [(a u b*)*]p"
   , "[(a u b)*]p -> [(a* u b)*]p"
   , "p & [a][(a ∪ b)*]p & [b][(a ∪ b)*]p -> [b][b*][(a ∪ b*)*]p"
+  , "(p ∧ [a][a*](p ∨ [a*]p)) -> [a][a*]p" -- non-trivial test in interpolant
   ]
 
 -- | Formulas that should *not* be provable.

@@ -127,8 +127,14 @@ main = hspec $ do
     prop "random nice implications"
       (fgTest $ \f g -> isNice (f,g) ==> testIPgen interpolate (f,g))
 
-  prop "CONJECTURE: interpolants never contain non trivial tests" $
-    withMaxSuccess 2000 $ fgTest $ \f g -> provable (f `imp` g) ==> not $ containsNonTrivTest (fromJust $ interpolate (f,g))
+  -- prop "CONJECTURE: interpolants never contain non trivial tests" $
+  --   fgTest $ \f g -> provable (f `imp` g) ==> not $ containsNonTrivTest (fromJust $ interpolate (f,g))
+  -- This conjecture has been falsified with the following example.
+  describe "Examples with non-trivial test" $
+    let f = fromString "(p ∧ [a][a*](p ∨ [a*]p))"
+        g = fromString "[a][a*]p"
+    in it (toString f ++ " -> " ++ toString g) $
+      provable (f `imp` g) && containsNonTrivTest (fromJust $ interpolate (f,g))
 
 timeLimit :: Int
 timeLimit = 100 * second where
