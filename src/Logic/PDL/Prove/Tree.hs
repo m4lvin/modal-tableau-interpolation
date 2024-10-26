@@ -40,7 +40,7 @@ allNodesOf End = []
 -- Note: head of this list is the immediate predecessor, last element is the root!
 type History = [([WForm],RuleName)]
 
-data RuleName = NoR | CloseR | NegR | ConR | NConR | LoadR | ModR | BoxR | DiaR | LDiaR | LpR Int
+data RuleName = NoR | CloseR | NegR | ConR | NConR | LoadR | ModR | BoxR | DiaR | LDiaR | LpR Int | FRep Int
   deriving (Eq,Ord,Show)
 
 -- | A *partial* list of the rule names.
@@ -60,6 +60,7 @@ ruleNames =
 
 instance Stringable RuleName where
   toString (LpR n) = "lpr " ++ show n
+  toString (FRep n) = "frep " ++ show n
   toString rln = case lookup rln (map (\(x,y) -> (y,x)) ruleNames) of
     Nothing -> error $ "unknown rule: " ++ show rln
     Just str -> str
@@ -92,8 +93,11 @@ instance DispAble Tableaux where
       node pref [shape PlainText, C.Label $ C.HtmlLabel $ HTML.Text $ htmlWForms wfs actives]
       case rule of
         LpR k -> do
-          -- draw "back" edge for loaded path repeats:
+          -- draw back edge with heart for loaded path repeats:
           edge pref (take (length pref - 2 * k) pref) [toLabel ("♡" :: String)]
+        FRep k ->
+          -- draw back edge with infinity for free repeats:
+          edge pref (take (length pref - 2 * k) pref) [toLabel ("∞" :: String)]
         _ -> do
           mapM_ (\(t,y') -> do
                     toGraph' (pref ++ show y' ++ ":") t
@@ -202,27 +206,43 @@ isClosedBy wfs
                 ++
                 [ wf | wf <- wfs, Neg f <- [unload (collapse wf)], f `elem` map (unload . collapse) wfs ]
 
--- | Loaded-path repeats are end nodes.
--- In MB this is extra condition 6 (page 25).
-isLoadedPathRep :: [WForm] -> History -> [Int]
-isLoadedPathRep wfsNow history =
+-- | (T1) Eery loaded-path repeat is a leaf.
+-- These leafs are considered closed.
+-- In MB this is one part of extra condition 6 (page 25).
+-- We do not include the criticality here, it is implied.
+isLoaPatRep :: [WForm] -> History -> [Int]
+isLoaPatRep wfsNow history =
   [ k
   |
   -- There is a predecessor
   (k, (wfsBefore, _)) <- zip [(1 :: Int) ..] history
   -- with the same set of formulas:
   , wfsNow == wfsBefore -- Note: nodes are always sorted, and partitions must match (page 40).
-  -- and the path since then is critical, i.e. (M) has been used: -- TODO: but ignore whether At is used for first node of path (= last list element) (Def 13)
-  , "M" `elem` map snd (take k history)
-  -- and if X is loaded, then the path from s to t is loaded:
-  , isLoadedNode wfsNow  `implies` all (isLoadedNode . fst) (take k history)
+  -- and the path from predecessor to here is loaded:
+  , all (isLoadedNode . fst) (take k history)
+  ]
+
+-- | (T2) Every free repeat is a leaf.
+-- These leaves are open and may not happen in a closed tableau.
+-- In MB this is one part of extra condition 6 (page 25).
+isFreeRep :: [WForm] -> History -> [Int]
+isFreeRep wfsNow history =
+  [ k
+  |
+  -- There is a predecessor
+  (k, (wfsBefore, _)) <- zip [(1 :: Int) ..] history
+  -- with the same set of formulas:
+  , wfsNow == wfsBefore -- Note: nodes are always sorted, and partitions must match (page 40).
+  -- and it is not loaded
+  , not (isLoadedNode wfsNow)
   ]
 
 extensions :: Tableaux -> [Tableaux]
 extensions End             = [End]
 extensions (Node wfs oldHistory NoR [] [])
   | not (null (isClosedBy wfs))             = [ Node wfs oldHistory CloseR (isClosedBy wfs) [End] ]
-  | not (null (isLoadedPathRep wfs oldHistory)) = [ Node wfs oldHistory (LpR (head (isLoadedPathRep wfs oldHistory))) [] [End] ]
+  | not (null (isFreeRep wfs oldHistory))   = [ Node wfs oldHistory (FRep (head (isFreeRep wfs oldHistory))) [] [End] ]
+  | not (null (isLoaPatRep wfs oldHistory)) = [ Node wfs oldHistory (LpR (head (isLoaPatRep wfs oldHistory))) [] [End] ]
   | null (whatshallwedo wfs)                = [ Node wfs oldHistory "" [] [] ] -- we are stuck!
   | otherwise =
       map (\ (wf,(ruleName,_,results,change)) ->
@@ -275,12 +295,12 @@ chooseRule moves
 -- "A tableau T is called closed iff all normal free end nodes of T are closed."
 isClosedTab :: Tableaux -> Bool
 isClosedTab End = False -- check must succeed above the End!
-isClosedTab (Node wfs _ _       _ [End]) | isLoadedNode wfs = True
-isClosedTab (Node _   _ "✘"    _ [End]) = True
-isClosedTab (Node _   _ (LpR _) _ [End]) = False -- loaded path repeat
-isClosedTab (Node _   _ rule    _ [End]) = error $ "rule " ++ toString rule ++ " should not create an End node!"
-isClosedTab (Node _   _ _       _ []   ) = False
-isClosedTab (Node _   _ _       _ ts   ) = all isClosedTab ts
+isClosedTab (Node _   _ (LpR  _) _ [End]) = True -- loaded-path repeats are closed
+isClosedTab (Node _   _ (FRep _) _ [End]) = False -- free repeats are not closed
+isClosedTab (Node _   _ "✘"     _ [End]) = True
+isClosedTab (Node _   _ rule     _ [End]) = error $ "rule " ++ toString rule ++ " should not create an End node!"
+isClosedTab (Node _   _ _        _ []   ) = False
+isClosedTab (Node _   _ _        _ ts   ) = all isClosedTab ts
 
 globalSearchLimit :: Int
 globalSearchLimit = 200 -- TODO: remove or adjust depending on formula size, see page 20 and 26

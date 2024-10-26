@@ -99,6 +99,7 @@ someNonValidities =
   , "[a]~p v [b]~q"  -- needs multi-diamond counter model
   , "~(~p ^ ~[a]~p ^ ~[b]~q)"
   , "p & [a][a]p -> [a*]p" -- broken while writing unfoldDiamondLoaded
+  , "[a*]¬[a]¬p -> p"
   ]
 
 -- | Instances of the Segerberg axioms.

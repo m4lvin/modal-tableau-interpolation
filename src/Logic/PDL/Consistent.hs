@@ -35,13 +35,15 @@ allDiamondTableauxFor fs =
 
 -- | Set of S_{X,Y} for a given T from M_0.
 -- Instead of finding the root and end node and everything in between,
--- we collect all formulas anywhere in the history of the end node.
+-- we collect all formulas anywhere in the history of open end nodes.
 pathSetsOf :: Tableaux -> [[Form]]
 -- local end node because open / no children:
 pathSetsOf n@(Node _ _ _ _ []) = [ localForms n ]
--- local end node because loaded-path-repeat
-pathSetsOf n@(Node _ _ (LpR _) _ [End]) = [ localForms n ]
--- local end node because atomic rule is used:
+-- local end node because loaded-path-repeat, closed and not needed:
+pathSetsOf (Node _ _ (LpR _) _ [End]) = [ ]
+-- local end node because free repeat, open and needed:
+pathSetsOf n@(Node _ _ (FRep _) _ [End]) = [ localForms n ]
+-- local end node because (L+) and then (M) rule is used:
 pathSetsOf n@(Node _ _ "L+" _ ts) = [ localForms n | not (all (null . pathSetsOf) ts) ]
 -- anywhere else, recurse until we get an open end node:
 pathSetsOf (Node _ _ _ _ ts@(_:_)) = concatMap pathSetsOf ts
