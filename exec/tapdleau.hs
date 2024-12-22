@@ -42,7 +42,7 @@ main = do
     get ""  $ redirect "index.html"
     get "/" $ redirect "index.html"
     get "/index.html" . html . TL.fromStrict $ embeddedFile "index.html"
-    get "/jquery.js"  . html . TL.fromStrict $ embeddedFile "jquery.js"
+    get "/jquery.js"  . (\t -> addHeader "Content-Type" "text/javascript" >> html t) . TL.fromStrict $ embeddedFile "jquery.js"
     post "/prove" $ do
       logic <- param "logic"
       textinput <- param "textinput"
