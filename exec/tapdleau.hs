@@ -8,7 +8,7 @@ import Control.Exception (evaluate, catch, SomeException)
 import Data.Containers.ListUtils (nubOrd)
 import Data.FileEmbed
 import Data.List (intercalate, sort)
-import Data.Maybe (fromMaybe, fromJust, isJust)
+import Data.Maybe (fromMaybe, fromJust)
 import Web.Scotty
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as E
@@ -78,21 +78,20 @@ main = do
               closed = isClosedTab t
               ti = fillAllIPs $ tiOf $ toEmptyTabIP t
               tWithInt = keepInterpolating ti
-              interpolated = isJust (mipOf tWithInt)
               ipcheck = checkCorrectIPfor (fromJust (mipOf tWithInt)) tWithInt
               correctIP = ipcheck == (True,True,True)
-              message = case (closed,interpolated,correctIP) of
+              message = case (closed,mipOf tWithInt,correctIP) of
                 (False,_    ,_    ) -> "NOT proved. <style> #output { border-color: orange; } </style>\n"
-                (True ,False,_    ) -> "PROVED, but NO interpolant. <style> #output { border-color: red; } </style>\n"
-                (True ,True ,False) -> "PROVED but WRONG interpolant "++ show ipcheck ++ ". <style> #output { border-color: red; } </style>\n"
-                (True ,True ,True ) -> "PROVED and CORRECT interpolant. <style> #output { border-color: green; } </style>\n"
+                (True ,Nothing,_    ) -> "PROVED, but NO interpolant. <style> #output { border-color: red; } </style>\n"
+                (True ,Just ip,False) -> "PROVED but WRONG interpolant: " ++ toString ip ++ show ipcheck ++ ". <style> #output { border-color: red; } </style>\n"
+                (True ,Just ip,True ) -> "PROVED and CORRECT interpolant: " ++ toString (simplify ip) ++ " <style> #output { border-color: green; } </style>\n"
           in
           [ "<pre>Parsed input: " ++ toString pdlF  ++ "</pre>"
           , message
           , "<div align='center'>" ++ svg t ++ "</div>"
           , if closed
             then interpolateInfo ti
-            else counterModelInfo pdlF t
+            else "Search for counter model is currently disabled." -- counterModelInfo pdlF t -- TODO, see Consistent.hs
           ]
 
 embeddedFile :: String -> T.Text

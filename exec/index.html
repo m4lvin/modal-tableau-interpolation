@@ -33,6 +33,30 @@
           color: red;
           font-weight:bold;
       }
+      #running {
+          color: orange;
+          display: none;
+          float: right;
+      }
+      details {
+          margin-top:1em;
+          border: 1px solid #ddd;
+          border-radius:2px;
+          padding-left:5px;
+      }
+      summary h3 {
+          display:inline;
+      }
+      .linker {
+          color:gray;
+          float:right;
+          cursor:pointer;
+      }
+      .linker:active {
+          color: black;
+          text-shadow: 1px 2px #666;
+          transform: translateY(2px) translateX(2px);
+      }
     </style>
     <link rel="icon" href="data:,">
   </head>
@@ -42,7 +66,7 @@
       <a href="https://github.com/m4lvin/modal-tableau-interpolation">modal-tableau-interpolation</a> (<code>borzechowski</code> branch).
     </p>
     <p>
-      Please write your own formula below or
+      Please enter a formula below or
       <label for="examples">choose an example:</label>
       <select name="examples" id="examples">
         <optgroup label="PDL">
@@ -56,6 +80,7 @@
         <option value="PDL">~[(a u ?p)*]q -> ~[a*]q</option><!-- Borzechowski page 29 -->
         <option value="PDL">[(a; a)*](p ^ [a; (b u c)]F) -> [a*](p v [c]q)</option><!-- Borzechowski page 42 -->
         <option value="PDL">~[a*](p v [c]q) -> ~[(a; a)*](p ^ [a; (b u c)]F)</option><!-- Borzechowski page 42 -->
+        <option value="PDL">(p ∧ [a][a*](p ∨ [a*]p)) -> [a][a*]p</option><!-- non-trivial test in interpolant -->
         <!-- below are not valid -->
         <option value="PDL">[a*]p -> [a* ; b*]p</option>
         <option value="PDL">[a*]&lt;a&gt;p</option>
@@ -76,12 +101,13 @@
       <input type="radio" id="PDL" name="logic" value="PDL" checked="checked" onclick="prove()" /><label for="PDL">PDL</label>
       <input type="radio" id="K" name="logic" value="K" onclick="prove()" /><label for="K">K</label>
       <input id="runbutton" type="submit" value="Try to prove this!" onclick="prove()" />
+      <div id="running">running</div>
     </div>
     <div id="output"></div>
     <script>
       "use strict";
       function prove() {
-          $('#output').html("");
+          $('#running').css("display", "block");
           $.ajax({
               type: "POST",
               url: "prove",
@@ -89,12 +115,14 @@
               success:
               function(data,textStatus,jqXHR) {
                   $('#output').html(data);
+                  $('#running').css("display", "none");
                   // MathJax.typesetPromise();
               },
               timeout: 3000,
               error:
               function(jqXHR,textStatus,errorThrown) {
                   $('#output').html("<pre>" + textStatus + " " + errorThrown + "</pre>" );
+                  $('#running').css("display", "none");
               }
           });
       }
@@ -108,6 +136,13 @@
           $('input:radio[name="logic"]').val([ $('#examples option:selected').val() ]);
           prove();
       });
+      const hash = window.location.hash.substring(1);
+      if (hash) {
+          $('#textinput').val(decodeURIComponent(hash));
+          $('#runbutton').click();
+          // remove hash?
+          // history.pushState("", document.title, window.location.pathname + window.location.search);
+      }
       </script>
   </body>
 </html>
