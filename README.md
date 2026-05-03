@@ -42,13 +42,12 @@ See [the test file](test/basicmodal.hs) for more examples, including interpolati
 
 ### PDL
 
-Public web interface: <https://w4eg.de/malvin/illc/tapdleau/>
+Public web interface: <https://malv.in/tapdleau>
 
 To run the web interface locally do `stack build` and then `stack exec tapdleau`.
 The port used (3000 by default) can be set with `PORT=3333 stack exec tapdleau`.
-For developing you can recompile and restart the web interface on any code changes Like this:
-
-    stack build --file-watch --exec "bash -c \"pkill tapdleau; stack exec tapdleau &\""
+The URL path used (`/` by default) can be set with `WEBPATH=/whatever/mytapdleau/ stack exec tapdleau`.
+For developing use `make watchweb` to recompile and restart the web interface on any code changes.
 
 ## Automated Tests
 
