@@ -36,14 +36,15 @@ main :: IO ()
 main = do
   putStrLn "taPDLeau -- https://github.com/m4lvin/modal-tableau-interpolation"
   port <- fromMaybe 3000 . (readMaybe =<<) <$> lookupEnv "PORT"
+  path <- fromMaybe "/" <$> lookupEnv "WEBPATH"
   putStrLn $ "Please open this link: http://127.0.0.1:" ++ show port ++ "/index.html"
   let mySettings = Options 1 (setHost "127.0.0.1" $ setPort port defaultSettings)
+  let index = html . TL.fromStrict $ embeddedFile "index.html"
   scottyOpts mySettings $ do
-    get ""  $ redirect "index.html"
-    get "/" $ redirect "index.html"
-    get "/index.html" . html . TL.fromStrict $ embeddedFile "index.html"
-    get "/jquery.js"  . (\t -> addHeader "Content-Type" "text/javascript" >> html t) . TL.fromStrict $ embeddedFile "jquery.js"
-    post "/prove" $ do
+    get (capture path) index
+    get (capture $ path ++ "index.html") index
+    get (capture $ path ++ "jquery.js") . (\t -> addHeader "Content-Type" "text/javascript" >> html t) . TL.fromStrict $ embeddedFile "jquery.js"
+    post (capture $ path ++ "prove") $ do
       logic <- param "logic"
       textinput <- param "textinput"
       let parseResult = if logic == ("K" :: String)
