@@ -5,6 +5,7 @@ description:         n/a
 maintainer:          Malvin Gattinger <malvin@w4eg.de>
 license:             GPL-3
 category:            Logic
+spec-version:        0.36.0
 
 ghc-options:        -Wall -Wno-incomplete-uni-patterns
 
