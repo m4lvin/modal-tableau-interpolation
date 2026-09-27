@@ -42,7 +42,7 @@ See [the test file](test/basicmodal.hs) for more examples, including interpolati
 
 ### PDL
 
-Public web interface: <https://malv.in/tapdleau>
+Public web interface: <https://tools.malv.in/tapdleau>
 
 To run the web interface locally do `stack build` and then `stack exec tapdleau`.
 The port used (3000 by default) can be set with `PORT=3333 stack exec tapdleau`.
