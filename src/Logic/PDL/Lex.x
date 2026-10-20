@@ -20,6 +20,8 @@ tokens :-
   "]"               { \ p _ -> TokenCCB               p }
   "<"               { \ p _ -> TokenLA                p }
   ">"               { \ p _ -> TokenRA                p }
+  "⟨"               { \ p _ -> TokenLA                p }
+  "⟩"               { \ p _ -> TokenRA                p }
   -- Formulas:
   "Top"             { \ p _ -> TokenTop               p }
   "True"            { \ p _ -> TokenTop               p }
@@ -42,7 +44,9 @@ tokens :-
   "=>"              { \ p _ -> TokenImpl              p }
   "->"              { \ p _ -> TokenImpl              p }
   "-->"             { \ p _ -> TokenImpl              p }
+  "→"               { \ p _ -> TokenImpl              p }
   "iff"             { \ p _ -> TokenEqui              p }
+  "↔"               { \ p _ -> TokenEqui              p }
   "<->"             { \ p _ -> TokenEqui              p }
   "<-->"            { \ p _ -> TokenEqui              p }
   "AND"             { \ p _ -> TokenCon               p }
