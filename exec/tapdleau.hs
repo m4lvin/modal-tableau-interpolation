@@ -46,8 +46,8 @@ main = do
     get (capture $ path ++ "index.html") index
     get (capture $ path ++ "jquery.js") . (\t -> addHeader "Content-Type" "text/javascript" >> html t) . TL.fromStrict $ embeddedFile "jquery.js"
     post (capture $ path ++ "prove") $ do
-      logic <- param "logic"
-      textinput <- param "textinput"
+      logic <- formParam "logic"
+      textinput <- formParam "textinput"
       let parseResult = if logic == ("K" :: String)
                         then Left  (scanParseSafe parseK   textinput :: ParseResult BM.Form)
                         else Right (scanParseSafe parsePDL textinput :: ParseResult Logic.PDL.Form)
@@ -162,7 +162,7 @@ solveLowestLplus ti =
     -- If L+ is not on the right we need to flip the tableau — see `fillLowestMplus`.
     isOnRight = or [ True | (Right _, _) <- activesOf mstartOriginal ]
     mstart = if isOnRight then mstartOriginal else flipTab mstartOriginal
-    tj = tjOf $ head $ childrenOf mstart
+    tj = tjOf $ case childrenOf mstart of [] -> error "childrenOf mstart == []"; (x:_) -> x
     (y1, y2) = (leftsOf $ wfsOf tj, rightsOf $ wfsOf mstart)
     rightComponents = nubOrd $ map (\pth -> rightsOf (wfsOf (tj `at` pth)) ) (allPathsIn tj)
     tk = tkOf tj
@@ -271,6 +271,6 @@ counterModelInfo pdlF t =
 
 strOrErr :: String -> String
 strOrErr str =
-  unsafePerformIO $ catch
+  unsafePerformIO $ Control.Exception.catch
       (evaluate (force str))
       (\e-> return $ "<pre>ERROR\n" ++ show (e :: SomeException) ++ "</pre>")
